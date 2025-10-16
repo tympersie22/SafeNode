@@ -41,6 +41,16 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
     }
   }, [isOpen]);
 
+  // Close on ESC
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, onClose])
+
   useEffect(() => {
     if (newPassword) {
       setPasswordStrength(calculatePasswordStrength(newPassword));
@@ -198,6 +208,7 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={onClose}
           />
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -205,15 +216,33 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 8 }}
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="key-rotation-title"
           >
-            <div className="bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-xl w-full max-w-md mx-4 border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-slate-800">Change Master Password</h2>
+            <div className="bg-white/90 backdrop-blur-md p-6 rounded-xl shadow-xl w-full max-w-md mx-4 border border-slate-200" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <motion.button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              whileTap={{ scale: 0.96 }}
+              aria-label="Back"
+              title="Back"
+              disabled={isRotating}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </motion.button>
+            <h2 id="key-rotation-title" className="text-lg font-bold text-slate-800">Change Master Password</h2>
+          </div>
           <motion.button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition-colors"
             whileTap={{ scale: 0.96 }}
             disabled={isRotating}
+            aria-label="Close dialog"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -221,24 +250,24 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
           </motion.button>
         </div>
 
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <div className="flex items-start">
-            <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-amber-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <div>
-              <h3 className="font-semibold text-amber-800">Important</h3>
-              <p className="text-sm text-amber-700 mt-1">
+              <h3 className="text-sm font-semibold text-amber-800">Important</h3>
+              <p className="text-xs text-amber-700 mt-1">
                 This will re-encrypt your entire vault with a new master key. Make sure you remember your new password!
               </p>
             </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Current Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
               Current Master Password
             </label>
             <div className="relative">
@@ -246,7 +275,7 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
                 type={showPasswords ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition ${
+                className={`w-full px-2.5 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition ${
                   errors.currentPassword ? 'border-red-300' : 'border-slate-300'
                 }`}
                 placeholder="Enter current password"
@@ -254,13 +283,13 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
               />
             </div>
             {errors.currentPassword && (
-              <p className="text-red-600 text-sm mt-1">{errors.currentPassword}</p>
+              <p className="text-red-600 text-xs mt-1">{errors.currentPassword}</p>
             )}
           </div>
 
           {/* New Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
               New Master Password
             </label>
             <div className="relative">
@@ -268,7 +297,7 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
                 type={showPasswords ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition ${
+                className={`w-full px-2.5 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition ${
                   errors.newPassword ? 'border-red-300' : 'border-slate-300'
                 }`}
                 placeholder="Enter new password"
@@ -280,8 +309,8 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
             {newPassword && (
               <div className="mt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-slate-600">Password Strength</span>
-                  <span className={`text-sm font-medium ${
+                  <span className="text-xs text-slate-600">Password Strength</span>
+                  <span className={`text-xs font-medium ${
                     passwordStrength.score < 2 ? 'text-red-600' :
                     passwordStrength.score < 4 ? 'text-yellow-600' : 'text-green-600'
                   }`}>
@@ -369,7 +398,7 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
             <motion.button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors font-medium"
+              className="btn btn-md btn-outline"
               whileTap={{ scale: 0.98 }}
               disabled={isRotating}
             >
@@ -378,7 +407,7 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
             <motion.button
               type="submit"
               disabled={isRotating || !passwordStrength.isValid || currentPassword === newPassword}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center"
+              className="btn btn-md btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               whileTap={{ scale: 0.98 }}
             >
               {isRotating ? (

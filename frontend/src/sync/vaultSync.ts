@@ -9,7 +9,8 @@ import { arrayBufferToBase64, base64ToArrayBuffer } from '../crypto/crypto';
 export interface ServerVaultResponse {
   encryptedVault: string;
   iv: string;
-  version?: number;
+  salt: string;
+  version: number;
 }
 
 export interface SyncResult {
@@ -30,28 +31,57 @@ export class VaultSync {
   /**
    * Fetch vault data from server
    */
-  private async fetchServerVault(): Promise<ServerVaultResponse | null> {
+  private async fetchServerVault(currentVersion?: number): Promise<{
+    vault: ServerVaultResponse | null;
+    upToDate: boolean;
+    version: number;
+  }> {
     try {
-      const [saltResponse, vaultResponse] = await Promise.all([
-        fetch(`${this.baseUrl}/api/user/salt`),
-        fetch(`${this.baseUrl}/api/vault/latest`)
-      ]);
+      const query = typeof currentVersion === 'number'
+        ? `?since=${encodeURIComponent(currentVersion)}`
+        : '';
 
-      if (!saltResponse.ok || !vaultResponse.ok) {
+      const vaultResponse = await fetch(`${this.baseUrl}/api/vault/latest${query}`);
+
+      if (!vaultResponse.ok) {
         throw new Error('Failed to fetch vault from server');
       }
 
-      const saltData = await saltResponse.json();
       const vaultData = await vaultResponse.json();
 
+      if (vaultData?.upToDate) {
+        return {
+          vault: null,
+          upToDate: true,
+          version: vaultData.version || currentVersion || 0
+        };
+      }
+
+      const saltResponse = await fetch(`${this.baseUrl}/api/user/salt`);
+
+      if (!saltResponse.ok) {
+        throw new Error('Failed to fetch vault salt from server');
+      }
+
+      const saltData = await saltResponse.json();
+
       return {
-        encryptedVault: vaultData.encryptedVault,
-        iv: vaultData.iv,
+        vault: {
+          encryptedVault: vaultData.encryptedVault,
+          iv: vaultData.iv,
+          salt: saltData.salt,
+          version: vaultData.version || Date.now()
+        },
+        upToDate: false,
         version: vaultData.version || Date.now()
       };
     } catch (error) {
       console.warn('Failed to fetch server vault:', error);
-      return null;
+      return {
+        vault: null,
+        upToDate: false,
+        version: currentVersion || 0
+      };
     }
   }
 
@@ -89,10 +119,11 @@ export class VaultSync {
       const localVault = await vaultStorage.getVault();
       
       // Try to fetch server vault
-      const serverVault = await this.fetchServerVault();
+      const fetchResult = await this.fetchServerVault(localVault?.version);
+      const serverVault = fetchResult.vault;
 
-      // If we're offline or server is unreachable
-      if (!serverVault) {
+      // If wewewe'reapos;reapos;re offline or server is unreachable
+      if (!serverVault && !fetchResult.upToDate) {
         if (localVault) {
           return {
             success: true,
@@ -109,12 +140,28 @@ export class VaultSync {
         }
       }
 
+      if (fetchResult.upToDate && localVault) {
+        return {
+          success: true,
+          vault: localVault,
+          action: 'local'
+        };
+      }
+
       // If no local vault, use server vault
       if (!localVault) {
+        if (!serverVault) {
+          return {
+            success: false,
+            vault: null,
+            error: 'Server vault unavailable',
+            action: 'error'
+          };
+        }
         const storedVault = vaultStorage.createVault(
           serverVault.encryptedVault,
           serverVault.iv,
-          '', // salt will be fetched separately
+          serverVault.salt,
           serverVault.version
         );
         await vaultStorage.storeVault(storedVault);
@@ -127,6 +174,14 @@ export class VaultSync {
       }
 
       // Compare versions
+      if (!serverVault) {
+        return {
+          success: true,
+          vault: localVault,
+          action: 'local'
+        };
+      }
+
       const needsServerUpdate = vaultStorage.needsSync(localVault.version, serverVault.version);
       const needsLocalUpdate = vaultStorage.needsSync(serverVault.version, localVault.version);
 
@@ -135,7 +190,7 @@ export class VaultSync {
         const updatedVault = vaultStorage.createVault(
           serverVault.encryptedVault,
           serverVault.iv,
-          localVault.salt, // Keep existing salt
+          serverVault.salt || localVault.salt,
           serverVault.version
         );
         await vaultStorage.storeVault(updatedVault);
@@ -186,7 +241,8 @@ export class VaultSync {
    * Force sync from server (overwrites local)
    */
   async forceServerSync(): Promise<SyncResult> {
-    const serverVault = await this.fetchServerVault();
+    const fetchResult = await this.fetchServerVault();
+    const serverVault = fetchResult.vault;
     
     if (!serverVault) {
       return {
@@ -201,7 +257,7 @@ export class VaultSync {
     const storedVault = vaultStorage.createVault(
       serverVault.encryptedVault,
       serverVault.iv,
-      localVault?.salt || '', // Keep existing salt if available
+      serverVault.salt || localVault?.salt || '',
       serverVault.version
     );
 
@@ -257,12 +313,15 @@ export class VaultSync {
     isOnline: boolean;
   }> {
     const localVault = await vaultStorage.getVault();
-    const serverVault = await this.fetchServerVault();
+    const fetchResult = await this.fetchServerVault(localVault?.version);
+    const serverVault = fetchResult.vault;
     
     return {
-      needsSync: serverVault ? vaultStorage.needsSync(localVault?.version || 0, serverVault.version || 0) : false,
+      needsSync: serverVault
+        ? vaultStorage.needsSync(localVault?.version || 0, serverVault.version || 0)
+        : !fetchResult.upToDate,
       localVersion: localVault?.version || 0,
-      serverVersion: serverVault?.version || 0,
+      serverVersion: serverVault?.version || fetchResult.version || 0,
       isOnline: vaultStorage.isOnline()
     };
   }

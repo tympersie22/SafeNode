@@ -3,14 +3,33 @@ import cors from '@fastify/cors'
 import { webcrypto, randomBytes } from 'crypto'
 import argon2 from 'argon2'
 import { TextEncoder } from 'util'
+import fetch from 'node-fetch'
 
 const server = Fastify({ logger: true })
 
 // Will be generated at startup to allow immediate unlock with password "demo-password"
 let demoSaltB64 = ''
-let demoBlob = {
+let demoBlob: {
+  iv: string;
+  encryptedVault: string;
+  version: number;
+} = {
   iv: '',
-  encryptedVault: ''
+  encryptedVault: '',
+  version: Date.now()
+}
+const demoPasskeys: Array<{
+  id: string;
+  rawId?: string;
+  transports?: string[];
+  signCount?: number;
+  friendlyName?: string;
+  createdAt: number;
+}> = []
+
+const base64Url = (buffer: ArrayBuffer | Buffer): string => {
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer as ArrayBuffer)
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 let currentSaltB64: string | null = null
 
@@ -96,7 +115,8 @@ async function generateDemoVault (): Promise<void> {
     currentSaltB64 = demoSaltB64
     demoBlob = {
       iv: arrayBufferToBase64(iv.buffer),
-      encryptedVault: arrayBufferToBase64(ciphertext)
+      encryptedVault: arrayBufferToBase64(ciphertext),
+      version: Date.now()
     }
   } catch (err) {
     console.error('Error generating demo vault:', err)
@@ -109,6 +129,13 @@ server.get('/api/user/salt', async (req, reply) => {
 })
 
 server.get('/api/vault/latest', async (req, reply) => {
+  const query = req.query as { since?: string }
+  const since = query?.since ? Number(query.since) : undefined
+
+  if (since && !Number.isNaN(since) && demoBlob.version && since >= demoBlob.version) {
+    return { upToDate: true, version: demoBlob.version }
+  }
+
   return demoBlob
 })
 
@@ -120,7 +147,8 @@ server.post('/api/vault', async (req, reply) => {
     if (typeof encryptedVault !== 'string' || typeof iv !== 'string') {
       return reply.code(400).send({ error: 'invalid_payload' })
     }
-    demoBlob = { encryptedVault, iv }
+    const nextVersion = typeof body?.version === 'number' ? body.version : Date.now()
+    demoBlob = { encryptedVault, iv, version: nextVersion }
     if (typeof salt === 'string' && salt.length > 0) {
       currentSaltB64 = salt
     }
@@ -149,7 +177,7 @@ server.post('/api/vault/entry', async (req, reply) => {
     demoBlob = { 
       encryptedVault, 
       iv,
-      version: version || Date.now()
+      version: typeof version === 'number' ? version : Date.now()
     }
     
     return { 
@@ -178,7 +206,7 @@ server.put('/api/vault/entry/:id', async (req, reply) => {
     demoBlob = { 
       encryptedVault, 
       iv,
-      version: version || Date.now()
+      version: typeof version === 'number' ? version : Date.now()
     }
     
     return { 
@@ -207,7 +235,7 @@ server.put('/api/vault/entry/:id', async (req, reply) => {
       demoBlob = { 
         encryptedVault, 
         iv,
-        version: version || Date.now()
+        version: typeof version === 'number' ? version : Date.now()
       }
       
       return { 
@@ -220,6 +248,113 @@ server.put('/api/vault/entry/:id', async (req, reply) => {
       return reply.code(500).send({ error: 'server_error' })
     }
   })
+
+// Passkey / WebAuthn demo endpoints
+server.post('/api/passkeys/register/options', async (req, reply) => {
+  const challenge = randomBytes(32)
+  const rpId = req.hostname || 'localhost'
+
+  return reply.send({
+    challenge: base64Url(challenge),
+    rp: {
+      id: rpId,
+      name: 'SafeNode'
+    },
+    user: {
+      id: base64Url(Buffer.from('demo-user')),
+      name: 'demo@safenode.app',
+      displayName: 'SafeNode Demo'
+    },
+    pubKeyCredParams: [
+      { type: 'public-key', alg: -7 },
+      { type: 'public-key', alg: -257 }
+    ],
+    timeout: 60_000,
+    attestation: 'none',
+    authenticatorSelection: {
+      residentKey: 'preferred',
+      userVerification: 'preferred'
+    }
+  })
+})
+
+server.post('/api/passkeys/register/verify', async (req, reply) => {
+  const body = req.body as any
+  const credential = body?.credential
+  if (!credential?.id || !credential?.publicKey) {
+    return reply.code(400).send({ error: 'invalid_payload' })
+  }
+
+  const stored = {
+    id: credential.id,
+    rawId: credential.rawId,
+    transports: credential.transports || [],
+    signCount: credential.signCount || 0,
+    friendlyName: body?.friendlyName || credential.friendlyName || 'Passkey',
+    createdAt: Date.now()
+  }
+
+  const idx = demoPasskeys.findIndex(p => p.id === stored.id)
+  if (idx >= 0) {
+    demoPasskeys[idx] = stored
+  } else {
+    demoPasskeys.push(stored)
+  }
+
+  return { ok: true, passkey: stored }
+})
+
+server.get('/api/passkeys', async (_req, reply) => {
+  return reply.send({ passkeys: demoPasskeys })
+})
+
+server.delete('/api/passkeys/:id', async (req, reply) => {
+  const { id } = req.params as { id: string }
+  const before = demoPasskeys.length
+  for (let i = demoPasskeys.length - 1; i >= 0; i--) {
+    if (demoPasskeys[i].id === id) {
+      demoPasskeys.splice(i, 1)
+    }
+  }
+
+  if (demoPasskeys.length === before) {
+    return reply.code(404).send({ error: 'not_found' })
+  }
+
+  return { ok: true }
+})
+
+server.post('/api/passkeys/authenticate/options', async (req, reply) => {
+  const challenge = randomBytes(32)
+  const allowCredentials = demoPasskeys.map(pk => ({
+    id: pk.id,
+    type: 'public-key',
+    transports: pk.transports || []
+  }))
+
+  return reply.send({
+    challenge: base64Url(challenge),
+    timeout: 60_000,
+    rpId: req.hostname || 'localhost',
+    allowCredentials,
+    userVerification: 'preferred'
+  })
+})
+
+server.post('/api/passkeys/authenticate/verify', async (req, reply) => {
+  const body = req.body as any
+  const credentialId = body?.credential?.id
+  if (!credentialId) {
+    return reply.code(400).send({ error: 'invalid_payload' })
+  }
+
+  const exists = demoPasskeys.some(pk => pk.id === credentialId)
+  if (!exists) {
+    return reply.code(404).send({ error: 'passkey_not_found' })
+  }
+
+  return { ok: true }
+})
 
   // Breach monitoring via HIBP k-anonymity (range API)
   // Ref: https://haveibeenpwned.com/API/v3#SearchingPwnedPasswordsByRange
@@ -282,7 +417,22 @@ server.put('/api/vault/entry/:id', async (req, reply) => {
       const newSaltB64 = Buffer.from(newSalt).toString('base64')
 
       // Derive new key with new password and salt
-      const newKey = await deriveKey(newPassword, newSalt)
+      const newKeyRaw: Buffer = await argon2.hash(newPassword, {
+        type: argon2.argon2id,
+        salt: Buffer.from(newSalt),
+        timeCost: 3,
+        memoryCost: 64 * 1024,
+        parallelism: 1,
+        hashLength: 32,
+        raw: true
+      })
+      const aesKey = await webcrypto.subtle.importKey(
+        'raw',
+        newKeyRaw,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      )
       
       // Re-encrypt the existing vault data with new key
       const vaultData = {
@@ -325,11 +475,15 @@ server.put('/api/vault/entry/:id', async (req, reply) => {
       const vaultJson = JSON.stringify(vaultData)
       const iv = webcrypto.getRandomValues(new Uint8Array(12))
       
-      const encrypted = await encrypt(vaultJson, newKey, iv)
+      const encryptedBuffer = await webcrypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        aesKey,
+        new TextEncoder().encode(vaultJson)
+      )
       
       // Update demo blob with new encrypted data and salt
       demoBlob = {
-        encryptedVault: Buffer.from(encrypted).toString('base64'),
+        encryptedVault: Buffer.from(new Uint8Array(encryptedBuffer)).toString('base64'),
         iv: Buffer.from(iv).toString('base64'),
         version: Date.now()
       }

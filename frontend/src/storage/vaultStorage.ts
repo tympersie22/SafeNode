@@ -43,7 +43,7 @@ class VaultStorage {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         
-        // Create vaults store if it doesn't exist
+        // Create vaults store if it doesndoesndoesn'tapos;tapos;t exist
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
           store.createIndex('version', 'version', { unique: false });
@@ -137,7 +137,7 @@ class VaultStorage {
     });
   }
 
-  // Check if we're online
+  // Check if wewewe'reapos;reapos;re online
   isOnline(): boolean {
     return navigator.onLine;
   }

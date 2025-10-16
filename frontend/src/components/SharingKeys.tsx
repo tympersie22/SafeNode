@@ -78,8 +78,13 @@ const SharingKeys: React.FC<SharingKeysProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Sharing Keys</h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors" aria-label="Back" title="Back">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <h3 className="text-lg font-semibold text-slate-900">Sharing Keys</h3>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg" aria-label="Close dialog">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -91,9 +96,9 @@ const SharingKeys: React.FC<SharingKeysProps> = ({ isOpen, onClose }) => {
             <div className="text-sm font-medium text-slate-700">Public Key</div>
             <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-2 overflow-auto max-h-40">{pubJwk ? JSON.stringify(pubJwk, null, 2) : '— not set —'}</pre>
             <div className="flex gap-2">
-              <button onClick={handleGenerate} disabled={busy} className="px-3 py-2 bg-purple-600 text-white rounded-lg disabled:opacity-50">{busy ? 'Generating…' : 'Generate New'}</button>
-              <button onClick={handleExport} disabled={!pubJwk} className="px-3 py-2 border rounded-lg">Export Public</button>
-              <label className="px-3 py-2 border rounded-lg cursor-pointer">
+              <button onClick={handleGenerate} disabled={busy} className="btn btn-sm btn-primary disabled:opacity-50">{busy ? 'Generating…' : 'Generate New'}</button>
+              <button onClick={handleExport} disabled={!pubJwk} className="btn btn-sm btn-outline disabled:opacity-50">Export Public</button>
+              <label className="btn btn-sm btn-outline cursor-pointer">
                 Import Public
                 <input type="file" accept="application/json" className="hidden" onChange={handleImportPub} />
               </label>
@@ -103,7 +108,7 @@ const SharingKeys: React.FC<SharingKeysProps> = ({ isOpen, onClose }) => {
           <div className="space-y-2">
             <div className="text-sm font-medium text-slate-700">Private Key</div>
             <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-2 overflow-auto max-h-40">{privJwk ? JSON.stringify(privJwk, null, 2) : '— not set —'}</pre>
-            <label className="px-3 py-2 border rounded-lg inline-block cursor-pointer">
+            <label className="btn btn-sm btn-outline inline-block cursor-pointer">
               Import Private
               <input type="file" accept="application/json" className="hidden" onChange={handleImportPriv} />
             </label>
