@@ -3,7 +3,7 @@
  * Handles communication between frontend and Tauri backend
  */
 
-// Check if we're running in Tauri
+// Check if wewewe'reapos;reapos;re running in Tauri
 export const isTauri = () => {
   return typeof window !== 'undefined' && '__TAURI__' in window;
 };

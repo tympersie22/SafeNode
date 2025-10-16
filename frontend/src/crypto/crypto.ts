@@ -242,9 +242,13 @@ export async function generateTotpCode (base32Secret: string, timeStepSec: numbe
   view.setUint32(0, Math.floor(counter / 2 ** 32)) // high
 
   const keyData = base32ToBytes(base32Secret)
+  const keyBuffer = keyData.buffer.slice(
+    keyData.byteOffset,
+    keyData.byteOffset + keyData.byteLength
+  ) as ArrayBuffer
   const cryptoKey = await window.crypto.subtle.importKey(
     'raw',
-    keyData,
+    keyBuffer,
     { name: 'HMAC', hash: 'SHA-1' },
     false,
     ['sign']
