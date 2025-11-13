@@ -1,0 +1,24 @@
+{
+  "name": "safenode-desktop",
+  "version": "0.1.0",
+  "description": "SafeNode Desktop - Secure Password Manager",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:debug": "tauri build --debug",
+    "tauri": "tauri"
+  },
+  "keywords": [
+    "password-manager",
+    "security",
+    "encryption",
+    "desktop-app",
+    "tauri"
+  ],
+  "author": "SafeNode Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0"
+  }
+}
