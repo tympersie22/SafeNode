@@ -1,0 +1,194 @@
+// SafeNode Prisma Schema
+// Production-ready database schema for all core entities
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Can be changed to "mysql" or "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Account Model
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  passwordHash String @map("password_hash")
+  displayName String? @map("display_name")
+  emailVerified Boolean @default(false) @map("email_verified")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
+  
+  // Vault configuration
+  vaultSalt String @map("vault_salt")
+  vaultEncrypted String @default("") @map("vault_encrypted")
+  vaultIV String @default("") @map("vault_iv")
+  vaultVersion Int @default(0) @map("vault_version")
+  
+  // Account security
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorSecret String? @map("two_factor_secret")
+  twoFactorBackupCodes String[] @default([]) @map("two_factor_backup_codes")
+  biometricEnabled Boolean @default(false) @map("biometric_enabled")
+  
+  // Subscription
+  subscriptionTier String @default("free") @map("subscription_tier") // free | pro | enterprise
+  subscriptionStatus String @default("active") @map("subscription_status") // active | cancelled | past_due
+  subscriptionExpiresAt DateTime? @map("subscription_expires_at")
+  stripeCustomerId String? @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+  
+  // Relations
+  devices Device[]
+  emailVerificationTokens EmailVerificationToken[]
+  auditLogs AuditLog[]
+  teamMemberships TeamMember[]
+  subscriptions Subscription[]
+  
+  @@index([email])
+  @@index([subscriptionTier])
+  @@index([subscriptionTier, subscriptionStatus])
+  @@index([emailVerified])
+  @@index([createdAt])
+  @@index([lastLoginAt])
+  @@map("users")
+}
+
+// Email Verification Token
+model EmailVerificationToken {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  token String @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt DateTime? @map("used_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+// Device Model
+model Device {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  deviceId String @map("device_id")
+  name String
+  platform String // web | desktop | mobile
+  lastSeen DateTime @default(now()) @map("last_seen")
+  registeredAt DateTime @default(now()) @map("registered_at")
+  isActive Boolean @default(true) @map("is_active")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([lastSeen])
+  @@map("devices")
+}
+
+// Team Model
+model Team {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  description String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  members TeamMember[]
+  vaults TeamVault[]
+  
+  @@map("teams")
+}
+
+// Team Member Model
+model TeamMember {
+  id String @id @default(cuid())
+  teamId String @map("team_id")
+  userId String @map("user_id")
+  role String @default("member") // owner | admin | manager | member
+  invitedBy String? @map("invited_by")
+  joinedAt DateTime @default(now()) @map("joined_at")
+  
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@index([teamId])
+  @@index([teamId, role])
+  @@index([userId, role])
+  @@map("team_members")
+}
+
+// Team Vault Model
+model TeamVault {
+  id String @id @default(cuid())
+  teamId String @map("team_id")
+  name String
+  description String?
+  encryptedVault String @map("encrypted_vault")
+  iv String
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([teamId])
+  @@index([teamId, updatedAt])
+  @@map("team_vaults")
+}
+
+// Subscription Model
+model Subscription {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  stripeSubscriptionId String @unique @map("stripe_subscription_id")
+  stripePriceId String @map("stripe_price_id")
+  status String // active | cancelled | past_due | trialing
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd DateTime @map("current_period_end")
+  cancelAtPeriodEnd Boolean @default(false) @map("cancel_at_period_end")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([userId, status])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+// Audit Log Model
+model AuditLog {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  action String // login | logout | entry_created | entry_updated | entry_deleted | vault_unlocked | etc.
+  resourceType String? @map("resource_type") // entry | vault | device | team
+  resourceId String? @map("resource_id")
+  metadata Json? // Additional action metadata
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([userId, action])
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId, action, createdAt])
+  @@map("audit_logs")
+}
+

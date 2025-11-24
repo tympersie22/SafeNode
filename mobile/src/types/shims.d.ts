@@ -80,3 +80,16 @@ declare module 'expo-constants' {
   export default Constants;
 }
 
+declare module 'expo-linking' {
+  export const Linking: {
+    createURL(path?: string): string;
+    parse(url: string): { path?: string; queryParams?: Record<string, string> };
+    addEventListener(listener: (event: { url: string }) => void): { remove: () => void };
+    removeEventListener(listener: (event: { url: string }) => void): void;
+    getInitialURL(): Promise<string | null>;
+    canOpenURL(url: string): Promise<boolean>;
+    openURL(url: string): Promise<void>;
+  };
+  export * from 'expo-linking';
+}
+

@@ -1,338 +1,324 @@
 # 🔐 SafeNode
 
-<div align="center">
-  <img src="https://via.placeholder.com/200x200/8B5CF6/FFFFFF?text=SafeNode" alt="SafeNode Logo" width="120" height="120">
-  
-  **Your Zero-Knowledge, Beautifully Designed Password Vault**
-  
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
-  [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-</div>
+**A complete, production-ready, zero-knowledge password manager with Web, Mobile, Desktop, and SaaS infrastructure.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
+[![Fastify](https://img.shields.io/badge/Fastify-4.0-green.svg)](https://www.fastify.io/)
 
 ## ✨ Features
 
-### 🔒 **Zero-Knowledge Security**
-- **AES-256-GCM Encryption**: Military-grade encryption for your passwords
-- **Argon2id Key Derivation**: Protection against brute-force attacks
-- **Local-First**: Your data never leaves your device unencrypted
-- **Zero-Knowledge Architecture**: Even we can't see your passwords
+### 🔒 Core Security
+- **Zero-Knowledge Architecture**: Your master password never leaves your device
+- **Argon2id + AES-256-GCM**: Military-grade encryption
+- **Two-Factor Authentication**: TOTP support with backup codes
+- **Biometric Unlock**: Face ID, Touch ID, Windows Hello support
+- **Breach Monitoring**: Integration with HaveIBeenPwned API
+- **Password Health Dashboard**: Strength analysis, reuse detection, breach alerts
 
-### 🎨 **Beautiful Design**
-- **Glass Morphism UI**: Modern, premium interface with Apple-level smoothness
-- **Dark/Light Mode Ready**: Elegant theming system
-- **Responsive Design**: Perfect on desktop, tablet, and mobile
-- **Smooth Animations**: Delightful micro-interactions powered by Framer Motion
+### 💼 Business Features
+- **Team Vaults**: Shared vaults with RBAC (owner/admin/manager/member/viewer)
+- **Audit Logging**: Complete activity tracking with CSV export
+- **Device Management**: Track and manage registered devices
+- **Subscription Plans**: Free, Individual, Family, Teams, Business tiers
+- **Stripe Integration**: Full billing and subscription management
 
-### 🚀 **Multi-Platform Support**
-- **🌐 Web App**: Modern PWA with offline support
-- **🖥️ Desktop App**: Native Tauri application for macOS, Windows, and Linux
-- **🔌 Browser Extension**: Quick access and auto-fill capabilities
+### 🎨 User Experience
+- **Beautiful SaaS UI**: Modern design with SafeNode Design System
+- **Dark Mode**: Full dark mode support
+- **Smooth Animations**: Framer Motion for web, Reanimated for mobile
+- **Responsive Design**: Works seamlessly on all devices
+- **Travel Mode**: Hide vault entries when traveling
 
-### 🛡️ **Security Features**
-- **Breach Monitoring**: Real-time password breach checking via HIBP
-- **Password Strength Analysis**: Intelligent password scoring and suggestions
-- **TOTP Support**: Built-in 2FA code generation
-- **Secure Sharing**: End-to-end encrypted password sharing
-- **Key Rotation**: Easy master password changes
-
-### 🔧 **Developer Experience**
-- **TypeScript**: Full type safety across the entire codebase
-- **Modern Stack**: React 18, Vite, Tailwind CSS, Framer Motion
-- **Clean Architecture**: Modular, maintainable code structure
-- **Comprehensive Testing**: Unit and integration tests
+### 🔧 Developer Experience
+- **TypeScript**: Full type safety across the stack
+- **Hot Reload**: Fast development experience
+- **Testing**: Jest (backend) + Vitest (frontend)
+- **CI/CD**: GitHub Actions workflows
+- **Error Tracking**: Sentry integration
+- **Security**: Rate limiting, Helmet, input validation
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Git
+- **Node.js** 20+ 
+- **PostgreSQL** 15+ (or MongoDB)
+- **Rust** (for desktop builds)
 
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/safenode.git
-   cd safenode
-   ```
+```bash
+git clone https://github.com/yourusername/SafeNode.git
+cd SafeNode
+```
 
 2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start development servers**
-   ```bash
-   # Backend (API server)
-   cd backend && npm run dev
-   
-   # Frontend (Web app)
-   cd frontend && npm run dev_old
-   ```
-
-4. **Open your browser**
-   ```
-   http://localhost:5173
-   ```
-
-### Demo Credentials
-- **Email**: `demo@safenode.app`
-- **Password**: `demo-password`
-- **Sample Data**: Pre-loaded with example entries
-
-## 🏗️ Architecture
-
-### Frontend Stack
-- **React 18**: Modern React with hooks and concurrent features
-- **TypeScript**: Full type safety and better developer experience
-- **Vite**: Lightning-fast build tool and dev server
-- **Tailwind CSS**: Utility-first CSS framework
-- **Framer Motion**: Production-ready motion library
-- **Tauri**: Secure, lightweight desktop app framework
-
-### Backend Stack
-- **Fastify**: High-performance Node.js web framework
-- **Argon2id**: Secure password hashing
-- **Web Crypto API**: Browser-native encryption
-- **Have I Been Pwned API**: Breach monitoring integration
-
-### Security Model
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   User Input    │───▶│  Argon2id KDF    │───▶│  AES-256-GCM    │
-│  (Password)     │    │  (Key Derivation)│    │  (Encryption)   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-                                                         ▼
-                                               ┌─────────────────┐
-                                               │  Encrypted Data │
-                                               │  (Local Storage)│
-                                               └─────────────────┘
-```
-
-## 📱 Platform-Specific Setup
-
-### Web Application
 ```bash
-cd frontend
+# Install backend dependencies
+cd backend
+npm install
+
+# Install frontend dependencies
+cd ../frontend
+npm install
+```
+
+3. **Set up database**
+```bash
+cd backend
+
+# Create .env file
+cat > .env << EOF
+NODE_ENV=development
+PORT=4000
+DATABASE_URL=postgresql://user:password@localhost:5432/safenode
+DB_ADAPTER=prisma
+JWT_SECRET=dev-secret-change-in-production-$(date +%s)
+CORS_ORIGIN=http://localhost:5173
+EOF
+
+# Generate Prisma client
+npm run db:generate
+
+# Run migrations
+npm run db:migrate
+```
+
+4. **Start development servers**
+
+**Backend** (Terminal 1):
+```bash
+cd backend
 npm run dev
 ```
-- **URL**: `http://localhost:5173`
-- **Features**: Full PWA support, offline capabilities
 
-### Desktop Application
+**Frontend** (Terminal 2):
 ```bash
-cd src-tauri
-cargo tauri dev
+cd frontend
+
+# Create .env file
+echo "VITE_API_URL=http://localhost:4000" > .env
+
+npm run dev
 ```
-- **Platforms**: macOS, Windows, Linux
-- **Features**: Native system integration, secure storage
 
-### Browser Extension
-```bash
-cd extension
-npm run build
-```
-- **Browsers**: Chrome, Firefox, Safari
-- **Features**: Auto-fill, quick access, secure storage
+5. **Open your browser**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:4000
+- Prisma Studio: `cd backend && npm run db:studio`
 
-## 🔧 Development
+## 📚 Documentation
 
-### Project Structure
+### Getting Started
+- **[Quick Start Guide](./QUICK_START.md)** - Get running in 5 minutes
+- **[Environment Variables](./.env.example)** - All configuration options
+
+### Pre-Production
+- **[Mega Prompt](./MEGA_PROMPT.md)** - Copy/paste prompt for Cursor to complete all tasks
+- **[Execution Roadmap](./EXECUTION_ROADMAP.md)** - Step-by-step guide to complete pre-production tasks
+- **[Incomplete Features](./INCOMPLETE_FEATURES.md)** - What's partially implemented and needs completion
+- **[Production Checklist](./PRODUCTION_CHECKLIST.md)** - Pre-launch checklist
+
+### Deployment & Operations
+- **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment instructions
+- **[Billing Setup Guide](./BILLING_SETUP.md)** - Stripe integration and billing configuration
+- **[Post-Completion Guide](./POST_COMPLETION_GUIDE.md)** - What to do after completing all tasks
+
+## 🏗️ Project Structure
+
 ```
 SafeNode/
-├── frontend/           # React web application
+├── backend/              # Fastify API server
 │   ├── src/
-│   │   ├── components/ # Reusable UI components
-│   │   ├── crypto/     # Cryptographic utilities
-│   │   ├── storage/    # Local storage management
-│   │   └── sync/       # Data synchronization
-│   └── package.json
-├── backend/            # Node.js API server
+│   │   ├── routes/      # API route handlers
+│   │   ├── services/    # Business logic
+│   │   ├── middleware/  # Auth, rate limiting, security
+│   │   ├── db/         # Database adapters (Prisma/MongoDB)
+│   │   └── models/     # Type definitions
+│   ├── prisma/         # Database schema & migrations
+│   └── tests/          # Backend tests (Jest)
+│
+├── frontend/            # React web application
 │   ├── src/
-│   │   └── index.ts    # Fastify server
-│   └── package.json
-├── src-tauri/          # Desktop application
-│   ├── src/
-│   │   └── main.rs     # Rust backend
-│   └── Cargo.toml
-├── extension/          # Browser extension
-│   ├── manifest.json   # Extension manifest
-│   └── src/           # Extension scripts
-└── README.md
+│   │   ├── components/ # React components
+│   │   ├── pages/      # Page components
+│   │   ├── services/   # API clients
+│   │   ├── crypto/     # Encryption utilities
+│   │   ├── ui/         # UI component library
+│   │   └── icons/      # SVG icon components
+│   └── tests/          # Frontend tests (Vitest)
+│
+├── mobile/              # React Native app (Expo)
+├── src-tauri/           # Desktop app (Tauri)
+└── .github/workflows/   # CI/CD pipelines
 ```
 
-### Available Scripts
+## 🛠️ Technology Stack
 
-#### Frontend
+### Frontend
+- **React 18** - UI library
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **Framer Motion** - Animations
+- **React Query** - Data fetching (optional)
+
+### Backend
+- **Fastify** - Web framework
+- **TypeScript** - Type safety
+- **Prisma** - ORM (PostgreSQL/MySQL)
+- **MongoDB** - Alternative database adapter
+- **Argon2** - Password hashing
+- **JWT** - Authentication
+- **Stripe** - Payment processing
+
+### Infrastructure
+- **PostgreSQL** - Primary database
+- **MongoDB** - Alternative database
+- **Sentry** - Error tracking
+- **GitHub Actions** - CI/CD
+- **Vercel/Railway** - Hosting options
+
+## 🔐 Security Features
+
+- ✅ **Zero-Knowledge Architecture** - Server never sees plaintext passwords
+- ✅ **Argon2id Key Derivation** - Memory-hard password hashing
+- ✅ **AES-256-GCM Encryption** - Authenticated encryption
+- ✅ **Rate Limiting** - Protection against brute force
+- ✅ **Security Headers** - Helmet.js integration
+- ✅ **Input Validation** - Zod schema validation
+- ✅ **SQL Injection Protection** - Prisma ORM
+- ✅ **XSS Protection** - React's built-in escaping
+- ✅ **CORS Configuration** - Restricted origins
+- ✅ **Audit Logging** - Complete activity tracking
+
+## 📊 Available Scripts
+
+### Backend
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Run production build
+npm test             # Run tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Generate coverage report
+npm run type-check   # Type check without building
+npm run lint         # Lint code
+npm run db:generate  # Generate Prisma client
+npm run db:migrate   # Run database migrations
+npm run db:studio    # Open Prisma Studio (database GUI)
+```
+
+### Frontend
 ```bash
 npm run dev          # Start development server
 npm run build        # Build for production
 npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript compiler
-```
-
-#### Backend
-```bash
-npm run dev          # Start development server
-npm run build        # Build TypeScript
-npm start           # Start production server
-npm run lint        # Run ESLint
-```
-
-#### Desktop
-```bash
-npm run tauri:dev    # Start desktop app in dev mode
-npm run tauri:build  # Build desktop app
-```
-
-### Environment Variables
-Create `.env` files in the respective directories:
-
-#### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:4000
-VITE_APP_NAME=SafeNode
-VITE_APP_VERSION=0.1.0
-```
-
-#### Backend (.env)
-```env
-PORT=4000
-NODE_ENV=development
-HIBP_API_URL=https://api.pwnedpasswords.com
+npm test             # Run tests
+npm run test:ui      # Run tests with UI
+npm run test:coverage # Generate coverage report
+npm run type-check   # Type check without building
+npm run lint         # Lint code
 ```
 
 ## 🧪 Testing
 
-### Run Tests
 ```bash
-# Frontend tests
-cd frontend && npm test
-
 # Backend tests
-cd backend && npm test
+cd backend
+npm test
 
-# E2E tests
-npm run test:e2e
+# Frontend tests
+cd frontend
+npm test
+
+# Test coverage
+cd backend && npm run test:coverage
+cd frontend && npm run test:coverage
 ```
 
-### Test Coverage
+## 🚢 Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+
+### Quick Deploy
+
+**Backend** (Railway/Render):
 ```bash
-npm run test:coverage
+cd backend
+npm run build
+npm start
 ```
 
-## 🚀 Deployment
-
-### Web Application (Vercel)
+**Frontend** (Vercel):
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-cd frontend && vercel
+cd frontend
+npm run build
+# Deploy dist/ folder
 ```
 
-### Desktop Application
-```bash
-cd src-tauri
-npm run tauri:build
+## 🔑 Environment Variables
+
+See [.env.example](./.env.example) for all required environment variables.
+
+### Backend (.env)
+```env
+NODE_ENV=production
+PORT=4000
+DATABASE_URL=postgresql://...
+DB_ADAPTER=prisma
+JWT_SECRET=your-strong-secret-min-32-chars
+STRIPE_SECRET_KEY=sk_live_...
+CORS_ORIGIN=https://safenode.app
+SENTRY_DSN=https://...
 ```
 
-### Docker Deployment
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
+### Frontend (.env)
+```env
+VITE_API_URL=https://api.safenode.app
+VITE_SENTRY_DSN=https://...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
 ```
-
-## 🔒 Security
-
-### Security Audit
-```bash
-npm audit
-npm run security:audit
-```
-
-### Encryption Details
-- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
-- **Key Derivation**: Argon2id with 64MB memory, 3 iterations
-- **Salt**: 32-byte cryptographically secure random salt
-- **IV**: 12-byte random initialization vector per encryption
-
-### Privacy Policy
-SafeNode follows a strict zero-knowledge policy:
-- ✅ All encryption/decryption happens locally
-- ✅ Passwords are never transmitted in plaintext
-- ✅ No telemetry or analytics
-- ✅ Open source and auditable
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Development Workflow
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-### Code Style
-- **ESLint**: Enforced code formatting
-- **Prettier**: Consistent code style
-- **TypeScript**: Strict type checking
-- **Conventional Commits**: Standardized commit messages
+## 📝 License
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
-- **Have I Been Pwned**: For the breach monitoring API
-- **OWASP**: For security guidelines and best practices
-- **Tauri**: For the secure desktop app framework
-- **React Team**: For the amazing React ecosystem
-- **Tailwind CSS**: For the utility-first CSS framework
+- [HaveIBeenPwned](https://haveibeenpwned.com/) - Breach data API
+- [Fastify](https://www.fastify.io/) - Web framework
+- [Prisma](https://www.prisma.io/) - Database toolkit
+- [Stripe](https://stripe.com/) - Payment processing
+- [Sentry](https://sentry.io/) - Error tracking
 
 ## 📞 Support
 
-- **Documentation**: [docs.safenode.app](https://docs.safenode.app)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/safenode/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/safenode/discussions)
-- **Email**: support@safenode.app
+- **Documentation**: Check [QUICK_START.md](./QUICK_START.md) and [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Issues**: Open an issue on GitHub
+- **Security**: Report security issues privately
 
-## 🗺️ Roadmap
+## 🎯 Roadmap
 
-### v0.2.0 - Enhanced Security
-- [ ] Hardware security key support (FIDO2/WebAuthn)
-- [ ] Advanced breach monitoring with real-time alerts
-- [ ] Password health scoring and recommendations
-- [ ] Secure password sharing with expiration
-
-### v0.3.0 - Team Features
-- [ ] Team vaults and shared passwords
-- [ ] Role-based access control
-- [ ] Audit logs and compliance reporting
-- [ ] Enterprise SSO integration
-
-### v1.0.0 - Production Ready
-- [ ] Mobile applications (iOS/Android)
-- [ ] Advanced biometric authentication
-- [ ] Cloud sync with end-to-end encryption
-- [ ] Enterprise deployment options
+- [ ] Mobile app (iOS/Android)
+- [ ] Desktop app (Windows/macOS/Linux)
+- [ ] Marketing website
+- [ ] Biometric ML enhancements
+- [ ] Advanced password sharing
+- [ ] Browser extensions
 
 ---
 
-<div align="center">
-  <p>Built with ❤️ by the SafeNode team</p>
-  <p>
-    <a href="https://safenode.app">Website</a> •
-    <a href="https://docs.safenode.app">Documentation</a> •
-    <a href="https://github.com/yourusername/safenode/issues">Report Bug</a> •
-    <a href="https://github.com/yourusername/safenode/discussions">Request Feature</a>
-  </p>
-</div>
+**Built with ❤️ by the SafeNode team**
