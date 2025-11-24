@@ -7,7 +7,11 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "build:debug": "tauri build --debug",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "fix:all": "ts-node scripts/debug/fixConsoleErrors.ts",
+    "fix:dry-run": "ts-node scripts/debug/fixConsoleErrors.ts --dry-run",
+    "fix:auto": "ts-node scripts/debug/fixConsoleErrors.ts --fix",
+    "debug:check": "npm run fix:dry-run"
   },
   "keywords": [
     "password-manager",

@@ -1,8 +1,8 @@
 {
   "build": {
-    "beforeDevCommand": "cd ../frontend && npm run dev",
-    "beforeBuildCommand": "cd ../frontend && npm run build",
-    "devPath": "http://localhost:5174",
+    "beforeDevCommand": "bash src-tauri/scripts/dev-frontend.sh",
+    "beforeBuildCommand": "bash src-tauri/scripts/build-frontend.sh",
+    "devPath": "http://localhost:5173",
     "distDir": "../frontend/dist",
     "withGlobalTauri": false
   },
@@ -34,9 +34,6 @@
         "renameFile": true,
         "exists": true,
         "scope": ["$APPDATA/safenode", "$HOME/.config/safenode", "$HOME/.safenode"]
-      },
-      "store": {
-        "all": true
       },
       "window": {
         "all": false,
@@ -96,7 +93,7 @@
       }
     ],
     "systemTray": {
-      "iconPath": "icons/icon.png",
+      "iconPath": "icons/32x32.png",
       "iconAsTemplate": true,
       "menuOnLeftClick": false
     }

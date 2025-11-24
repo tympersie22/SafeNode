@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { getPasswordBreachCount } from '../crypto/crypto'
+import { aiService, type AIRecommendation } from '../services/aiService'
 
 export interface AdvisorEntry {
   id: string
@@ -60,6 +61,116 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
   }
 
   const getBreachFor = (pwd: string) => breaches[pwd] || 0
+
+  const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  // Load AI recommendations
+  useEffect(() => {
+    if (entries.length === 0) {
+      setAiRecommendations([]);
+      return;
+    }
+
+    setIsLoadingAI(true);
+    const healthSummary = {
+      weakCount,
+      breachedCount,
+      reuseCount: reusedPasswords,
+      total
+    };
+
+    aiService.generateSecurityRecommendations(entries, healthSummary)
+      .then(recommendations => {
+        setAiRecommendations(recommendations);
+      })
+      .catch(error => {
+        console.error('Failed to generate AI recommendations:', error);
+      })
+      .finally(() => {
+        setIsLoadingAI(false);
+      });
+  }, [entries, weakCount, breachedCount, reusedPasswords, total]);
+
+  // AI-like intelligent recommendations (fallback to rule-based)
+  const getRecommendations = (): Array<{ priority: 'high' | 'medium' | 'low'; message: string; action?: string }> => {
+    const recommendations: Array<{ priority: 'high' | 'medium' | 'low'; message: string; action?: string }> = []
+    
+    // High priority: breached passwords
+    if (breachedCount > 0) {
+      recommendations.push({
+        priority: 'high',
+        message: `${breachedCount} password${breachedCount > 1 ? 's have' : ' has'} been found in data breaches. These are extremely vulnerable and should be changed immediately.`,
+        action: 'Change breached passwords'
+      })
+    }
+
+    // High priority: weak passwords
+    if (weakCount > 0) {
+      recommendations.push({
+        priority: 'high',
+        message: `${weakCount} password${weakCount > 1 ? 's are' : ' is'} too weak. Weak passwords can be cracked in seconds. Consider using our password generator.`,
+        action: 'Strengthen weak passwords'
+      })
+    }
+
+    // High priority: reused passwords
+    if (reusedPasswords > 0) {
+      recommendations.push({
+        priority: 'high',
+        message: `You're reusing passwords across ${reusedPasswords} account${reusedPasswords > 1 ? 's' : ''}. If one account is compromised, all accounts with the same password are at risk.`,
+        action: 'Generate unique passwords'
+      })
+    }
+
+    // Medium priority: old passwords
+    const oldPasswordCount = entries.filter(e => {
+      // Check if password hasn't been updated in 90+ days (if we had that data)
+      return false // Placeholder - would need passwordUpdatedAt in AdvisorEntry
+    }).length
+    if (oldPasswordCount > 0) {
+      recommendations.push({
+        priority: 'medium',
+        message: `${oldPasswordCount} password${oldPasswordCount > 1 ? 's haven\'t' : ' hasn\'t'} been updated in over 90 days. Regular password rotation improves security.`,
+        action: 'Rotate old passwords'
+      })
+    }
+
+    // Low priority: missing 2FA
+    const entriesWithout2FA = entries.filter(e => !e.url || !e.url.includes('2fa')).length
+    if (entriesWithout2FA > total * 0.5) {
+      recommendations.push({
+        priority: 'low',
+        message: `Most of your accounts don't have two-factor authentication enabled. 2FA adds an extra layer of security even if your password is compromised.`,
+        action: 'Enable 2FA where available'
+      })
+    }
+
+    // Low priority: overall health
+    const healthScore = total > 0 ? ((total - weakCount - breachedCount - reusedPasswords) / total) * 100 : 100
+    if (healthScore < 70) {
+      recommendations.push({
+        priority: 'medium',
+        message: `Your overall password health score is ${Math.round(healthScore)}%. Focus on fixing high-priority issues first.`,
+        action: 'Review security recommendations'
+      })
+    } else if (healthScore >= 90) {
+      recommendations.push({
+        priority: 'low',
+        message: `Great job! Your password security is strong. Keep it up by regularly reviewing and updating your passwords.`,
+      })
+    }
+
+    return recommendations.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 }
+      return priorityOrder[a.priority] - priorityOrder[b.priority]
+    })
+  }
+
+  // Use AI recommendations if available, otherwise fallback to rule-based
+  const recommendations = aiRecommendations.length > 0 
+    ? aiRecommendations.map(r => ({ priority: r.priority, message: r.message, action: r.action }))
+    : getRecommendations()
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -132,6 +243,68 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
         </div>
       </div>
 
+      {/* AI Recommendations */}
+      {recommendations.length > 0 && (
+        <div className="px-3 pb-3 border-t border-slate-200">
+          <div className="pt-3">
+            <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              Intelligent Recommendations
+              {isLoadingAI && (
+                <span className="text-xs text-slate-500 ml-2">(AI analyzing...)</span>
+              )}
+              {aiRecommendations.length > 0 && !isLoadingAI && (
+                <span className="text-xs text-secondary-600 ml-2">✨ AI Enhanced</span>
+              )}
+            </h4>
+            <div className="space-y-2">
+              {recommendations.map((rec, idx) => (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-lg border ${
+                    rec.priority === 'high'
+                      ? 'bg-red-50 border-red-200'
+                      : rec.priority === 'medium'
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                      rec.priority === 'high'
+                        ? 'bg-red-500'
+                        : rec.priority === 'medium'
+                        ? 'bg-amber-500'
+                        : 'bg-blue-500'
+                    }`}>
+                      <span className="text-white text-xs font-bold">{rec.priority === 'high' ? '!' : rec.priority === 'medium' ? '•' : 'i'}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm ${
+                        rec.priority === 'high'
+                          ? 'text-red-900'
+                          : rec.priority === 'medium'
+                          ? 'text-amber-900'
+                          : 'text-blue-900'
+                      }`}>
+                        {rec.message}
+                      </p>
+                      {rec.action && (
+                        <button className="mt-2 text-xs font-medium underline">
+                          {rec.action} →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {total > 0 && (
         <div className="px-3 pb-3">
           <div className="overflow-hidden border border-slate-200 rounded-lg shadow-sm">
@@ -153,7 +326,7 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
                     <tr key={e.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-md flex items-center justify-center">
+                          <div className="w-6 h-6 bg-gradient-to-r from-secondary-500 to-secondary-400 rounded-md flex items-center justify-center">
                             <span className="text-white font-semibold text-xs">
                               {e.name.charAt(0).toUpperCase()}
                             </span>
