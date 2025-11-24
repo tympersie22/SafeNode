@@ -148,6 +148,40 @@ export const enhancedCopyToClipboard = async (text: string): Promise<void> => {
   }
 };
 
+// Auto-lock timer management
+let autoLockInterval: number | null = null;
+let lastActivityUpdate: number = Date.now();
+
+// Track user activity for auto-lock
+const trackActivity = async () => {
+  if (!isTauri()) return;
+  
+  const now = Date.now();
+  // Update activity every 30 seconds to avoid excessive calls
+  if (now - lastActivityUpdate > 30000) {
+    lastActivityUpdate = now;
+    try {
+      await window.__TAURI__?.tauri.invoke('update_activity');
+    } catch (error) {
+      console.warn('Failed to update activity:', error);
+    }
+  }
+};
+
+// Start auto-lock monitoring
+const startAutoLockMonitoring = () => {
+  if (!isTauri() || autoLockInterval) return;
+  
+  // Update activity on user interactions
+  const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+  activityEvents.forEach(event => {
+    document.addEventListener(event, trackActivity, { passive: true });
+  });
+  
+  // Also track window focus
+  window.addEventListener('focus', trackActivity);
+};
+
 // Desktop-specific UI enhancements
 export const setupDesktopFeatures = () => {
   if (!isTauri()) return;
@@ -162,6 +196,7 @@ export const setupDesktopFeatures = () => {
       event.preventDefault();
       const desktopVault = DesktopVault.getInstance();
       desktopVault.showSystemTray();
+      trackActivity();
     }
 
     // Cmd/Ctrl + Shift + L: Lock vault
@@ -170,21 +205,48 @@ export const setupDesktopFeatures = () => {
       const desktopVault = DesktopVault.getInstance();
       desktopVault.lockVault();
     }
+    
+    // Track activity on any key press
+    trackActivity();
   });
 
-  // Add desktop menu bar (if needed)
-  const menuBar = document.createElement('div');
-  menuBar.className = 'desktop-menu-bar';
-  menuBar.innerHTML = `
-    <div class="desktop-menu-item" onclick="window.__TAURI__.tauri.invoke('show_system_tray')">
-      Hide to Tray
-    </div>
-    <div class="desktop-menu-item" onclick="window.__TAURI__.tauri.invoke('lock_vault')">
-      Lock Vault
-    </div>
-  `;
+  // Start auto-lock monitoring
+  startAutoLockMonitoring();
   
-  document.body.insertBefore(menuBar, document.body.firstChild);
+  // Track activity on mouse movements (throttled)
+  let mouseActivityTimeout: number | null = null;
+  document.addEventListener('mousemove', () => {
+    if (mouseActivityTimeout) {
+      clearTimeout(mouseActivityTimeout);
+    }
+    mouseActivityTimeout = window.setTimeout(() => {
+      trackActivity();
+    }, 5000); // Update every 5 seconds on mouse movement
+  }, { passive: true });
+};
+
+// Desktop auto-lock API
+export const desktopAutoLock = {
+  async setTimer(seconds: number | null): Promise<void> {
+    if (!isTauri()) return;
+    try {
+      await window.__TAURI__?.tauri.invoke('set_auto_lock_timer', { seconds });
+    } catch (error) {
+      console.error('Failed to set auto-lock timer:', error);
+    }
+  },
+  
+  async getTimer(): Promise<number | null> {
+    if (!isTauri()) return null;
+    try {
+      return await window.__TAURI__?.tauri.invoke('get_auto_lock_timer');
+    } catch (error) {
+      console.error('Failed to get auto-lock timer:', error);
+      return null;
+    }
+  },
+  
+  updateActivity: trackActivity
 };
 
 // Initialize desktop features when DOM is ready

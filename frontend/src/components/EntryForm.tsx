@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { generateSecurePassword, getPasswordBreachCount } from '../crypto/crypto';
 import type { VaultEntry, VaultAttachment } from '../types/vault';
+import PasswordGeneratorModal from './PasswordGeneratorModal';
+import PasswordStrengthMeter from './PasswordStrengthMeter';
+import { organizeEntry } from '../utils/vaultOrganizer';
 
 interface EntryFormProps {
   entry?: VaultEntry | null;
@@ -35,6 +38,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
   const [tagInput, setTagInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isGeneratingPassword, setIsGeneratingPassword] = useState(false);
+  const [showPasswordGenerator, setShowPasswordGenerator] = useState(false);
   const [breachCount, setBreachCount] = useState<number | null>(null);
   const [checkingBreach, setCheckingBreach] = useState(false);
   const [attachments, setAttachments] = useState<VaultAttachment[]>([]);
@@ -101,6 +105,45 @@ const EntryForm: React.FC<EntryFormProps> = ({
   useEffect(() => {
     setFormData(prev => ({ ...prev, attachments }));
   }, [attachments]);
+
+  // AI Vault Organizer - Auto-suggest category and tags for new entries
+  useEffect(() => {
+    if (!isOpen || entry) return; // Only for new entries
+    
+    const name = formData.name.trim();
+    const url = (formData.url || '').trim();
+    
+    if (name || url) {
+      const suggestion = organizeEntry({
+        name,
+        url,
+        username: formData.username,
+        category: formData.category
+      });
+      
+      // Auto-apply if confidence is high and category/tags are empty
+      if (suggestion.confidence >= 0.7) {
+        if (!formData.category || formData.category === 'Login') {
+          setFormData(prev => ({
+            ...prev,
+            category: suggestion.category || prev.category
+          }));
+        }
+        
+        // Merge suggested tags
+        if (suggestion.tags && suggestion.tags.length > 0) {
+          const existingTags = formData.tags || [];
+          const newTags = suggestion.tags.filter(tag => !existingTags.includes(tag));
+          if (newTags.length > 0) {
+            setFormData(prev => ({
+              ...prev,
+              tags: [...existingTags, ...newTags]
+            }));
+          }
+        }
+      }
+    }
+  }, [formData.name, formData.url, formData.username, isOpen, entry]);
 
   const fileToBase64 = (file: File): Promise<VaultAttachment> => {
     return new Promise((resolve, reject) => {
@@ -216,16 +259,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
     }));
   };
 
-  const handleGeneratePassword = async () => {
-    setIsGeneratingPassword(true);
-    try {
-      const password = await generateSecurePassword(16);
-      setFormData(prev => ({ ...prev, password }));
-    } catch (error) {
-      console.error('Failed to generate password:', error);
-    } finally {
-      setIsGeneratingPassword(false);
-    }
+  const handleGeneratePassword = () => {
+    setShowPasswordGenerator(true);
+  };
+
+  const handlePasswordGenerated = (password: string) => {
+    setFormData(prev => ({ ...prev, password }));
+    setShowPasswordGenerator(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -317,7 +357,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full px-3 py-2 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 transition-all duration-200 shadow-sm"
+                className="w-full px-3 py-2 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-300 transition-all duration-200 shadow-sm"
                 placeholder="e.g., Gmail, Bank Account"
                 required
               />
@@ -330,7 +370,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
               <select
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 transition"
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -347,7 +387,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
               type="url"
               value={formData.url}
               onChange={(e) => handleInputChange('url', e.target.value)}
-              className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+              className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 transition"
               placeholder="https://example.com"
             />
           </div>
@@ -362,7 +402,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 type="text"
                 value={formData.username}
                 onChange={(e) => handleInputChange('username', e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 transition"
                 placeholder="username@example.com"
                 required
               />
@@ -377,7 +417,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
-                  className="w-full px-2.5 py-1.5 pr-20 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-2.5 py-1.5 pr-20 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500"
                   placeholder="Enter password"
                 />
                 <div className="absolute right-1 top-1 flex space-x-1">
@@ -406,7 +446,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     whileTap={{ scale: 0.95 }}
                   >
                     {isGeneratingPassword ? (
-                      <div className="w-4 h-4 border-2 border-slate-300 border-t-purple-500 rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-slate-300 border-t-secondary-500 rounded-full animate-spin"></div>
                     ) : (
                       <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
@@ -415,6 +455,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                   </motion.button>
                 </div>
               </div>
+              <PasswordStrengthMeter password={formData.password} className="mt-2" />
               {breachCount !== null && breachCount > 0 && (
                 <div className="mt-2 p-3 border border-amber-200 bg-amber-50 rounded-md text-sm text-amber-800">
                   This password appears in known breaches {breachCount.toLocaleString()} times. Consider a unique, stronger password.
@@ -452,13 +493,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
               {formData.tags?.map(tag => (
                 <span
                   key={tag}
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800 border border-purple-200"
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-secondary-100 text-secondary-800 border border-secondary-200"
                 >
                   {tag}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag)}
-                    className="ml-1.5 hover:text-purple-600"
+                    className="ml-1.5 hover:text-secondary-600"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -497,14 +538,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsNotePreview(false)}
-                  className={`px-2 py-1 rounded ${isNotePreview ? 'text-slate-500 hover:text-slate-700' : 'bg-purple-100 text-purple-700'}`}
+                  className={`px-2 py-1 rounded ${isNotePreview ? 'text-slate-500 hover:text-slate-700' : 'bg-secondary-100 text-secondary-700'}`}
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsNotePreview(true)}
-                  className={`px-2 py-1 rounded ${isNotePreview ? 'bg-purple-100 text-purple-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-2 py-1 rounded ${isNotePreview ? 'bg-secondary-100 text-secondary-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Preview
                 </button>
@@ -534,7 +575,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
               type="file"
               multiple
               onChange={handleFileChange}
-              className="block w-full text-sm text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:border-0 file:rounded-md file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200"
+              className="block w-full text-sm text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:border-0 file:rounded-md file:bg-secondary-100 file:text-secondary-700 hover:file:bg-secondary-200"
             />
             <p className="text-xs text-slate-500 mt-1">
               Files are encrypted locally before upload. Keep attachment sizes reasonable for smooth syncing.
@@ -599,6 +640,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
           </motion.div>
         </>
       )}
+      <PasswordGeneratorModal
+        isOpen={showPasswordGenerator}
+        onClose={() => setShowPasswordGenerator(false)}
+        onGenerate={handlePasswordGenerated}
+      />
     </AnimatePresence>
   );
 };

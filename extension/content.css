@@ -141,6 +141,107 @@
   box-sizing: border-box !important;
 }
 
+/* Save Prompt Styles */
+.safenode-save-prompt {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  min-width: 320px;
+  max-width: 400px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  animation: safenode-slide-in 0.3s ease-out;
+}
+
+@keyframes safenode-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.safenode-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.safenode-prompt-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.safenode-prompt-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.safenode-prompt-content {
+  margin-bottom: 20px;
+}
+
+.safenode-prompt-site {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.safenode-prompt-username {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.safenode-prompt-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.safenode-prompt-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: inherit;
+}
+
+.safenode-prompt-cancel {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.safenode-prompt-cancel:hover {
+  background: #e2e8f0;
+}
+
+.safenode-prompt-save {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: white;
+}
+
+.safenode-prompt-save:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
 /* Hide autofill buttons on very small screens */
 @media (max-width: 480px) {
   .safenode-autofill-button {
@@ -151,5 +252,11 @@
   .safenode-autofill-menu {
     min-width: 240px;
     max-width: 280px;
+  }
+
+  .safenode-save-prompt {
+    min-width: 280px;
+    max-width: 320px;
+    padding: 16px;
   }
 }

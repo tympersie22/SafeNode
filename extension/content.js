@@ -94,12 +94,13 @@ class SafeNodeAutofill {
     passwordFields.forEach(field => {
       if (!this.injectedElements.has(field)) {
         this.injectAutofillButton(field);
+        this.setupCredentialCapture(field);
         this.injectedElements.add(field);
       }
     });
 
     // Also check for email/username fields that might be part of login forms
-    const emailFields = container.querySelectorAll('input[type="email"], input[name*="email"], input[name*="username"], input[name*="login"]');
+    const emailFields = container.querySelectorAll('input[type="email"], input[type="text"][name*="email" i], input[type="text"][name*="username" i], input[type="text"][name*="login" i], input[type="text"][id*="email" i], input[type="text"][id*="username" i]');
     
     emailFields.forEach(field => {
       if (!this.injectedElements.has(field)) {
@@ -107,6 +108,205 @@ class SafeNodeAutofill {
         this.injectedElements.add(field);
       }
     });
+  }
+
+  setupCredentialCapture(passwordField) {
+    const form = passwordField.closest('form');
+    if (!form) return;
+
+    // Detect form submission
+    form.addEventListener('submit', async (e) => {
+      // Wait a bit to ensure form data is captured
+      setTimeout(() => {
+        this.captureCredentials(form, passwordField);
+      }, 100);
+    }, { once: true });
+
+    // Also detect when password field loses focus after being filled
+    passwordField.addEventListener('blur', () => {
+      if (passwordField.value && passwordField.value.length > 0) {
+        setTimeout(() => {
+          this.checkForNewCredentials(form, passwordField);
+        }, 500);
+      }
+    });
+  }
+
+  async checkForNewCredentials(form, passwordField) {
+    if (!this.isUnlocked || !this.vaultData) return;
+
+    const usernameField = this.findUsernameField(form);
+    if (!usernameField || !usernameField.value) return;
+
+    const username = usernameField.value.trim();
+    const password = passwordField.value;
+    const url = window.location.href;
+
+    // Check if this credential already exists
+    const existingEntry = this.vaultData.entries?.find(entry => {
+      const entryUrl = entry.url ? new URL(entry.url.startsWith('http') ? entry.url : `https://${entry.url}`) : null;
+      const currentUrlObj = new URL(url);
+      
+      return entry.username === username && 
+             entryUrl && 
+             entryUrl.hostname === currentUrlObj.hostname;
+    });
+
+    if (!existingEntry && password.length >= 8) {
+      // Show save prompt
+      this.showSavePrompt(username, password, url);
+    }
+  }
+
+  async captureCredentials(form, passwordField) {
+    if (!this.isUnlocked) return;
+
+    const usernameField = this.findUsernameField(form);
+    if (!usernameField || !usernameField.value) return;
+
+    const username = usernameField.value.trim();
+    const password = passwordField.value;
+    const url = window.location.href;
+
+    // Check if already saved
+    const existing = this.vaultData.entries?.find(e => 
+      e.username === username && 
+      e.url && 
+      new URL(e.url.startsWith('http') ? e.url : `https://${e.url}`).hostname === new URL(url).hostname
+    );
+
+    if (!existing && password.length >= 8) {
+      this.showSavePrompt(username, password, url);
+    }
+  }
+
+  findUsernameField(form) {
+    // Try multiple strategies to find username field
+    const selectors = [
+      'input[type="email"]',
+      'input[type="text"][name*="email" i]',
+      'input[type="text"][name*="username" i]',
+      'input[type="text"][name*="login" i]',
+      'input[type="text"][id*="email" i]',
+      'input[type="text"][id*="username" i]',
+      'input[type="text"][id*="login" i]',
+      'input[type="text"][autocomplete="username"]',
+      'input[type="text"][autocomplete="email"]'
+    ];
+
+    for (const selector of selectors) {
+      const field = form.querySelector(selector);
+      if (field && field.value) {
+        return field;
+      }
+    }
+
+    // Fallback: find first text input before password field
+    const allInputs = Array.from(form.querySelectorAll('input[type="text"], input[type="email"]'));
+    const passwordIndex = Array.from(form.querySelectorAll('input')).indexOf(passwordField);
+    return allInputs.find(input => 
+      Array.from(form.querySelectorAll('input')).indexOf(input) < passwordIndex
+    );
+  }
+
+  showSavePrompt(username, password, url) {
+    // Remove existing prompt
+    const existing = document.querySelector('.safenode-save-prompt');
+    if (existing) existing.remove();
+
+    const prompt = document.createElement('div');
+    prompt.className = 'safenode-save-prompt';
+    prompt.innerHTML = `
+      <div class="safenode-prompt-header">
+        <div class="safenode-prompt-icon">🔒</div>
+        <div class="safenode-prompt-title">Save to SafeNode?</div>
+      </div>
+      <div class="safenode-prompt-content">
+        <div class="safenode-prompt-site">${new URL(url).hostname}</div>
+        <div class="safenode-prompt-username">${username}</div>
+      </div>
+      <div class="safenode-prompt-actions">
+        <button class="safenode-prompt-btn safenode-prompt-cancel">Not now</button>
+        <button class="safenode-prompt-btn safenode-prompt-save">Save</button>
+      </div>
+    `;
+
+    // Position at top of page
+    prompt.style.position = 'fixed';
+    prompt.style.top = '20px';
+    prompt.style.right = '20px';
+    prompt.style.zIndex = '999999';
+
+    document.body.appendChild(prompt);
+
+    // Event handlers
+    prompt.querySelector('.safenode-prompt-save').addEventListener('click', () => {
+      this.saveCredential(username, password, url);
+      prompt.remove();
+    });
+
+    prompt.querySelector('.safenode-prompt-cancel').addEventListener('click', () => {
+      prompt.remove();
+    });
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+      if (prompt.parentNode) {
+        prompt.remove();
+      }
+    }, 10000);
+  }
+
+  async saveCredential(username, password, url) {
+    try {
+      const entry = {
+        id: `entry_${Date.now()}`,
+        name: new URL(url).hostname,
+        username: username,
+        password: password,
+        url: url,
+        category: 'Login',
+        tags: [],
+        passwordUpdatedAt: Date.now()
+      };
+
+      // Send to background script to save
+      const response = await chrome.runtime.sendMessage({
+        action: 'saveCredential',
+        entry: entry
+      });
+
+      if (response.success) {
+        // Reload vault data
+        await this.loadVaultData();
+        
+        // Show success feedback
+        this.showSaveSuccess();
+      }
+    } catch (error) {
+      console.error('Failed to save credential:', error);
+    }
+  }
+
+  showSaveSuccess() {
+    const feedback = document.createElement('div');
+    feedback.className = 'safenode-success-feedback';
+    feedback.textContent = '✓ Saved to SafeNode';
+    feedback.style.position = 'fixed';
+    feedback.style.top = '20px';
+    feedback.style.right = '20px';
+    feedback.style.zIndex = '999999';
+    feedback.style.backgroundColor = '#10b981';
+    feedback.style.color = 'white';
+    feedback.style.padding = '12px 16px';
+    feedback.style.borderRadius = '8px';
+    feedback.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+
+    document.body.appendChild(feedback);
+
+    setTimeout(() => {
+      feedback.remove();
+    }, 3000);
   }
 
   injectAutofillButton(field) {
@@ -235,32 +435,47 @@ class SafeNodeAutofill {
   findMatchingEntries(field) {
     if (!this.vaultData || !this.vaultData.entries) return [];
 
+    const currentDomain = window.location.hostname;
+    const currentUrl = window.location.href;
     const fieldType = field.type;
-    const fieldName = (field.name || '').toLowerCase();
-    const fieldId = (field.id || '').toLowerCase();
-    const fieldPlaceholder = (field.placeholder || '').toLowerCase();
+    const form = field.closest('form');
 
-    return this.vaultData.entries.filter(entry => {
-      // Match by URL domain
+    // Score entries by relevance
+    const scoredEntries = this.vaultData.entries.map(entry => {
+      let score = 0;
+
+      // Exact domain match
       if (entry.url) {
-        const url = new URL(entry.url);
-        const currentDomain = window.location.hostname;
-        if (url.hostname.includes(currentDomain) || currentDomain.includes(url.hostname)) {
-          return true;
+        try {
+          const entryUrl = new URL(entry.url.startsWith('http') ? entry.url : `https://${entry.url}`);
+          const entryDomain = entryUrl.hostname.replace('www.', '');
+          const currentDomainClean = currentDomain.replace('www.', '');
+
+          if (entryDomain === currentDomainClean) {
+            score += 100; // Exact match
+          } else if (entryDomain.includes(currentDomainClean) || currentDomainClean.includes(entryDomain)) {
+            score += 50; // Partial match
+          } else if (entryUrl.pathname && currentUrl.includes(entryUrl.pathname)) {
+            score += 30; // Path match
+          }
+        } catch (e) {
+          // Invalid URL, skip
         }
       }
 
-      // Match by field characteristics
-      if (fieldType === 'password') {
-        return true; // Show all entries for password fields
+      // Name-based matching
+      const entryName = (entry.name || '').toLowerCase();
+      if (entryName.includes(currentDomain.split('.')[0])) {
+        score += 20;
       }
 
-      if (fieldType === 'email' || fieldName.includes('email') || fieldName.includes('username')) {
-        return entry.username.includes('@'); // Email entries
-      }
+      return { entry, score };
+    }).filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5) // Top 5 matches
+      .map(item => item.entry);
 
-      return false;
-    });
+    return scoredEntries;
   }
 
   autofillEntry(field, entry) {

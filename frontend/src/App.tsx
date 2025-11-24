@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import UnlockVault from './components/UnlockVault';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { UnlockVault } from './components/UnlockVaultNew';
+import { MasterPasswordSetup } from './components/MasterPasswordSetup';
 import EntryForm from './components/EntryForm';
 import { generateTotpCode, encrypt, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
@@ -8,11 +10,13 @@ import { vaultSync } from './sync/vaultSync';
 import { enhancedCopyToClipboard, isTauri, DesktopVault } from './desktop/integration';
 import KeyRotation from './components/KeyRotation';
 import SecurityAdvisor from './components/SecurityAdvisor';
+import { HealthDashboard } from './components/HealthDashboard';
 import SharingKeys from './components/SharingKeys';
 import ShareEntryModal from './components/ShareEntryModal';
 import ImportSharedModal from './components/ImportSharedModal';
 import Button from './components/ui/Button';
 import { LockIcon, SearchIcon } from './components/icons';
+import Logo from './components/Logo';
 import Landing from './pages/Landing';
 import Auth from './pages/Auth';
 import { syncManager, SyncStatus } from './sync/syncManager';
@@ -22,6 +26,18 @@ import type { VaultEntry, VaultAttachment } from './types/vault';
 import { evaluatePasswordHealth, type PasswordHealthSummary } from './health/passwordHealth';
 import PasskeysModal from './components/PasskeysModal';
 import WatchtowerModal, { WatchtowerBanner, watchtowerIssueKey } from './components/WatchtowerModal';
+import { useTravelMode } from './utils/travelMode';
+import { useDarkMode } from './utils/darkMode';
+import AccountSwitcher from './components/AccountSwitcher';
+import AuditLogsModal from './components/AuditLogsModal';
+import TeamVaultsModal from './components/TeamVaultsModal';
+import PINSetupModal from './components/PINSetupModal';
+import BiometricSetupModal from './components/BiometricSetupModal';
+import { accountStorage, type Account } from './storage/accountStorage';
+import { auditLogStorage } from './storage/auditLogs';
+import { teamVaultStorage } from './storage/teamVaults';
+import { pinManager } from './utils/pinManager';
+import { keychainService } from './utils/keychain';
 
 interface VaultData {
   entries: VaultEntry[];
@@ -67,16 +83,172 @@ const App: React.FC = () => {
     const raw = window.localStorage.getItem('safenode_watchtower_dismissed');
     return raw ? JSON.parse(raw) : [];
   });
+  const { isEnabled: isTravelModeEnabled, enable: enableTravelMode, disable: disableTravelMode } = useTravelMode();
+  const { isDark: isDarkMode, toggle: toggleDarkMode } = useDarkMode();
+  
+  // New feature states
+  const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
+  const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
+  const [isTeamVaultsOpen, setIsTeamVaultsOpen] = useState(false);
+  const [isPINSetupOpen, setIsPINSetupOpen] = useState(false);
+  const [isBiometricSetupOpen, setIsBiometricSetupOpen] = useState(false);
+  const [masterPassword, setMasterPassword] = useState<string>('');
+  const [vaultSalt, setVaultSalt] = useState<ArrayBuffer | null>(null);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-  const handleVaultUnlocked = (unlockedVault: VaultData) => {
+  // All hooks must be declared before any conditional returns
+  useEffect(() => {
+    const unsubscribe = syncManager.subscribe((status, info) => {
+      setSyncState({ status, lastSyncedAt: info.lastSyncedAt });
+    });
+    return unsubscribe;
+  }, []);
+
+  // Handle URL hash routing (e.g., /#auth, /#billing)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove #
+      if (hash === 'auth' && !user) {
+        setCurrentPage('auth');
+        setAuthMode('signup');
+      } else if (hash === 'billing' && user) {
+        // Handle billing page navigation if needed
+        // For now, just clear hash
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    };
+
+    // Check initial hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [user]);
+
+  useEffect(() => {
+    if (user && currentPage === 'vault' && isUnlocked) {
+      syncManager.start();
+      return () => {
+        syncManager.stop();
+      };
+    }
+    if (!isUnlocked) {
+      syncManager.stop();
+    }
+  }, [user, currentPage, isUnlocked]);
+
+  useEffect(() => {
+    if (vault && vault.entries.length > 0) {
+      setHealthSummary(evaluatePasswordHealth(vault.entries));
+    } else {
+      setHealthSummary(null);
+    }
+  }, [vault]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('safenode_watchtower_dismissed', JSON.stringify(dismissedAlerts));
+  }, [dismissedAlerts]);
+
+  useEffect(() => {
+    if (!vault || !isUnlocked || isScanningBreaches) return;
+    const threshold = 24 * 60 * 60 * 1000; // 24h
+    if (!lastBreachScanAt || Date.now() - lastBreachScanAt > threshold) {
+      handleBreachScan();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vault, isUnlocked, isScanningBreaches, lastBreachScanAt]);
+
+  useEffect(() => {
+    const issues = healthSummary?.issues ?? [];
+    setDismissedAlerts(prev => {
+      const validKeys = new Set(issues.map(watchtowerIssueKey));
+      const filtered = prev.filter(key => validKeys.has(key));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [healthSummary]);
+
+  useEffect(() => {
+    if (user && currentPage === 'vault') {
+      refreshBackups();
+    }
+  }, [user, currentPage]);
+
+  useEffect(() => {
+    if (!isMoreMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.more-menu-container')) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMoreMenuOpen]);
+
+  const watchtowerIssues = healthSummary?.issues ?? [];
+  const unresolvedHighAlerts = useMemo(
+    () =>
+      watchtowerIssues.filter(
+        (issue) => issue.severity === 'high' && !dismissedAlerts.includes(watchtowerIssueKey(issue))
+      ),
+    [watchtowerIssues, dismissedAlerts]
+  );
+
+  const handleVaultUnlocked = (unlockedVault: VaultData, password: string, salt: ArrayBuffer) => {
+    // Prevent multiple calls
+    if (isUnlocked) {
+      return;
+    }
+    
+    // Update state synchronously - this will trigger immediate re-render
+    // Use functional updates to ensure we're working with latest state
     setVault(unlockedVault);
     setIsUnlocked(true);
+    setMasterPassword(password);
+    setVaultSalt(salt);
+    setCurrentPage('vault'); // Ensure we're on the vault page
+    
+    // Initialize account storage and load current account (fire-and-forget)
+    accountStorage.init().then(async () => {
+      try {
+        const activeAccount = await accountStorage.getActiveAccount();
+        if (activeAccount) {
+          setCurrentAccount(activeAccount);
+        } else {
+          // Create default account if none exists
+          const defaultAccount = await accountStorage.createAccount(
+            'Personal',
+            user?.email || 'demo@safenode.app',
+            'personal'
+          );
+          setCurrentAccount(defaultAccount);
+        }
+      } catch (error) {
+        console.error('Failed to initialize account storage:', error);
+      }
+    }).catch(error => {
+      console.error('Failed to init account storage:', error);
+    });
+    
+    // Store master password in keychain for biometric unlock (fire-and-forget)
+    keychainService.save({
+      service: 'safenode',
+      account: 'master_password',
+      password: password
+    }).catch(error => {
+      console.warn('Failed to store password in keychain:', error);
+      // Non-critical, continue
+    });
   };
 
   const handleLock = () => {
     setVault(null);
     setIsUnlocked(false);
     setUser(null);
+    setMasterPassword('');
+    setVaultSalt(null);
     setCurrentPage('landing');
     syncManager.stop();
   };
@@ -87,63 +259,6 @@ const App: React.FC = () => {
     handleLock();
     alert('Master key rotated successfully! Please log in with your new password.');
   };
-
-  useEffect(() => {
-    const unsubscribe = syncManager.subscribe((status, info) => {
-      setSyncState({ status, lastSyncedAt: info.lastSyncedAt });
-    });
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    if (user && currentPage === 'vault') {
-      syncManager.start();
-      return () => {
-        syncManager.stop();
-      };
-    }
-    syncManager.stop();
-  }, [user, currentPage]);
-
-  useEffect(() => {
-    if (vault && vault.entries.length > 0) {
-      setHealthSummary(evaluatePasswordHealth(vault.entries));
-    } else {
-      setHealthSummary(null);
-    }
-  }, [vault]);
-
-useEffect(() => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem('safenode_watchtower_dismissed', JSON.stringify(dismissedAlerts));
-}, [dismissedAlerts]);
-
-useEffect(() => {
-  if (!vault || isScanningBreaches) return;
-  const threshold = 24 * 60 * 60 * 1000; // 24h
-  if (!lastBreachScanAt || Date.now() - lastBreachScanAt > threshold) {
-    handleBreachScan();
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [vault]);
-
-useEffect(() => {
-  const issues = healthSummary?.issues ?? [];
-  setDismissedAlerts(prev => {
-    const validKeys = new Set(issues.map(watchtowerIssueKey));
-    const filtered = prev.filter(key => validKeys.has(key));
-    return filtered.length === prev.length ? prev : filtered;
-  });
-}, [healthSummary]);
-
-const watchtowerIssues = healthSummary?.issues ?? [];
-const unresolvedHighAlerts = useMemo(
-  () =>
-    watchtowerIssues.filter(
-      (issue) => issue.severity === 'high' && !dismissedAlerts.includes(watchtowerIssueKey(issue))
-    ),
-  [watchtowerIssues, dismissedAlerts]
-);
 
   const handleBreachScan = async () => {
     if (!vault) return;
@@ -194,12 +309,6 @@ const unresolvedHighAlerts = useMemo(
       console.error('Failed to load backups', error);
     }
   };
-
-  useEffect(() => {
-    if (user && currentPage === 'vault') {
-      refreshBackups();
-    }
-  }, [user, currentPage]);
 
   const formatLastSynced = (timestamp: number | null) => {
     if (!timestamp) return 'Pending sync…';
@@ -395,36 +504,8 @@ const unresolvedHighAlerts = useMemo(
     }
   };
 
-  // Show landing page initially
-  if (currentPage === 'landing') {
-    return <Landing onEnterApp={(mode) => {
-      setAuthMode(mode || 'signup');
-      setCurrentPage('auth');
-    }} />
-  }
 
-  // Show authentication page
-  if (currentPage === 'auth') {
-    return (
-      <Auth 
-        onAuthenticated={(userData) => {
-          setUser(userData)
-          setVault(null)
-          setIsUnlocked(false)
-          setCurrentPage('vault')
-        }}
-        onBackToLanding={() => setCurrentPage('landing')}
-        initialMode={authMode}
-      />
-    )
-  }
-
-  // Show vault unlock screen for authenticated users
-  if (user && !isUnlocked) {
-    return <UnlockVault onVaultUnlocked={handleVaultUnlocked} />
-  }
-
-  const filteredEntries = (vault?.entries || []).filter((e) => {
+  const filteredEntries = (isTravelModeEnabled ? [] : (vault?.entries || [])).filter((e) => {
     const matchesQuery = !query.trim() ||
       e.name.toLowerCase().includes(query.toLowerCase()) ||
       e.username.toLowerCase().includes(query.toLowerCase()) ||
@@ -436,121 +517,348 @@ const unresolvedHighAlerts = useMemo(
 
   const allTags = Array.from(new Set((vault?.entries || []).flatMap(e => e.tags || []))).sort()
 
+  // Page transition variants
+  const pageVariants = prefersReducedMotion ? undefined : {
+    initial: { opacity: 0, y: 20 },
+    animate: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 30,
+        duration: 0.5
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      y: -20,
+      transition: { duration: 0.2 }
+    }
+  }
+
   const containerVariants = prefersReducedMotion ? undefined : {
     hidden: { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0 }
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 30,
+        staggerChildren: 0.05
+      }
+    }
   }
 
   const listParent = prefersReducedMotion ? undefined : {
     hidden: {},
-    visible: { transition: { staggerChildren: 0.05 } }
+    visible: { 
+      transition: { 
+        staggerChildren: 0.05,
+        delayChildren: 0.1
+      } 
+    }
   }
 
   const listItem = prefersReducedMotion ? undefined : {
-    hidden: { opacity: 0, y: 6 },
-    visible: { opacity: 1, y: 0 }
+    hidden: { opacity: 0, y: 10, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring" as const,
+        stiffness: 400,
+        damping: 25
+      }
+    }
   }
 
+  // All hooks are now at the top - conditional rendering only below
+  // Early returns for rendering (not hooks)
+  
+  if (!user) {
+    if (currentPage === 'auth') {
+      return (
+        <Auth 
+          onAuthenticated={(userData) => {
+            setUser(userData)
+            setVault(null)
+            setIsUnlocked(false)
+            setCurrentPage('vault')
+          }}
+          onBackToLanding={() => setCurrentPage('landing')}
+          initialMode={authMode}
+        />
+      )
+    }
+    return <Landing onEnterApp={(mode) => {
+      setAuthMode(mode || 'signup');
+      setCurrentPage('auth');
+    }} />
+  }
+
+  // Check if new user needs to set up master password
+  if (user && (user as any).needsMasterPassword) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center p-4">
+        <MasterPasswordSetup
+          email={user.email}
+          onComplete={() => {
+            setUser({ ...user, needsMasterPassword: false })
+            // After master password setup, vault is initialized, show unlock screen
+          }}
+          onSkip={() => {
+            setUser({ ...user, needsMasterPassword: false })
+            // Allow skipping for now, but vault won't work until master password is set
+          }}
+        />
+      </div>
+    )
+  }
+
+  if (user && !isUnlocked) {
+    return <UnlockVault onVaultUnlocked={handleVaultUnlocked} />
+  }
+
+  // At this point: user && isUnlocked - render vault UI
+  // Wrap vault UI in page transition
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-900">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200">
+      <motion.header 
+        className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50"
+        initial={prefersReducedMotion ? undefined : { opacity: 0, y: -20 }}
+        animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div className="flex justify-between items-center h-12" initial={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }} animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <div className="flex items-center space-x-3">
-              <motion.div 
-                className="inline-flex items-center justify-center w-8 h-8 bg-purple-600 rounded-lg"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </motion.div>
-              <h1 className="text-xl font-bold text-slate-900">SafeNode</h1>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-slate-600">
-                {vault?.entries.length || 0} entries
-              </span>
-              <div className="flex items-center text-xs">
-                {syncState.status === 'syncing' ? (
-                  <span className="flex items-center gap-1 text-purple-600">
-                    <span className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
-                    Syncing…
-                  </span>
-                ) : syncState.status === 'error' ? (
-                  <span className="flex items-center gap-1 text-red-600">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    Sync error
-                  </span>
-                ) : (
-                  <span className="text-slate-500">{formatLastSynced(syncState.lastSyncedAt)}</span>
-                )}
+          <div className="flex justify-between items-center h-16">
+            {/* Logo & Brand */}
+            <motion.div 
+              className="flex items-center space-x-3"
+              initial={prefersReducedMotion ? undefined : { opacity: 0, x: -20 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <Logo variant="header" />
+              <div>
+                <Link to="/" className="cursor-pointer hover:opacity-80 transition-opacity">
+                  <h1 className="text-lg font-semibold bg-gradient-to-r from-slate-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">
+                    SafeNode
+                  </h1>
+                </Link>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <motion.span 
+                    className="text-xs text-slate-500 dark:text-slate-400 font-medium"
+                    initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    {vault?.entries.length || 0} entries
+                  </motion.span>
+                  <span className="text-slate-300 dark:text-slate-600">•</span>
+                  <motion.div 
+                    className="flex items-center text-xs"
+                    initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                    transition={{ delay: 0.25 }}
+                  >
+                    {syncState.status === 'syncing' ? (
+                      <span className="flex items-center gap-1.5 text-secondary-600 dark:text-secondary-400">
+                        <motion.span 
+                            className="h-1.5 w-1.5 rounded-full bg-secondary-500"
+                          animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        />
+                        Syncing
+                      </span>
+                    ) : syncState.status === 'error' ? (
+                      <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                        Error
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 dark:text-slate-400">{formatLastSynced(syncState.lastSyncedAt)}</span>
+                    )}
+                  </motion.div>
+                </div>
               </div>
-              <Button
-                onClick={() => setIsSharingKeysOpen(true)}
-                variant="outline"
-                size="sm"
-                title="Manage sharing keys"
-              >
-                Keys
-              </Button>
-              <Button
-                onClick={() => setIsImportOpen(true)}
-                variant="outline"
-                size="sm"
-                title="Import shared entry"
-              >
-                Import
-              </Button>
-              <Button
-                onClick={() => setIsBackupModalOpen(true)}
-                variant="outline"
-                size="sm"
-                title="Backups"
-              >
-                Backups
-              </Button>
-              {passkeySupported && (
+            </motion.div>
+            
+            {/* Actions */}
+            <motion.div 
+              className="flex items-center gap-2"
+              initial={prefersReducedMotion ? undefined : { opacity: 0, x: 20 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+            >
+              {/* Primary Actions */}
+              <div className="flex items-center gap-1.5 pr-2 border-r border-slate-200 dark:border-slate-700">
+                <AccountSwitcher
+                  onAccountChange={(account) => {
+                    if (currentAccount?.id !== account.id) {
+                      setCurrentAccount(account);
+                      handleLock();
+                    } else {
+                      setCurrentAccount(account);
+                    }
+                  }}
+                  currentAccountId={currentAccount?.id}
+                />
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    onClick={toggleDarkMode}
+                    variant="ghost"
+                    size="sm"
+                    className="w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  >
+                    {isDarkMode ? '☀️' : '🌙'}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    onClick={() => isTravelModeEnabled ? disableTravelMode() : enableTravelMode()}
+                    variant={isTravelModeEnabled ? "primary" : "ghost"}
+                    size="sm"
+                    className={`h-9 px-3 rounded-lg ${isTravelModeEnabled ? '' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                    title={isTravelModeEnabled ? "Disable Travel Mode" : "Enable Travel Mode"}
+                  >
+                    <span className="text-sm">{isTravelModeEnabled ? '✈️' : '✈️'}</span>
+                    <span className="ml-1.5 text-xs font-medium hidden sm:inline">Travel</span>
+                  </Button>
+                </motion.div>
+              </div>
+
+              {/* More Menu */}
+              <div className="relative more-menu-container">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                    variant="ghost"
+                    size="sm"
+                    className="w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    title="More options"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </Button>
+                </motion.div>
+
+                <AnimatePresence>
+                  {isMoreMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50"
+                    >
+                      <div className="px-2 space-y-0.5">
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsSharingKeysOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          🔑 Sharing Keys
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsImportOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          📥 Import Entry
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsBackupModalOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          💾 Backups
+                        </motion.button>
+                        {passkeySupported && (
+                          <motion.button
+                            whileHover={{ x: 4 }}
+                            onClick={() => { setIsPasskeysOpen(true); setIsMoreMenuOpen(false); }}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            🔐 Passkeys
+                          </motion.button>
+                        )}
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsAuditLogsOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          📋 Audit Logs
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsTeamVaultsOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          👥 Teams & Organizations
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsPINSetupOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          🔢 PIN Setup
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsBiometricSetupOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          👆 Biometric Setup
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { setIsKeyRotationOpen(true); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          🔄 Change Master Password
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Lock Button */}
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
-                  onClick={() => setIsPasskeysOpen(true)}
+                  onClick={handleLock}
                   variant="outline"
                   size="sm"
-                  title="Manage passkeys"
+                  className="h-9 px-3 rounded-lg border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  title="Lock vault"
                 >
-                  Passkeys
+                  <LockIcon className="w-4 h-4 mr-1.5" />
+                  <span className="text-xs font-medium hidden sm:inline">Lock</span>
                 </Button>
-              )}
-              <Button
-                onClick={() => setIsKeyRotationOpen(true)}
-                variant="outline"
-                size="sm"
-                title="Change master password"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-                Change Password
-              </Button>
-              <Button
-                onClick={handleLock}
-                variant="outline"
-                size="sm"
-              >
-                <LockIcon className="w-3 h-3" />
-                Lock
-              </Button>
-            </div>
-          </motion.div>
+              </motion.div>
+            </motion.div>
+          </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {vault && vault.entries.length > 0 ? (
-          <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
+      <AnimatePresence mode="wait">
+        <motion.main 
+          key="vault-main"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          {vault && vault.entries.length > 0 ? (
+            <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
             {/* Password Health */}
             {healthSummary && (
               <motion.div
@@ -646,7 +954,7 @@ const unresolvedHighAlerts = useMemo(
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div className="relative">
                   <input
-                    className="w-full md:w-80 px-4 py-2 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm transition-all duration-200"
+                    className="w-full md:w-80 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 text-sm transition-all duration-200"
                     placeholder="Search vault..."
                     value={query}
                     onChange={e => setQuery(e.target.value)}
@@ -663,7 +971,7 @@ const unresolvedHighAlerts = useMemo(
                       onClick={() => setActiveTag(null)}
                       className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
                         activeTag === null 
-                          ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white border-slate-900 shadow-lg' 
+                          ? 'bg-gradient-to-r from-secondary-600 to-secondary-500 dark:from-secondary-500 dark:to-secondary-400 text-white border-secondary-500 shadow-safenode-secondary' 
                           : 'bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-md'
                       }`}
                       whileHover={{ scale: 1.05 }}
@@ -676,7 +984,7 @@ const unresolvedHighAlerts = useMemo(
                         onClick={() => setActiveTag(tag)}
                         className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
                           activeTag === tag 
-                            ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white border-slate-900 shadow-lg' 
+                            ? 'bg-gradient-to-r from-secondary-600 to-secondary-500 dark:from-secondary-500 dark:to-secondary-400 text-white border-secondary-500 shadow-safenode-secondary' 
                             : 'bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-md'
                         }`}
                         whileHover={{ scale: 1.05 }}
@@ -701,6 +1009,7 @@ const unresolvedHighAlerts = useMemo(
               </div>
             </motion.div>
             {/* Stats Cards */}
+            {!isTravelModeEnabled && (
             <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={listParent} initial="hidden" animate="visible">
               <motion.div 
                 className="card card-hover" 
@@ -757,8 +1066,8 @@ const unresolvedHighAlerts = useMemo(
                 <div className="card-body">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/10">
-                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-10 h-10 bg-gradient-to-br from-secondary-100 to-secondary-200 dark:from-secondary-900/30 dark:to-secondary-800/30 rounded-xl flex items-center justify-center shadow-lg shadow-secondary-500/10">
+                        <svg className="w-5 h-5 text-secondary-600 dark:text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                       </div>
@@ -771,6 +1080,7 @@ const unresolvedHighAlerts = useMemo(
                 </div>
               </motion.div>
             </motion.div>
+            )}
 
             {/* Entries List */}
             <motion.div className="card overflow-hidden" variants={listItem}>
@@ -779,6 +1089,26 @@ const unresolvedHighAlerts = useMemo(
                 <p className="text-sm text-slate-600">Your encrypted password vault</p>
               </div>
               <div className="card-body p-0">
+                {isTravelModeEnabled ? (
+                  <div className="p-12 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Travel Mode Active</h3>
+                    <p className="text-slate-600 mb-4 max-w-md mx-auto">
+                      Your vault entries are hidden for security. Disable Travel Mode to view your passwords.
+                    </p>
+                    <Button
+                      onClick={disableTravelMode}
+                      variant="primary"
+                      size="md"
+                    >
+                      Disable Travel Mode
+                    </Button>
+                  </div>
+                ) : (
                 <motion.div className="divide-y divide-slate-200" variants={listParent} initial="hidden" animate="visible">
                 {filteredEntries.map((entry, index) => (
                   <EntryCard 
@@ -794,21 +1124,41 @@ const unresolvedHighAlerts = useMemo(
                   />
                 ))}
                 </motion.div>
+                )}
               </div>
             </motion.div>
           </motion.div>
         ) : (
           <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-2xl mb-4">
-              <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No entries found</h3>
-            <p className="text-slate-600">Your vault is empty. Add some password entries to get started.</p>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-4">
+                <svg className="w-8 h-8 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No entries found</h3>
+              <p className="text-slate-600 dark:text-slate-400 mb-6">Your vault is empty. Add some password entries to get started.</p>
+              <Button
+                onClick={handleAddEntry}
+                disabled={isSaving}
+                variant="primary"
+                size="lg"
+                className="inline-flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add Your First Entry
+              </Button>
+            </motion.div>
         </div>
       )}
-      </main>
+        </motion.main>
+      </AnimatePresence>
 
       {/* Entry Form Modal */}
       <EntryForm
@@ -850,6 +1200,38 @@ const unresolvedHighAlerts = useMemo(
         onRescan={handleBreachScan}
         scanning={isScanningBreaches}
         lastScanAt={lastBreachScanAt}
+      />
+      
+      {/* New Feature Modals */}
+      <AuditLogsModal
+        isOpen={isAuditLogsOpen}
+        onClose={() => setIsAuditLogsOpen(false)}
+        masterPassword={masterPassword}
+        salt={vaultSalt || new Uint8Array(32).buffer}
+        accountId={currentAccount?.id}
+      />
+      <TeamVaultsModal
+        isOpen={isTeamVaultsOpen}
+        onClose={() => setIsTeamVaultsOpen(false)}
+        currentUserId={user?.email || 'demo@safenode.app'}
+      />
+      <PINSetupModal
+        isOpen={isPINSetupOpen}
+        onClose={() => setIsPINSetupOpen(false)}
+        masterPassword={masterPassword}
+        salt={vaultSalt || new Uint8Array(32).buffer}
+        onSuccess={() => {
+          // PIN setup successful
+        }}
+      />
+      <BiometricSetupModal
+        isOpen={isBiometricSetupOpen}
+        onClose={() => setIsBiometricSetupOpen(false)}
+        userId={user?.email || 'demo@safenode.app'}
+        userName={user?.email || 'Demo User'}
+        onSuccess={() => {
+          // Biometric setup successful
+        }}
       />
 
       {isBackupModalOpen && (
@@ -1039,7 +1421,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
       case 'secure note':
         return 'from-orange-500 to-amber-500';
       default:
-        return 'from-purple-500 to-pink-500';
+        return 'from-secondary-500 to-secondary-400';
     }
   };
 
@@ -1047,7 +1429,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
     <motion.div 
       className={`group relative p-4 transition-all duration-300 ${
         isHovered 
-          ? 'bg-gradient-to-r from-slate-50 to-purple-50 shadow-lg border-l-4 border-purple-500' 
+          ? 'bg-gradient-to-r from-white to-secondary-50 dark:from-slate-800 dark:to-secondary-950/20 shadow-lg border-l-4 border-secondary-500 dark:border-secondary-400' 
           : 'hover:bg-slate-50'
       }`}
       variants={variants}
@@ -1103,7 +1485,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   value={entry.password}
                   readOnly
-                  className="px-2.5 py-1 text-xs font-mono bg-slate-100 border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  className="px-2.5 py-1 text-xs font-mono bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all duration-200"
                   style={{ width: `${Math.max(entry.password.length * 7, 100)}px` }}
                 />
                 <motion.button
@@ -1132,7 +1514,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
                 {entry.tags.map(tag => (
                   <motion.span 
                     key={tag} 
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200"
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary-100 dark:bg-secondary-900/30 text-secondary-700 dark:text-secondary-300 border border-secondary-200 dark:border-secondary-800"
                     whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -1237,7 +1619,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
           <motion.button
             onClick={onEdit}
             disabled={isSaving}
-            className="inline-flex items-center px-2.5 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 font-medium text-xs transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-2.5 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-900/20 hover:border-secondary-300 dark:hover:border-secondary-700 hover:text-secondary-700 dark:hover:text-secondary-300 font-medium text-xs transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             whileHover={isSaving ? undefined : { 
               scale: 1.05,
               y: -1
@@ -1309,7 +1691,10 @@ function TotpBadge({ secret }: { secret: string }) {
       try {
         const newCode = await generateTotpCode(secret)
         if (mounted) setCode(newCode)
-      } catch {}
+      } catch (error) {
+        // Silently handle TOTP generation errors
+        console.error('TOTP generation error:', error)
+      }
     }
     update()
     const tick = setInterval(() => {

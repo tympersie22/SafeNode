@@ -29,31 +29,56 @@ type PendingVaultUpdate = {
 const SECURE_KEY = 'safenode_master_password';
 const CACHE_KEY = 'safenode_cached_vault';
 const PENDING_KEY = 'safenode_pending_ops';
+const API_BASE = 'http://localhost:4000'; // Match backend port
 
 const syncPendingOperation = async (operation: PendingVaultUpdate) => {
-  const baseUrl = 'http://localhost:3001';
   if (operation.action === 'DELETE') {
     const entryId = operation.payload.entryId;
-    const endpoint = entryId ? `/api/vault/entry/${encodeURIComponent(entryId)}` : '/api/vault/entry';
-    const res = await fetch(`${baseUrl}${endpoint}`, {
+    if (!entryId) {
+      throw new Error('Entry ID required for delete operation');
+    }
+    
+    const res = await fetch(`${API_BASE}/api/vault/entry/${encodeURIComponent(entryId)}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(operation.payload)
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await AsyncStorage.getItem('safenode_token') || ''}`
+      },
+      body: JSON.stringify({
+        encryptedVault: operation.payload.encryptedVault,
+        iv: operation.payload.iv,
+        version: operation.payload.version
+      })
     });
+    
     if (!res.ok) {
-      throw new Error('Failed to delete vault entry');
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to delete vault entry');
     }
     return;
   }
 
-  const res = await fetch(`${baseUrl}/api/vault`, {
+  // UPSERT operation - update full vault
+  const res = await fetch(`${API_BASE}/api/vault/save`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(operation.payload)
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${await AsyncStorage.getItem('safenode_token') || ''}`
+    },
+    body: JSON.stringify({
+      encryptedVault: operation.payload.encryptedVault,
+      iv: operation.payload.iv,
+      version: operation.payload.version
+    })
   });
+  
   if (!res.ok) {
-    throw new Error('Failed to sync vault update');
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to sync vault update');
   }
+  
+  const result = await res.json();
+  return result;
 };
 
 const fetchVault = async (): Promise<VaultResponse> => {
@@ -144,12 +169,36 @@ export const useVault = () => {
     if (queue.length === 0) return;
 
     const remaining: PendingVaultUpdate[] = [];
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second base delay
+
     for (const operation of queue) {
-      try {
-        await syncPendingOperation(operation);
-      } catch (err) {
-        console.warn('Failed to process pending operation', err);
-        remaining.push(operation);
+      let retries = 0;
+      let success = false;
+
+      while (retries < maxRetries && !success) {
+        try {
+          await syncPendingOperation(operation);
+          success = true;
+        } catch (err: any) {
+          retries++;
+          const isNetworkError = err?.message?.includes('network') || 
+                                err?.message?.includes('fetch') ||
+                                err?.message?.includes('timeout');
+          
+          // Only retry network errors, not validation errors
+          if (retries < maxRetries && isNetworkError) {
+            // Exponential backoff: 1s, 2s, 4s
+            const delay = baseDelay * Math.pow(2, retries - 1);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          // Non-retryable error or max retries reached
+          console.warn(`Failed to process pending operation after ${retries} attempts:`, err);
+          remaining.push(operation);
+          break;
+        }
       }
     }
 
@@ -159,12 +208,32 @@ export const useVault = () => {
     }
   }, [isOnline, isUnlocked]);
 
+  // Auto-sync when coming back online
   useEffect(() => {
     if (!isUnlocked) return;
     if (!isOnline) return;
     if (pendingOperations.length === 0) return;
-    flushPendingOperations();
+    
+    // Small delay to ensure network is stable
+    const timeoutId = setTimeout(() => {
+      flushPendingOperations();
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
   }, [flushPendingOperations, isOnline, isUnlocked, pendingOperations.length]);
+
+  // Periodic sync check (every 30 seconds when online)
+  useEffect(() => {
+    if (!isUnlocked || !isOnline) return;
+    
+    const intervalId = setInterval(() => {
+      if (pendingOperations.length > 0) {
+        flushPendingOperations();
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [isUnlocked, isOnline, pendingOperations.length, flushPendingOperations]);
 
   const queueVaultUpdate = useCallback(
     async (operation: Omit<PendingVaultUpdate, 'id' | 'createdAt'>) => {
@@ -295,7 +364,8 @@ export const useVault = () => {
       isOnline,
       pendingOperations,
       biometricsAvailable,
-      biometricsEnabled
+      biometricsEnabled,
+      pendingCount: pendingOperations.length
     }),
     [biometricsAvailable, biometricsEnabled, isOnline, pendingOperations]
   );
@@ -318,7 +388,8 @@ export const useVault = () => {
     refetchVault,
     lockVault,
     queueVaultUpdate,
-    status
+    status,
+    pendingOperations
   };
 };
 

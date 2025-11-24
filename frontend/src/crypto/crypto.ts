@@ -34,8 +34,8 @@ export async function generateSalt(length: number = 32): Promise<ArrayBuffer> {
 }
 
 /**
- * Derive key from password using PBKDF2 (WebCrypto implementation)
- * TODO: Replace with Argon2 for production
+ * Derive key from password using Argon2id (WebAssembly implementation)
+ * Production-ready: Uses Argon2id with secure parameters
  */
 export async function deriveKey(
   password: string,
@@ -46,11 +46,16 @@ export async function deriveKey(
   }
 
   const { argon2id } = await import('hash-wasm')
+  // Argon2id parameters (aligned with backend):
+  // - iterations: 3 (time cost)
+  // - memorySize: 64 * 1024 KiB (64 MB memory cost)
+  // - parallelism: 1
+  // - hashLength: 32 bytes (256 bits)
   const hashHex = await argon2id({
     password,
     salt: new Uint8Array(salt),
     iterations: 3,
-    memorySize: 64 * 1024, // KiB
+    memorySize: 64 * 1024, // 64 MB in KiB
     parallelism: 1,
     hashLength: 32,
     outputType: 'hex'
@@ -264,25 +269,119 @@ export async function generateTotpCode (base32Secret: string, timeStepSec: numbe
   return String(code % mod).padStart(digits, '0')
 }
 
+export interface PasswordGeneratorOptions {
+  length: number;
+  includeUppercase: boolean;
+  includeLowercase: boolean;
+  includeNumbers: boolean;
+  includeSymbols: boolean;
+  excludeSimilar: boolean; // Exclude i, l, 1, L, o, 0, O
+  excludeAmbiguous: boolean; // Exclude { } [ ] ( ) / \ ' " ` ~ , ; : . < >
+  customExclude?: string; // Custom characters to exclude
+  requireEachType?: boolean; // Ensure at least one of each selected type
+}
+
 /**
- * Generate a secure random password
+ * Generate a secure random password with advanced options
  */
-export async function generateSecurePassword(length: number = 32): Promise<string> {
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  const array = new Uint8Array(length);
+export async function generateSecurePassword(
+  length: number = 32,
+  options?: Partial<PasswordGeneratorOptions>
+): Promise<string> {
+  const opts: PasswordGeneratorOptions = {
+    length,
+    includeUppercase: options?.includeUppercase ?? true,
+    includeLowercase: options?.includeLowercase ?? true,
+    includeNumbers: options?.includeNumbers ?? true,
+    includeSymbols: options?.includeSymbols ?? true,
+    excludeSimilar: options?.excludeSimilar ?? false,
+    excludeAmbiguous: options?.excludeAmbiguous ?? false,
+    customExclude: options?.customExclude ?? '',
+    requireEachType: options?.requireEachType ?? false,
+    ...options
+  };
+
+  // Build character sets
+  let uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  let numbers = '0123456789';
+  let symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+  // Apply exclusions
+  if (opts.excludeSimilar) {
+    uppercase = uppercase.replace(/[ILO]/g, '');
+    lowercase = lowercase.replace(/[ilo]/g, '');
+    numbers = numbers.replace(/[01]/g, '');
+  }
+
+  if (opts.excludeAmbiguous) {
+    symbols = symbols.replace(/[{}[\]()/\\'"`~,;:.<>]/g, '');
+  }
+
+  if (opts.customExclude) {
+    const excludeSet = new Set(opts.customExclude.split(''));
+    uppercase = uppercase.split('').filter(c => !excludeSet.has(c)).join('');
+    lowercase = lowercase.split('').filter(c => !excludeSet.has(c)).join('');
+    numbers = numbers.split('').filter(c => !excludeSet.has(c)).join('');
+    symbols = symbols.split('').filter(c => !excludeSet.has(c)).join('');
+  }
+
+  // Build final charset
+  let charset = '';
+  const availableSets: Array<{ chars: string; enabled: boolean; name: string }> = [
+    { chars: uppercase, enabled: opts.includeUppercase, name: 'uppercase' },
+    { chars: lowercase, enabled: opts.includeLowercase, name: 'lowercase' },
+    { chars: numbers, enabled: opts.includeNumbers, name: 'numbers' },
+    { chars: symbols, enabled: opts.includeSymbols, name: 'symbols' }
+  ];
+
+  const enabledSets = availableSets.filter(s => s.enabled);
+  
+  if (enabledSets.length === 0) {
+    throw new Error('At least one character type must be enabled');
+  }
+
+  charset = enabledSets.map(s => s.chars).join('');
+
+  if (charset.length === 0) {
+    throw new Error('Character set is empty after applying exclusions');
+  }
+
+  // Generate password
+  const array = new Uint8Array(opts.length);
   
   if (window.crypto && window.crypto.getRandomValues) {
     window.crypto.getRandomValues(array);
   } else {
     // Fallback
-    for (let i = 0; i < length; i++) {
+    for (let i = 0; i < opts.length; i++) {
       array[i] = Math.floor(Math.random() * 256);
     }
   }
   
   let password = '';
-  for (let i = 0; i < length; i++) {
+  for (let i = 0; i < opts.length; i++) {
     password += charset[array[i] % charset.length];
+  }
+
+  // Ensure each selected type is included if required
+  if (opts.requireEachType) {
+    const passwordChars = password.split('');
+    let needsRegeneration = false;
+
+    for (const set of enabledSets) {
+      if (!passwordChars.some(c => set.chars.includes(c))) {
+        needsRegeneration = true;
+        // Replace a random character with one from the missing set
+        const randomIndex = Math.floor(Math.random() * password.length);
+        const randomCharFromSet = set.chars[Math.floor(Math.random() * set.chars.length)];
+        passwordChars[randomIndex] = randomCharFromSet;
+      }
+    }
+
+    if (needsRegeneration) {
+      password = passwordChars.join('');
+    }
   }
   
   return password;
