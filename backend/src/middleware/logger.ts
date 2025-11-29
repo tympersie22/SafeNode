@@ -11,6 +11,80 @@ function generateCorrelationId(): string {
   return randomBytes(16).toString('hex')
 }
 
+// Log batching
+interface BatchedLog {
+  log: StructuredLog
+  timestamp: number
+}
+
+const logBatch: BatchedLog[] = []
+const BATCH_SIZE = 50
+const BATCH_INTERVAL = 5000 // 5 seconds
+
+// Sanitize sensitive fields from logs
+function sanitizeLogData(data: any): any {
+  if (!data || typeof data !== 'object') {
+    return data
+  }
+
+  const sensitiveFields = ['password', 'passwordHash', 'token', 'secret', 'apiKey', 'accessToken', 'refreshToken', 'authorization']
+  const sanitized = { ...data }
+
+  for (const key in sanitized) {
+    const lowerKey = key.toLowerCase()
+    if (sensitiveFields.some(field => lowerKey.includes(field))) {
+      sanitized[key] = '[REDACTED]'
+    } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+      sanitized[key] = sanitizeLogData(sanitized[key])
+    }
+  }
+
+  return sanitized
+}
+
+// Process batched logs
+function processBatchedLogs(server: FastifyInstance): void {
+  if (logBatch.length === 0) return
+
+  const logsToProcess = logBatch.splice(0, BATCH_SIZE)
+  
+  for (const batchedLog of logsToProcess) {
+    const sanitizedLog = {
+      ...batchedLog.log,
+      metadata: sanitizeLogData(batchedLog.log.metadata),
+      error: batchedLog.log.error ? {
+        ...batchedLog.log.error,
+        stack: batchedLog.log.error.stack ? '[REDACTED]' : undefined
+      } : undefined
+    }
+
+    if (sanitizedLog.level === 'error') {
+      server.log.error(sanitizedLog)
+    } else if (sanitizedLog.level === 'warn') {
+      server.log.warn(sanitizedLog)
+    } else {
+      server.log.info(sanitizedLog)
+    }
+  }
+}
+
+// Start batch processing interval
+let batchInterval: NodeJS.Timeout | null = null
+function startBatchProcessing(server: FastifyInstance): void {
+  if (batchInterval) return
+  
+  batchInterval = setInterval(() => {
+    processBatchedLogs(server)
+  }, BATCH_INTERVAL)
+}
+
+function stopBatchProcessing(): void {
+  if (batchInterval) {
+    clearInterval(batchInterval)
+    batchInterval = null
+  }
+}
+
 /**
  * Structured logging interface
  */
@@ -87,13 +161,23 @@ export function logRequest(
     }
   }
 
+  // Sanitize sensitive data
+  const sanitizedLog = {
+    ...log,
+    metadata: sanitizeLogData((request as any).logMetadata || {}),
+    error: log.error ? {
+      ...log.error,
+      stack: process.env.NODE_ENV === 'production' ? '[REDACTED]' : log.error.stack
+    } : undefined
+  }
+
   // Log using Fastify's logger
-  if (log.level === 'error') {
-    request.log.error(log)
-  } else if (log.level === 'warn') {
-    request.log.warn(log)
+  if (sanitizedLog.level === 'error') {
+    request.log.error(sanitizedLog)
+  } else if (sanitizedLog.level === 'warn') {
+    request.log.warn(sanitizedLog)
   } else {
-    request.log.info(log)
+    request.log.info(sanitizedLog)
   }
 
   return payload
@@ -149,9 +233,14 @@ export function registerStructuredLogging(server: FastifyInstance): void {
   // Log requests
   server.addHook('onSend', logRequest)
 
-  // Log errors
+  // Log errors (with sanitization)
   server.setErrorHandler((error, request, reply) => {
-    logError(error, request, reply)
+    const sanitizedError = {
+      ...error,
+      message: error.message || 'An unexpected error occurred',
+      stack: process.env.NODE_ENV === 'production' ? '[REDACTED]' : error.stack
+    }
+    logError(sanitizedError, request, reply)
     
     // Return error response
     reply.code(error.statusCode || 500).send({
@@ -159,6 +248,22 @@ export function registerStructuredLogging(server: FastifyInstance): void {
       message: error.message || 'An unexpected error occurred',
       correlationId: (request as any).correlationId
     })
+  })
+
+  // Start batch processing
+  startBatchProcessing(server)
+
+  // Cleanup on shutdown
+  process.on('SIGTERM', () => {
+    stopBatchProcessing()
+    // Process remaining logs
+    processBatchedLogs(server)
+  })
+  
+  process.on('SIGINT', () => {
+    stopBatchProcessing()
+    // Process remaining logs
+    processBatchedLogs(server)
   })
 
   // Activity logging helper
@@ -178,16 +283,25 @@ export function registerStructuredLogging(server: FastifyInstance): void {
       message: `Activity: ${activity.action}`,
       correlationId,
       userId,
-      metadata: {
+      metadata: sanitizeLogData({
         action: activity.action,
         resourceType: activity.resourceType,
         resourceId: activity.resourceId,
         ...activity.metadata
-      },
+      }),
       timestamp: new Date().toISOString()
     }
 
-    server.log.info(activityLog)
+    // Add to batch for processing
+    logBatch.push({
+      log: activityLog,
+      timestamp: Date.now()
+    })
+
+    // Process immediately if batch is full
+    if (logBatch.length >= BATCH_SIZE) {
+      processBatchedLogs(server)
+    }
   })
 }
 

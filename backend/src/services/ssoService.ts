@@ -145,7 +145,8 @@ async function exchangeCodeForToken(
   provider: 'google' | 'microsoft' | 'github',
   code: string,
   redirectUri: string,
-  config: SSOConfig
+  config: SSOConfig,
+  codeVerifier?: string
 ): Promise<{ accessToken: string; userInfo: any }> {
   const providerConfig = PROVIDER_CONFIGS[provider]
   const providerConfigObj = config[provider as keyof SSOConfig] as any
@@ -167,6 +168,11 @@ async function exchangeCodeForToken(
     code,
     redirect_uri: redirectUri,
     grant_type: 'authorization_code'
+  }
+
+  // Add PKCE code verifier if available (required for PKCE flow)
+  if (codeVerifier) {
+    tokenParams.code_verifier = codeVerifier
   }
 
   if (provider === 'github') {
@@ -211,16 +217,16 @@ async function exchangeCodeForToken(
     throw new Error(`Failed to fetch user info: ${userInfoResponse.status}`)
   }
 
-  const userInfo = await userInfoResponse.json()
+  const userInfo = await userInfoResponse.json() as any
 
   // Normalize user info across providers
   let normalizedUserInfo: { email: string; name: string; id: string }
   
   if (provider === 'google') {
     normalizedUserInfo = {
-      email: userInfo.email,
-      name: userInfo.name || userInfo.given_name || '',
-      id: userInfo.id
+      email: userInfo.email as string,
+      name: (userInfo.name || userInfo.given_name || '') as string,
+      id: userInfo.id as string
     }
   } else if (provider === 'microsoft') {
     normalizedUserInfo = {
@@ -270,6 +276,9 @@ export async function handleSSOCallback(
   const now = Date.now()
   if (now - storedState.createdAt > 10 * 60 * 1000) {
     oauthStates.delete(state)
+    if ((oauthStates as any).verifiers) {
+      (oauthStates as any).verifiers.delete(state)
+    }
     throw new Error('OAuth state expired')
   }
 
@@ -278,10 +287,11 @@ export async function handleSSOCallback(
   }
 
   const redirectUri = storedState.redirectUri
+  const codeVerifier = (oauthStates as any).verifiers?.get(state)
 
   // Handle OAuth providers
   if (provider === 'google' || provider === 'microsoft' || provider === 'github') {
-    const { userInfo } = await exchangeCodeForToken(provider, code, redirectUri, config)
+    const { userInfo } = await exchangeCodeForToken(provider, code, redirectUri, config, codeVerifier)
     
     // Check if user exists by email
     let user = await db.users.findByEmail(userInfo.email.toLowerCase().trim())
@@ -308,8 +318,11 @@ export async function handleSSOCallback(
     // Generate JWT token
     const token = issueToken(user)
 
-    // Clean up state
+    // Clean up state and verifier
     oauthStates.delete(state)
+    if ((oauthStates as any).verifiers) {
+      (oauthStates as any).verifiers.delete(state)
+    }
 
     return { user, token }
   }

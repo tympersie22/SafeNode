@@ -178,8 +178,13 @@ const startAutoLockMonitoring = () => {
     document.addEventListener(event, trackActivity, { passive: true });
   });
   
-  // Also track window focus
-  window.addEventListener('focus', trackActivity);
+  // Also track window focus (not element focus)
+  window.addEventListener('focus', (event) => {
+    // Only track when window itself gets focus, not when elements receive focus
+    if (event.target === window || event.target === document) {
+      trackActivity();
+    }
+  });
 };
 
 // Desktop-specific UI enhancements

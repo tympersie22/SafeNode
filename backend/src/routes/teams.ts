@@ -5,6 +5,7 @@
 
 import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth'
+import { createAuditLog } from '../services/auditLogService'
 import {
   createTeam,
   createTeamVault,

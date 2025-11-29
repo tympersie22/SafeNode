@@ -7,6 +7,7 @@ import fetch from 'node-fetch'
 import { initSentry } from './services/sentryService'
 import { registerAuthRoutes } from './routes/auth'
 import { registerBillingRoutes } from './routes/billing'
+import { seedDatabase } from './db/seed'
 import { registerDeviceRoutes } from './routes/devices'
 import { registerAuditRoutes } from './routes/audit'
 import { registerTeamRoutes } from './routes/teams'
@@ -24,7 +25,57 @@ import { db } from './services/database'
 import { config } from './config'
 import { disconnectPrisma } from './db/prisma'
 
-const server = Fastify({ logger: true })
+const server = Fastify({ 
+  logger: true,
+  bodyLimit: 10485760, // 10MB
+  requestIdLogLabel: 'reqId',
+  requestIdHeader: 'x-request-id'
+})
+
+// Handle JSON parsing errors for aborted requests
+server.addHook('onRequest', async (request, reply) => {
+  // Handle aborted requests gracefully
+  request.raw.on('aborted', () => {
+    request.log.warn({ url: request.url }, 'Request aborted by client')
+    // Don't send response if already aborted
+    if (!reply.sent) {
+      reply.code(499).send({ error: 'request_aborted', message: 'Request was aborted' })
+    }
+  })
+})
+
+// Handle JSON parsing errors
+server.setErrorHandler((error, request, reply) => {
+  // Don't send response if already sent or aborted
+  if (reply.sent || request.raw.aborted) {
+    return
+  }
+  
+  // Handle JSON parsing errors
+  if (error instanceof SyntaxError && 'body' in error) {
+    request.log.warn({ error: error.message, url: request.url }, 'JSON parsing error')
+    return reply.code(400).send({
+      error: 'invalid_json',
+      message: 'Invalid JSON in request body'
+    })
+  }
+  
+  // Handle aborted requests
+  if (error.code === 'ECONNABORTED' || error.message?.includes('aborted') || request.raw.aborted) {
+    request.log.warn({ error: error.message, url: request.url }, 'Request aborted')
+    return reply.code(499).send({
+      error: 'request_aborted',
+      message: 'Request was aborted'
+    })
+  }
+  
+  // Default error handler
+  request.log.error({ error: error.message, stack: error.stack, url: request.url }, 'Unhandled error')
+  return reply.code(error.statusCode || 500).send({
+    error: error.name || 'InternalServerError',
+    message: error.message || 'An unexpected error occurred'
+  })
+})
 
 // Will be generated at startup to allow immediate unlock with password "demo-password"
 let demoSaltB64 = ''
@@ -56,7 +107,7 @@ function arrayBufferToBase64 (buffer: ArrayBuffer): string {
   return Buffer.from(new Uint8Array(buffer)).toString('base64')
 }
 
-async function generateDemoVault (): Promise<void> {
+export async function generateDemoVault (): Promise<void> {
   const password = 'demo-password'
   const encoder = new TextEncoder()
 
@@ -142,6 +193,29 @@ async function generateDemoVault (): Promise<void> {
     throw err
   }
 }
+
+// Health check endpoint
+server.get('/api/health', async (req, reply) => {
+  try {
+    return { 
+      status: 'ok', 
+      timestamp: Date.now(),
+      service: 'safenode-backend',
+      version: '1.0.0'
+    }
+  } catch (error: any) {
+    req.log.error(error)
+    return reply.code(500).send({ 
+      status: 'error', 
+      message: 'Health check failed' 
+    })
+  }
+})
+
+// Legacy health endpoint for backward compatibility
+server.get('/health', async (req, reply) => {
+  return reply.redirect('/api/health')
+})
 
 server.get('/api/user/salt', async (req, reply) => {
   try {
@@ -1073,16 +1147,71 @@ const start = async () => {
     // Initialize Sentry (must be first)
     initSentry()
 
-    // Initialize database
+    // Initialize database BEFORE registering routes
     await db.init()
 
-    // CORS for local dev; restrict in production
+    // CORS configuration - MUST be before routes
+    // SOLUTION 1: Proper CORS middleware for Fastify (recommended)
+    // Uses config.corsOrigin as primary source (defaults to production domain or localhost in dev)
+    // Supports FRONTEND_URL env var as override (CORS_ORIGIN is handled by config.ts)
     await server.register(cors, {
-      origin: Array.isArray(config.corsOrigin) 
-        ? config.corsOrigin 
-        : [config.corsOrigin as string],
-      methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-      credentials: true
+      origin: (origin, cb) => {
+        // Priority: FRONTEND_URL (override) > config.corsOrigin (primary source with correct defaults)
+        // config.corsOrigin defaults:
+        //   - Production: ['https://safenode.app'] (or from CORS_ORIGIN env var via config.ts)
+        //   - Development: RegExp[] patterns for localhost
+        
+        // If FRONTEND_URL is set, use it as override
+        if (process.env.FRONTEND_URL && process.env.FRONTEND_URL.trim()) {
+          const allowedUrls = process.env.FRONTEND_URL.split(',').map(url => url.trim()).filter(url => url)
+          if (origin && allowedUrls.includes(origin)) {
+            return cb(null, true)
+          }
+          // In development, also allow localhost even if FRONTEND_URL is set
+          if (config.nodeEnv === 'development' && origin && 
+              (origin.match(/^http:\/\/localhost:\d+$/) || origin.match(/^http:\/\/127\.0\.0\.1:\d+$/))) {
+            return cb(null, true)
+          }
+          return cb(new Error('Not allowed by CORS'), false)
+        }
+        
+        // Primary source: use config.corsOrigin directly (has correct production defaults)
+        if (config.nodeEnv === 'production') {
+          // In production, config.corsOrigin is string[] (from config.ts)
+          // config.ts defaults to ['https://safenode.app'] if CORS_ORIGIN is not set
+          const allowedOrigins = config.corsOrigin as unknown as string[]
+          if (Array.isArray(allowedOrigins) && allowedOrigins.length > 0) {
+            if (origin && allowedOrigins.includes(origin)) {
+              return cb(null, true)
+            }
+          }
+          return cb(new Error('Not allowed by CORS'), false)
+        } else {
+          // In development, config.corsOrigin is RegExp[]
+          const allowedPatterns = config.corsOrigin as unknown as RegExp[]
+          if (Array.isArray(allowedPatterns) && allowedPatterns.length > 0) {
+            if (!origin || allowedPatterns.some(pattern => pattern.test(origin))) {
+              return cb(null, true)
+            }
+          }
+          return cb(new Error('Not allowed by CORS'), false)
+        }
+      },
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Authorization',
+        'Content-Type',
+        'X-Requested-With',
+        'Accept',
+        'Origin',
+        'Access-Control-Request-Method',
+        'Access-Control-Request-Headers'
+      ],
+      exposedHeaders: ['Authorization'],
+      credentials: true,
+      preflight: true,
+      strictPreflight: false,
+      maxAge: 86400 // 24 hours
     })
 
     // Security headers (Helmet)
@@ -1137,11 +1266,70 @@ const start = async () => {
 
     // Generate demo vault (for backward compatibility)
     await generateDemoVault()
+
+    // Seed database with demo account
+    await seedDatabase()
     
-    // Start server
-    await server.listen({port: config.port, host:'0.0.0.0'})
-    console.log(`✅ SafeNode backend server listening on port ${config.port}`)
-    console.log(`📦 Database adapter: ${config.dbAdapter}`)
+    // Start server - always listen on 127.0.0.1 for development, 0.0.0.0 for production
+    // Using 127.0.0.1 ensures consistent binding to IPv4 localhost
+    const host = config.nodeEnv === 'production' ? '0.0.0.0' : '127.0.0.1'
+    
+    // Handle EADDRINUSE by attempting to close existing server
+    const handlePortInUse = async () => {
+      try {
+        // Try to find and close any existing server on this port
+        const net = await import('net')
+        return new Promise<void>((resolve, reject) => {
+          const tester = net.createServer()
+          tester.once('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+              console.warn(`⚠️  Port ${config.port} is in use. Attempting to release...`)
+              // Port is in use, but we can't easily close it from here
+              // The user needs to stop the existing process
+              reject(err)
+            } else {
+              reject(err)
+            }
+          })
+          tester.once('listening', () => {
+            tester.close(() => resolve())
+          })
+          tester.listen(config.port, host)
+        })
+      } catch (err) {
+        throw err
+      }
+    }
+    
+    try {
+      // Check if port is available first
+      await handlePortInUse()
+    } catch (error: any) {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${config.port} is already in use.`)
+        console.error(`   Please stop the existing server or use a different port.`)
+        console.error(`   To find the process: lsof -i :${config.port}`)
+        await server.close().catch(() => {})
+        process.exit(1)
+      }
+    }
+    
+    try {
+      await server.listen({port: config.port, host})
+      const serverUrl = `http://localhost:${config.port}`
+      console.log(`✅ SafeNode backend server listening on ${serverUrl}`)
+      console.log(`📦 Database adapter: ${config.dbAdapter}`)
+      console.log(`🏥 Health check: ${serverUrl}/api/health`)
+      console.log(`📚 API docs: ${serverUrl}/docs`)
+    } catch (error: any) {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${config.port} is already in use. Please stop the existing server or use a different port.`)
+        await server.close().catch(() => {})
+        process.exit(1)
+      } else {
+        throw error
+      }
+    }
   }catch(e){
     server.log.error(e)
     await disconnectPrisma().catch(() => {})

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
 import { createPortalSession, getSubscriptionLimits, SubscriptionLimits } from '../../services/billingService'
@@ -12,6 +13,7 @@ import { getCurrentUser } from '../../services/authService'
 import { Shield } from 'lucide-react'
 
 export const BillingSettings: React.FC = () => {
+  const navigate = useNavigate()
   const [user, setUser] = useState<any>(null)
   const [limits, setLimits] = useState<SubscriptionLimits | null>(null)
   const [loading, setLoading] = useState(false)
@@ -110,7 +112,7 @@ export const BillingSettings: React.FC = () => {
               ) : (
                 <SaasButton
                   variant="primary"
-                  onClick={() => window.location.href = '/billing'}
+                  onClick={() => navigate('/billing')}
                 >
                   Upgrade Plan
                 </SaasButton>

@@ -47,6 +47,35 @@ export async function registerAuthRoutes(server: FastifyInstance) {
   /**
    * POST /api/auth/register
    * Register a new user account
+   * @swagger
+   * /api/auth/register:
+   *   post:
+   *     tags: [Authentication]
+   *     summary: Register a new user account
+   *     description: Creates a new user account with email and password
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [email, password]
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               password:
+   *                 type: string
+   *                 minLength: 8
+   *               displayName:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: User registered successfully
+   *       400:
+   *         description: Validation error
+   *       409:
+   *         description: Email already exists
    */
   server.post('/api/auth/register', async (request, reply) => {
     try {
@@ -99,19 +128,24 @@ export async function registerAuthRoutes(server: FastifyInstance) {
                 username: user.displayName
               })
 
-              // Return user data (exclude sensitive fields)
-              return {
+              // Return user data (exclude sensitive fields) - format: { token, userId, user }
+              return reply.code(200).send({
                 success: true,
                 token,
+                userId: user.id,
                 user: {
                   id: user.id,
                   email: user.email,
                   displayName: user.displayName,
                   emailVerified: user.emailVerified,
                   subscriptionTier: user.subscriptionTier,
-                  createdAt: user.createdAt
+                  subscriptionStatus: user.subscriptionStatus,
+                  twoFactorEnabled: user.twoFactorEnabled,
+                  biometricEnabled: user.biometricEnabled,
+                  createdAt: user.createdAt,
+                  lastLoginAt: user.lastLoginAt
                 }
-              }
+              })
             } catch (error: any) {
               request.log.error(error)
               
@@ -135,11 +169,13 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    */
   server.post('/api/auth/login', async (request, reply) => {
     try {
+      request.log.info({ body: request.body }, 'Login request received')
       const body = request.body as any
       
       // Validate input
       const validation = loginSchema.safeParse(body)
       if (!validation.success) {
+        request.log.warn({ errors: validation.error.errors }, 'Validation failed')
         return reply.code(400).send({
           error: 'validation_error',
           message: 'Invalid email or password',
@@ -148,17 +184,26 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       const { email, password } = validation.data
+      request.log.info({ email }, 'Starting authentication')
 
-      // Authenticate user
+      // Authenticate user - increased timeout to 30 seconds
       let user: User | null
       try {
-        user = await authenticateUser(email, password)
+        const authPromise = authenticateUser(email, password)
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Authentication timeout')), 30000)
+        )
+        
+        user = await Promise.race([authPromise, timeoutPromise])
+        request.log.info({ email, userId: user?.id }, 'Authentication completed')
       } catch (authError: any) {
-        request.log.error({ error: authError, email }, 'Authentication error')
+        request.log.error({ error: authError, email, stack: authError?.stack }, 'Authentication error')
         return reply.code(500).send({
           error: 'auth_error',
-          message: 'Authentication failed',
-          details: authError?.message
+          message: authError?.message === 'Authentication timeout' 
+            ? 'Authentication request timed out. Please try again.'
+            : 'Authentication failed',
+          details: process.env.NODE_ENV === 'development' ? authError?.message : undefined
         })
       }
       
@@ -210,10 +255,11 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         userAgent: request.headers['user-agent'] || undefined
       }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
 
-      // Return user data (exclude sensitive fields)
-      return {
+      // Return user data (exclude sensitive fields) - format: { token, userId, user }
+      return reply.code(200).send({
         success: true,
         token,
+        userId: user.id,
         user: {
           id: user.id,
           email: user.email,
@@ -224,7 +270,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
           twoFactorEnabled: user.twoFactorEnabled,
           biometricEnabled: user.biometricEnabled
         }
-      }
+      })
     } catch (error: any) {
       request.log.error({ error, stack: error?.stack, email: (request.body as any)?.email }, 'Login error')
       return reply.code(500).send({
@@ -242,18 +288,22 @@ export async function registerAuthRoutes(server: FastifyInstance) {
   server.get('/api/auth/me', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const user = (request as any).user
+      request.log.info({ userId: user.id, email: user.email }, 'GET /api/auth/me request')
       
       const userData = await findUserById(user.id)
       
       if (!userData) {
+        request.log.warn({ userId: user.id }, 'User not found in database')
         return reply.code(404).send({
           error: 'user_not_found',
           message: 'User not found'
         })
       }
 
+      request.log.info({ userId: userData.id }, 'User data fetched successfully')
+      
       // Return user data (exclude sensitive fields)
-      return {
+      const response = {
         id: userData.id,
         email: userData.email,
         displayName: userData.displayName,
@@ -266,8 +316,10 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         createdAt: userData.createdAt,
         lastLoginAt: userData.lastLoginAt
       }
+      
+      return reply.code(200).send(response)
     } catch (error: any) {
-      request.log.error(error)
+      request.log.error({ error: error?.message, stack: error?.stack }, 'Error in GET /api/auth/me')
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to fetch user data'

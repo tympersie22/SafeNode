@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { createCheckoutSession } from '../../services/billingService'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
@@ -25,7 +26,7 @@ const PLANS = [
       'Breach monitoring',
       'Password generator'
     ],
-    priceId: process.env.VITE_STRIPE_PRICE_INDIVIDUAL || 'price_individual_monthly',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_INDIVIDUAL || 'price_individual_monthly',
     popular: false
   },
   {
@@ -43,7 +44,7 @@ const PLANS = [
       'Password generator',
       'Secure sharing'
     ],
-    priceId: process.env.VITE_STRIPE_PRICE_FAMILY || 'price_family_monthly',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_FAMILY || 'price_family_monthly',
     popular: true
   },
   {
@@ -64,7 +65,7 @@ const PLANS = [
       'Role-based access',
       'Audit logs'
     ],
-    priceId: process.env.VITE_STRIPE_PRICE_TEAMS || 'price_teams_monthly',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_TEAMS || 'price_teams_monthly',
     popular: false
   },
   {
@@ -87,12 +88,13 @@ const PLANS = [
       'SSO integration',
       'API access'
     ],
-    priceId: process.env.VITE_STRIPE_PRICE_BUSINESS || 'price_business_monthly',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_BUSINESS || 'price_business_monthly',
     popular: false
   }
 ]
 
 export const SubscribePage: React.FC = () => {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -118,6 +120,25 @@ export const SubscribePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 py-12 px-4">
       <div className="max-w-7xl mx-auto">
+        {/* Back Button */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <motion.button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Vault
+          </motion.button>
+        </motion.div>
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

@@ -252,7 +252,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      const error = await response.json().catch(() => ({ message: 'Unknown error' })) as { message?: string }
       throw new Error(error.message || 'Failed to send email via Resend')
     }
   }
@@ -306,6 +306,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
    */
   private async sendWithNodemailer(options: EmailOptions): Promise<void> {
     // Dynamic import to avoid adding nodemailer as required dependency
+    // @ts-ignore - nodemailer may not be installed
     const nodemailer = await import('nodemailer')
     
     const transporter = nodemailer.createTransport({

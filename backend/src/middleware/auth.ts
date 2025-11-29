@@ -32,13 +32,13 @@ export function issueToken(user: { id: string; email: string }): string {
   }
   
   // Token expires in 24 hours (configurable via JWT_EXPIRES_IN env var)
-  const expiresIn = process.env.JWT_EXPIRES_IN || '24h'
+  const expiresIn: string | number = process.env.JWT_EXPIRES_IN || '24h'
   
   return jwt.sign(payload, config.jwtSecret, {
-    expiresIn,
+    expiresIn: expiresIn as string,
     issuer: 'safenode',
     audience: 'safenode-api'
-  })
+  } as jwt.SignOptions)
 }
 
 /**
@@ -74,6 +74,7 @@ export async function requireAuth(
     const authHeader = request.headers.authorization
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      request.log.warn({ path: request.url }, 'Missing or invalid Authorization header')
       return reply.code(401).send({
         error: 'unauthorized',
         message: 'Missing or invalid Authorization header. Expected: Bearer <token>'
@@ -84,6 +85,7 @@ export async function requireAuth(
     const payload = verifyToken(token)
     
     if (!payload) {
+      request.log.warn({ path: request.url }, 'Invalid or expired token')
       return reply.code(401).send({
         error: 'unauthorized',
         message: 'Invalid or expired token'
@@ -95,7 +97,10 @@ export async function requireAuth(
       id: payload.userId,
       email: payload.email
     }
+    
+    request.log.debug({ userId: payload.userId, path: request.url }, 'Authentication successful')
   } catch (error: any) {
+    request.log.error({ error: error?.message, path: request.url }, 'Authentication error')
     return reply.code(401).send({
       error: 'unauthorized',
       message: 'Authentication failed',

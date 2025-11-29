@@ -39,10 +39,9 @@ async function requireAdmin(request: FastifyRequest): Promise<void> {
     throw new Error('Not authenticated')
   }
 
-  // TODO: Implement proper admin check
-  // For now, allow any authenticated user (restrict in production)
-  // Example: check user.role === 'admin' or user.subscriptionTier === 'enterprise'
-  const isAdmin = user.role === 'admin' || user.subscriptionTier === 'enterprise'
+  // Check for admin privileges
+  // Allow superadmin, admin, or enterprise tier users
+  const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.subscriptionTier === 'enterprise'
   
   if (!isAdmin) {
     throw new Error('Admin access required')

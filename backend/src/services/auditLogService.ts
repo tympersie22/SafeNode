@@ -65,6 +65,32 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
 }
 
 /**
+ * Bulk create audit logs (for batch operations)
+ */
+export async function bulkCreateAuditLogs(entries: AuditLogEntry[]): Promise<void> {
+  const prisma = getPrismaClient()
+
+  try {
+    await prisma.auditLog.createMany({
+      data: entries.map(entry => ({
+        userId: entry.userId,
+        action: entry.action,
+        resourceType: entry.resourceType || null,
+        resourceId: entry.resourceId || null,
+        metadata: entry.metadata || null,
+        ipAddress: entry.ipAddress || null,
+        userAgent: entry.userAgent || null,
+        createdAt: new Date()
+      })),
+      skipDuplicates: true
+    })
+  } catch (error) {
+    // Don't throw - audit logging should not break the application
+    console.error('Failed to bulk create audit logs:', error)
+  }
+}
+
+/**
  * Get audit logs for a user
  * Returns logs with total count for pagination
  */
@@ -114,6 +140,71 @@ export async function getUserAuditLogs(
   return {
     logs: logs.map(log => ({
       id: log.id,
+      action: log.action,
+      resourceType: log.resourceType,
+      resourceId: log.resourceId,
+      metadata: log.metadata,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent,
+      createdAt: log.createdAt.getTime()
+    })),
+    total
+  }
+}
+
+/**
+ * Bulk query audit logs for multiple users (admin only)
+ * Useful for team-wide audit reports
+ */
+export async function getBulkAuditLogs(
+  userIds: string[],
+  options?: {
+    limit?: number
+    offset?: number
+    action?: string
+    startDate?: Date
+    endDate?: Date
+  }
+): Promise<{ logs: any[]; total: number }> {
+  const prisma = getPrismaClient()
+
+  const where: any = {
+    userId: {
+      in: userIds
+    }
+  }
+
+  if (options?.action) {
+    where.action = options.action
+  }
+
+  if (options?.startDate || options?.endDate) {
+    where.createdAt = {}
+    if (options.startDate) {
+      where.createdAt.gte = options.startDate
+    }
+    if (options.endDate) {
+      where.createdAt.lte = options.endDate
+    }
+  }
+
+  // Get total count
+  const total = await prisma.auditLog.count({ where })
+
+  // Get paginated logs
+  const logs = await prisma.auditLog.findMany({
+    where,
+    orderBy: {
+      createdAt: 'desc'
+    },
+    take: options?.limit || 100,
+    skip: options?.offset || 0
+  })
+
+  return {
+    logs: logs.map(log => ({
+      id: log.id,
+      userId: log.userId,
       action: log.action,
       resourceType: log.resourceType,
       resourceId: log.resourceId,

@@ -54,15 +54,15 @@ export async function generateTOTPSecret(userId: string, email: string, issuer: 
  */
 export function verifyTOTP(secret: string, token: string): TOTPVerifyResult {
   try {
-    const delta = authenticator.verifyDelta({
+    const isValid = authenticator.verify({
       secret,
       token
     })
     
-    if (delta !== null) {
+    if (isValid) {
       return {
         valid: true,
-        delta
+        delta: 0 // TOTP verified successfully, no time drift
       }
     }
     

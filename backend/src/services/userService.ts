@@ -50,6 +50,9 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     subscriptionTier: 'free',
     subscriptionStatus: 'active',
     
+    // Role (defaults to user)
+    role: 'user',
+    
     // Device limits
     devices: []
   }
@@ -64,6 +67,8 @@ export async function createUser(input: CreateUserInput): Promise<User> {
 export async function authenticateUser(email: string, password: string): Promise<User | null> {
   try {
     const normalizedEmail = email.toLowerCase().trim()
+    console.log(`[AUTH] Looking up user: ${normalizedEmail}`)
+    
     const user = await db.users.findByEmail(normalizedEmail)
     
     if (!user) {
@@ -71,6 +76,7 @@ export async function authenticateUser(email: string, password: string): Promise
       return null
     }
 
+    console.log(`[AUTH] User found, verifying password for: ${normalizedEmail}`)
     // Verify password hash
     const valid = await argon2.verify(user.passwordHash, password)
     
@@ -79,10 +85,11 @@ export async function authenticateUser(email: string, password: string): Promise
       return null
     }
 
-    // Update last login time
-    await db.users.update(user.id, {
+    console.log(`[AUTH] Password valid, updating last login for: ${normalizedEmail}`)
+    // Update last login time (don't wait for this to complete)
+    db.users.update(user.id, {
       lastLoginAt: Date.now()
-    })
+    }).catch(err => console.error('Failed to update last login:', err))
 
     console.log(`[AUTH] Successfully authenticated user: ${normalizedEmail}`)
     return {
@@ -91,6 +98,7 @@ export async function authenticateUser(email: string, password: string): Promise
     }
   } catch (error: any) {
     console.error('Error in authenticateUser:', error)
+    console.error('Stack:', error?.stack)
     throw new Error(`Authentication failed: ${error?.message || 'Unknown error'}`)
   }
 }

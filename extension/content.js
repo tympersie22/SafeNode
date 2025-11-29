@@ -88,11 +88,17 @@ class SafeNodeAutofill {
   }
 
   scanForPasswordFields(container) {
-    // Find password input fields
+    // Normalize container - handle both elements and document fragments
+    if (!container || !(container instanceof Element || container instanceof Document || container instanceof DocumentFragment)) {
+      return;
+    }
+
+    // Find password input fields - normalize detection
     const passwordFields = container.querySelectorAll('input[type="password"]');
     
     passwordFields.forEach(field => {
-      if (!this.injectedElements.has(field)) {
+      // Verify it's actually an HTMLInputElement
+      if (field instanceof HTMLInputElement && !this.injectedElements.has(field)) {
         this.injectAutofillButton(field);
         this.setupCredentialCapture(field);
         this.injectedElements.add(field);
@@ -103,7 +109,8 @@ class SafeNodeAutofill {
     const emailFields = container.querySelectorAll('input[type="email"], input[type="text"][name*="email" i], input[type="text"][name*="username" i], input[type="text"][name*="login" i], input[type="text"][id*="email" i], input[type="text"][id*="username" i]');
     
     emailFields.forEach(field => {
-      if (!this.injectedElements.has(field)) {
+      // Verify it's actually an HTMLInputElement
+      if (field instanceof HTMLInputElement && !this.injectedElements.has(field)) {
         this.injectAutofillButton(field);
         this.injectedElements.add(field);
       }
@@ -111,8 +118,16 @@ class SafeNodeAutofill {
   }
 
   setupCredentialCapture(passwordField) {
+    // Normalize field detection - ensure it's an HTMLInputElement
+    if (!passwordField || !(passwordField instanceof HTMLInputElement)) {
+      return;
+    }
+
     const form = passwordField.closest('form');
-    if (!form) return;
+    // Normalize form detection - ensure it's an HTMLFormElement
+    if (!form || !(form instanceof HTMLFormElement)) {
+      return;
+    }
 
     // Detect form submission
     form.addEventListener('submit', async (e) => {
@@ -181,6 +196,11 @@ class SafeNodeAutofill {
   }
 
   findUsernameField(form) {
+    // Normalize form detection - ensure it's an HTMLFormElement
+    if (!form || !(form instanceof HTMLFormElement)) {
+      return null;
+    }
+
     // Try multiple strategies to find username field
     const selectors = [
       'input[type="email"]',
@@ -196,17 +216,24 @@ class SafeNodeAutofill {
 
     for (const selector of selectors) {
       const field = form.querySelector(selector);
-      if (field && field.value) {
+      // Use instanceof check instead of assuming .control property
+      if (field instanceof HTMLInputElement && field.value) {
         return field;
       }
     }
 
     // Fallback: find first text input before password field
-    const allInputs = Array.from(form.querySelectorAll('input[type="text"], input[type="email"]'));
-    const passwordIndex = Array.from(form.querySelectorAll('input')).indexOf(passwordField);
-    return allInputs.find(input => 
-      Array.from(form.querySelectorAll('input')).indexOf(input) < passwordIndex
-    );
+    const allInputs = Array.from(form.querySelectorAll('input[type="text"], input[type="email"]'))
+      .filter(input => input instanceof HTMLInputElement);
+    const passwordIndex = Array.from(form.querySelectorAll('input'))
+      .filter(input => input instanceof HTMLInputElement)
+      .indexOf(passwordField);
+    return allInputs.find(input => {
+      const inputIndex = Array.from(form.querySelectorAll('input'))
+        .filter(inp => inp instanceof HTMLInputElement)
+        .indexOf(input);
+      return inputIndex < passwordIndex;
+    });
   }
 
   showSavePrompt(username, password, url) {
@@ -311,6 +338,11 @@ class SafeNodeAutofill {
 
   injectAutofillButton(field) {
     if (!this.isUnlocked || !this.vaultData) return;
+    
+    // Normalize field detection - ensure it's an HTMLInputElement
+    if (!field || !(field instanceof HTMLInputElement)) {
+      return;
+    }
 
     // Create autofill button
     const button = document.createElement('div');
@@ -435,6 +467,11 @@ class SafeNodeAutofill {
   findMatchingEntries(field) {
     if (!this.vaultData || !this.vaultData.entries) return [];
 
+    // Normalize field detection - ensure it's an HTMLInputElement
+    if (!field || !(field instanceof HTMLInputElement)) {
+      return [];
+    }
+
     const currentDomain = window.location.hostname;
     const currentUrl = window.location.href;
     const fieldType = field.type;
@@ -479,13 +516,21 @@ class SafeNodeAutofill {
   }
 
   autofillEntry(field, entry) {
+    // Normalize field detection - ensure it's an HTMLInputElement
+    if (!field || !(field instanceof HTMLInputElement)) {
+      return;
+    }
+
     const form = field.closest('form');
     
     if (field.type === 'password') {
       // Find username field in the same form
-      const usernameField = form ? form.querySelector('input[type="email"], input[type="text"], input[name*="email"], input[name*="username"]') : null;
+      const usernameField = form && form instanceof HTMLFormElement
+        ? form.querySelector('input[type="email"], input[type="text"], input[name*="email"], input[name*="username"]')
+        : null;
       
-      if (usernameField) {
+      // Use instanceof check instead of assuming .control property
+      if (usernameField instanceof HTMLInputElement) {
         usernameField.value = entry.username;
         usernameField.dispatchEvent(new Event('input', { bubbles: true }));
       }
