@@ -130,7 +130,148 @@ Rate limits vary by subscription tier:
               notes: { type: 'string' },
               tags: { type: 'array', items: { type: 'string' } },
               category: { type: 'string' },
-              passwordUpdatedAt: { type: 'integer', format: 'int64' }
+              passwordUpdatedAt: { type: 'integer', format: 'int64' },
+              createdAt: { type: 'integer', format: 'int64' },
+              updatedAt: { type: 'integer', format: 'int64' }
+            }
+          },
+          Device: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              deviceId: { type: 'string' },
+              name: { type: 'string' },
+              platform: { type: 'string', enum: ['web', 'desktop', 'mobile'] },
+              lastSeen: { type: 'string', format: 'date-time' },
+              registeredAt: { type: 'string', format: 'date-time' },
+              isActive: { type: 'boolean' }
+            }
+          },
+          Team: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              slug: { type: 'string' },
+              description: { type: 'string' },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' }
+            }
+          },
+          TeamMember: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              teamId: { type: 'string' },
+              userId: { type: 'string' },
+              role: { type: 'string', enum: ['owner', 'admin', 'manager', 'member', 'viewer'] },
+              joinedAt: { type: 'string', format: 'date-time' }
+            }
+          },
+          AuditLog: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              userId: { type: 'string' },
+              action: { type: 'string' },
+              resourceType: { type: 'string' },
+              resourceId: { type: 'string' },
+              metadata: { type: 'object' },
+              ipAddress: { type: 'string' },
+              userAgent: { type: 'string' },
+              createdAt: { type: 'string', format: 'date-time' }
+            }
+          },
+          Subscription: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              userId: { type: 'string' },
+              stripeSubscriptionId: { type: 'string' },
+              stripePriceId: { type: 'string' },
+              status: { type: 'string', enum: ['active', 'cancelled', 'past_due', 'trialing'] },
+              currentPeriodStart: { type: 'string', format: 'date-time' },
+              currentPeriodEnd: { type: 'string', format: 'date-time' },
+              cancelAtPeriodEnd: { type: 'boolean' }
+            }
+          },
+          PaginatedResponse: {
+            type: 'object',
+            properties: {
+              data: { type: 'array', items: { type: 'object' } },
+              pagination: {
+                type: 'object',
+                properties: {
+                  page: { type: 'integer', description: 'Current page number (1-indexed)' },
+                  limit: { type: 'integer', description: 'Number of items per page' },
+                  total: { type: 'integer', description: 'Total number of items' },
+                  totalPages: { type: 'integer', description: 'Total number of pages' },
+                  hasNext: { type: 'boolean', description: 'Whether there is a next page' },
+                  hasPrev: { type: 'boolean', description: 'Whether there is a previous page' }
+                },
+                required: ['page', 'limit', 'total', 'totalPages', 'hasNext', 'hasPrev']
+              }
+            },
+            required: ['data', 'pagination']
+          },
+          PaginationQuery: {
+            type: 'object',
+            properties: {
+              page: { 
+                type: 'string', 
+                description: 'Page number (default: 1)',
+                example: '1'
+              },
+              limit: { 
+                type: 'string', 
+                description: 'Items per page (default: 20, max: 100)',
+                example: '20'
+              },
+              sort: {
+                type: 'string',
+                description: 'Sort field and direction (format: field:asc or field:desc)',
+                example: 'createdAt:desc'
+              }
+            }
+          },
+          CursorPaginationQuery: {
+            type: 'object',
+            properties: {
+              cursor: {
+                type: 'string',
+                description: 'Cursor for pagination (base64-encoded)',
+                example: 'eyJpZCI6IjEyMyJ9'
+              },
+              limit: {
+                type: 'string',
+                description: 'Items per page (default: 20, max: 100)',
+                example: '20'
+              },
+              direction: {
+                type: 'string',
+                enum: ['forward', 'backward'],
+                description: 'Pagination direction (default: forward)',
+                example: 'forward'
+              }
+            }
+          },
+          SyncStatus: {
+            type: 'object',
+            properties: {
+              serverVersion: { type: 'integer' },
+              localVersion: { type: 'integer' },
+              needsSync: { type: 'boolean' },
+              hasConflicts: { type: 'boolean' },
+              lastSyncedAt: { type: 'string', format: 'date-time' }
+            }
+          },
+          ConflictData: {
+            type: 'object',
+            properties: {
+              entryId: { type: 'string' },
+              conflictType: { type: 'string', enum: ['both_modified', 'deleted_locally', 'deleted_server'] },
+              localEntry: { $ref: '#/components/schemas/VaultEntry' },
+              serverEntry: { $ref: '#/components/schemas/VaultEntry' }
             }
           }
         }
@@ -168,9 +309,7 @@ Rate limits vary by subscription tier:
     transformSpecificationClone: true
   })
 
-  // Add endpoint to serve OpenAPI spec as JSON
-  server.get('/docs/json', async (request, reply) => {
-    return server.swagger()
-  })
+  // Note: /docs/json is automatically provided by @fastify/swagger-ui
+  // No need to manually register it
 }
 

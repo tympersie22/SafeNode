@@ -299,6 +299,55 @@ export async function handleStripeWebhook(event: any): Promise<void> {
 }
 
 /**
+ * Sync user subscription from Stripe
+ * Updates user's subscription tier and status based on current Stripe subscription
+ */
+export async function syncUserSubscriptionFromStripe(userId: string): Promise<void> {
+  const user = await findUserById(userId)
+  if (!user || !user.stripeSubscriptionId) {
+    return
+  }
+
+  const stripe = await getStripe()
+  if (!stripe) {
+    return
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId)
+    const priceId = subscription.items.data[0]?.price?.id
+
+    // Map Stripe price ID to subscription tier
+    let tier: 'free' | 'individual' | 'family' | 'teams' | 'business' = 'free'
+    if (priceId === STRIPE_PRICES.individual) {
+      tier = 'individual'
+    } else if (priceId === STRIPE_PRICES.family) {
+      tier = 'family'
+    } else if (priceId === STRIPE_PRICES.teams) {
+      tier = 'teams'
+    } else if (priceId === STRIPE_PRICES.business) {
+      tier = 'business'
+    }
+
+    // Map Stripe tier to User subscription tier ('free' | 'pro' | 'enterprise')
+    const subscriptionTier: 'free' | 'pro' | 'enterprise' = 
+      tier === 'free' ? 'free' :
+      tier === 'individual' || tier === 'family' ? 'pro' :
+      tier === 'teams' || tier === 'business' ? 'enterprise' : 'free'
+
+    // Update user subscription tier and status
+    await updateUser(userId, {
+      subscriptionTier,
+      subscriptionStatus: subscription.status === 'active' ? 'active' : 
+                          subscription.status === 'canceled' || subscription.status === 'unpaid' ? 'cancelled' : 'past_due'
+    })
+  } catch (error) {
+    // If sync fails, don't throw - just log
+    console.error('Failed to sync subscription from Stripe:', error)
+  }
+}
+
+/**
  * Check subscription limits for a user
  */
 export async function checkSubscriptionLimits(

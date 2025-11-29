@@ -6,6 +6,9 @@ use std::time::Instant;
 use tauri::{command, State, Window, Manager, AppHandle};
 use keyring::Entry;
 
+mod biometrics;
+use biometrics::{check_biometric_available, authenticate_biometric};
+
 // Note: For production biometric authentication on desktop:
 // - macOS: Use LocalAuthentication framework via Objective-C/Swift bridge or a crate like `localauth`
 // - Windows: Use Windows Hello APIs (Windows.Security.Credentials.UI)
@@ -133,119 +136,12 @@ async fn list_keychain_accounts(_service: String) -> Result<Vec<String>, String>
 
 #[command]
 async fn check_biometric_available() -> Result<serde_json::Value, String> {
-    #[cfg(target_os = "macos")]
-    {
-        // macOS: Check for Touch ID / Face ID availability
-        // This requires the LocalAuthentication framework
-        // For now, we'll return a basic check
-        // In production, you'd use the Security framework or a crate like `localauth`
-        Ok(serde_json::json!({
-            "available": true,
-            "type": "fingerprint", // or "face" for Face ID
-            "enrolled": true
-        }))
-    }
-    
-    #[cfg(target_os = "windows")]
-    {
-        // Windows: Check for Windows Hello availability
-        // This requires Windows Hello APIs
-        // For now, we'll return a basic check
-        Ok(serde_json::json!({
-            "available": true,
-            "type": "fingerprint", // or "face" for Windows Hello Face
-            "enrolled": true
-        }))
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        // Linux: Check for biometric availability (e.g., fprintd)
-        // This would require integration with Linux biometric services
-        Ok(serde_json::json!({
-            "available": false,
-            "type": "unknown",
-            "enrolled": false
-        }))
-    }
-    
-    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
-    {
-        Ok(serde_json::json!({
-            "available": false,
-            "type": "unknown",
-            "enrolled": false
-        }))
-    }
+    biometrics::check_biometric_available()
 }
 
 #[command]
 async fn authenticate_biometric(prompt: String) -> Result<serde_json::Value, String> {
-    #[cfg(target_os = "macos")]
-    {
-        authenticate_biometric_macos(&prompt)
-    }
-    
-    #[cfg(target_os = "windows")]
-    {
-        authenticate_biometric_windows(&prompt).await
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        authenticate_biometric_linux(&prompt).await
-    }
-    
-    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
-    {
-        Ok(serde_json::json!({
-            "success": false,
-            "error": "Biometric authentication not available on this platform"
-        }))
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn authenticate_biometric_macos(prompt: &str) -> Result<serde_json::Value, String> {
-    // macOS: Use LocalAuthentication framework via Objective-C bindings
-    // Full implementation requires proper Objective-C interop
-    // For production, consider using a crate like `localauth` or create a Swift bridge
-    
-    // Placeholder implementation - check for LocalAuthentication availability
-    // Real implementation would authenticate using Touch ID / Face ID
-    
-    Ok(serde_json::json!({
-        "success": true,
-        "method": "Touch ID or Face ID",
-        "prompt": prompt,
-        "note": "Full LocalAuthentication framework integration required for production"
-    }))
-}
-
-#[cfg(target_os = "windows")]
-async fn authenticate_biometric_windows(prompt: &str) -> Result<serde_json::Value, String> {
-    // Windows Hello implementation
-    // This requires Windows Hello APIs via winapi/windows crates
-    // For production, implement proper Windows Hello authentication
-    
-    Ok(serde_json::json!({
-        "success": true,
-        "method": "Windows Hello",
-        "prompt": prompt,
-        "note": "Full Windows Hello API integration required for production"
-    }))
-}
-
-#[cfg(target_os = "linux")]
-async fn authenticate_biometric_linux(prompt: &str) -> Result<serde_json::Value, String> {
-    // Linux: Use fprintd via D-Bus
-    // Full implementation would authenticate via fprintd D-Bus interface using zbus
-    
-    Ok(serde_json::json!({
-        "success": false,
-        "error": "Biometric authentication requires fprintd. Install fprintd to enable fingerprint authentication.",
-        "prompt": prompt
-    }))
+    biometrics::authenticate_biometric(&prompt)
 }
 
 #[command]
@@ -310,6 +206,7 @@ fn create_system_tray_menu(is_unlocked: bool) -> tauri::SystemTrayMenu {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             vault_data: Mutex::new(None),
             is_unlocked: Mutex::new(false),

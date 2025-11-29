@@ -46,10 +46,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
     ? 'top-2 text-xs text-secondary-600 dark:text-secondary-400'
     : 'top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400'
 
+  const inputId = props.id || `input-${Math.random().toString(36).substr(2, 9)}`
+  
   return (
     <div className="w-full">
       {label && !floatingLabel && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {label}
           {props.required && <span className="text-error-500 ml-1">*</span>}
         </label>
@@ -62,6 +64,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
         )}
         {floatingLabel && label && (
           <label
+            htmlFor={inputId}
             className={`${floatingLabelBaseClasses} ${floatingLabelActiveClasses} ${error ? 'text-error-500' : ''}`}
           >
             {label}
@@ -70,6 +73,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
         )}
         <motion.input
           ref={ref}
+          id={inputId}
           type={inputType}
           className={inputClasses}
           whileFocus={{ scale: 1.01 }}

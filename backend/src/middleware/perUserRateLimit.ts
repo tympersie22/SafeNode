@@ -5,7 +5,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { findUserById } from '../services/userService'
-import { SUBSCRIPTION_LIMITS } from '../services/stripeService'
+import { SUBSCRIPTION_LIMITS, syncUserSubscriptionFromStripe } from '../services/stripeService'
 
 // In-memory rate limit store (use Redis in production)
 interface RateLimitRecord {
@@ -57,6 +57,18 @@ async function checkRateLimit(
   tier: string,
   endpoint?: string
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  // Dev-only bypass flag (check environment variable)
+  if (process.env.RATE_LIMIT_BYPASS === 'true' || process.env.NODE_ENV === 'development') {
+    // Allow bypass in development if flag is set
+    if (process.env.RATE_LIMIT_BYPASS === 'true') {
+      return {
+        allowed: true,
+        remaining: -1,
+        resetAt: Date.now() + 60000
+      }
+    }
+  }
+
   const limit = getRateLimitForTier(tier)
   
   // Enterprise tier has unlimited requests
@@ -113,9 +125,26 @@ export async function perUserRateLimit(
 
   try {
     // Get user's subscription tier
-    const userRecord = await findUserById(user.id)
+    let userRecord = await findUserById(user.id)
     if (!userRecord) {
       return // User not found, let other middleware handle it
+    }
+
+    // Sync subscription from Stripe if user has Stripe subscription ID
+    // This ensures rate limits reflect current Stripe subscription status
+    if (userRecord.stripeSubscriptionId && process.env.STRIPE_SECRET_KEY) {
+      try {
+        // Sync subscription (this will update user's subscriptionTier if changed in Stripe)
+        await syncUserSubscriptionFromStripe(user.id)
+        // Re-fetch user to get updated tier
+        userRecord = await findUserById(user.id)
+        if (!userRecord) {
+          return
+        }
+      } catch (error) {
+        // If sync fails, log but continue with current tier
+        request.log.warn({ error, userId: user.id }, 'Failed to sync subscription from Stripe')
+      }
     }
 
     const tier = userRecord.subscriptionTier || 'free'

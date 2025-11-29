@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
 import EntryForm from './components/EntryForm';
@@ -19,6 +19,8 @@ import { LockIcon, SearchIcon } from './components/icons';
 import Logo from './components/Logo';
 import Landing from './pages/Landing';
 import Auth from './pages/Auth';
+import { SettingsPage } from './pages/settings/index';
+import { SubscribePage } from './pages/billing/Subscribe';
 import { syncManager, SyncStatus } from './sync/syncManager';
 import { backupManager } from './sync/backupManager';
 import type { VaultBackup } from './storage/backupStorage';
@@ -44,6 +46,8 @@ interface VaultData {
 }
 
 const App: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [vault, setVault] = useState<VaultData | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [query, setQuery] = useState('');
@@ -95,8 +99,77 @@ const App: React.FC = () => {
   const [masterPassword, setMasterPassword] = useState<string>('');
   const [vaultSalt, setVaultSalt] = useState<ArrayBuffer | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // All hooks must be declared before any conditional returns
+  
+  // Check for existing authentication on mount - NON-BLOCKING - ONLY CALLED ONCE
+  const hasCheckedAuthRef = React.useRef(false)
+  useEffect(() => {
+    // Prevent multiple calls - only run once
+    if (hasCheckedAuthRef.current) {
+      console.log('[App] Auth check already performed - skipping')
+      return
+    }
+    hasCheckedAuthRef.current = true
+    
+    const checkAuth = async () => {
+      console.log('[App] Checking authentication on mount (ONCE)')
+      
+      // Set a timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        console.warn('[App] Auth check timeout - proceeding without blocking')
+        setIsCheckingAuth(false)
+      }, 3000) // 3 second timeout
+      
+      try {
+        const { getToken, getCurrentUser } = await import('./services/authService')
+        const token = getToken()
+        console.log('[App] Token exists:', !!token)
+        
+        if (token) {
+          // Token exists - mark as authenticated immediately, then hydrate user data in background
+          console.log('[App] Token found - marking as authenticated immediately')
+          setIsCheckingAuth(false) // Don't block rendering
+          
+          // Hydrate user data in background (non-blocking) - ONLY ONCE
+          getCurrentUser()
+            .then((userData) => {
+              console.log('[App] User data hydrated:', userData)
+              setUser({
+                ...userData,
+                isNewUser: false
+              })
+            })
+            .catch((error: any) => {
+              console.error('[App] Failed to hydrate user data (non-blocking):', error)
+              // Token might be invalid, but don't block the UI
+              // User can still try to use the app
+              if (error.message?.includes('401') || error.message?.includes('expired')) {
+                import('./services/authService').then(({ logout }) => {
+                  logout()
+                  setUser(null)
+                  setCurrentPage('landing')
+                })
+              }
+            })
+        } else {
+          // No token, not authenticated
+          console.log('[App] No token found - user not authenticated')
+          clearTimeout(timeoutId)
+          setIsCheckingAuth(false)
+        }
+      } catch (error) {
+        console.error('[App] Failed to check authentication:', error)
+        clearTimeout(timeoutId)
+        setIsCheckingAuth(false)
+      }
+    }
+    
+    checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - only run once on mount
+  
   useEffect(() => {
     const unsubscribe = syncManager.subscribe((status, info) => {
       setSyncState({ status, lastSyncedAt: info.lastSyncedAt });
@@ -104,27 +177,121 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Handle URL hash routing (e.g., /#auth, /#billing)
+  // Sync URL with internal routing state - prevent infinite loops
+  const lastPathRef = React.useRef<string>('')
+  const isNavigatingRef = React.useRef(false)
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1); // Remove #
-      if (hash === 'auth' && !user) {
-        setCurrentPage('auth');
-        setAuthMode('signup');
-      } else if (hash === 'billing' && user) {
-        // Handle billing page navigation if needed
-        // For now, just clear hash
-        window.history.replaceState(null, '', window.location.pathname);
+    const path = location.pathname;
+    
+    // Prevent re-triggering if path hasn't changed
+    if (lastPathRef.current === path && !isNavigatingRef.current) {
+      return
+    }
+    lastPathRef.current = path
+    
+    // Prevent loops - don't navigate if we're already navigating
+    if (isNavigatingRef.current) {
+      return
+    }
+    
+    console.log('[App] URL sync effect - path:', path, 'user:', !!user, 'isUnlocked:', isUnlocked)
+    
+    // Handle /vault route
+    if (path === '/vault' || path.startsWith('/vault/')) {
+      console.log('[App] /vault route detected')
+      if (!user) {
+        console.log('[App] No user - redirecting to landing')
+        isNavigatingRef.current = true
+        navigate('/', { replace: true });
+        setCurrentPage('landing');
+        setTimeout(() => { isNavigatingRef.current = false }, 100)
+        return;
       }
-    };
-
-    // Check initial hash
-    handleHashChange();
-
-    // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [user]);
+      if (user && !isUnlocked) {
+        console.log('[App] User authenticated but vault not unlocked - showing unlock screen')
+        setCurrentPage('vault');
+        return;
+      }
+      if (user && isUnlocked) {
+        console.log('[App] User authenticated and vault unlocked - showing vault')
+        setCurrentPage('vault');
+        return;
+      }
+    }
+    
+    // Handle settings and billing routes
+    if (path.startsWith('/settings') || path.startsWith('/billing')) {
+      // These routes are handled by React Router, but we need user to be authenticated
+      if (!user) {
+        isNavigatingRef.current = true
+        navigate('/', { replace: true });
+        setTimeout(() => { isNavigatingRef.current = false }, 100)
+        return;
+      }
+      // If user is authenticated but vault not unlocked, they need to unlock first
+      if (!isUnlocked && path !== '/settings' && path !== '/billing') {
+        // Keep the route but show unlock screen
+        return;
+      }
+    }
+    
+    // Handle /auth route
+    if (path === '/auth' || path.startsWith('/auth/')) {
+      console.log('[App] /auth route detected, path:', path)
+      
+      // Handle SSO callback routes - let Auth component handle them
+      if (path === '/auth/sso/callback' || path === '/auth/sso/error') {
+        console.log('[App] SSO callback route - allowing Auth component to handle')
+        if (!user) {
+          setCurrentPage('auth')
+        }
+        return
+      }
+      
+      if (user) {
+        console.log('[App] User already authenticated - redirecting to vault')
+        isNavigatingRef.current = true
+        navigate('/vault', { replace: true });
+        setCurrentPage('vault');
+        setTimeout(() => { isNavigatingRef.current = false }, 100)
+        return;
+      }
+      setCurrentPage('auth');
+      // Parse query params for mode
+      const params = new URLSearchParams(location.search);
+      const mode = params.get('mode');
+      if (mode === 'login' || mode === 'signup') {
+        setAuthMode(mode);
+      }
+      return;
+    }
+    
+    // Handle hash-based routing for backward compatibility
+    const hash = location.hash.slice(1);
+    if (hash.startsWith('auth') && !user) {
+        setCurrentPage('auth');
+      // Parse query params from hash (e.g., #auth?mode=signup&plan=individual)
+      const hashParts = hash.split('?');
+      if (hashParts.length > 1) {
+        const params = new URLSearchParams(hashParts[1]);
+        const mode = params.get('mode');
+        if (mode === 'login' || mode === 'signup') {
+          setAuthMode(mode);
+        } else {
+        setAuthMode('signup');
+        }
+      } else {
+        setAuthMode('signup');
+      }
+    } else if (path === '/' || path === '') {
+      // Root path - show landing if no user, vault if user
+      if (!user) {
+        setCurrentPage('landing');
+      } else if (user && isUnlocked) {
+        setCurrentPage('vault');
+      }
+    }
+  }, [location.pathname, location.search, location.hash, user, isUnlocked, navigate]);
 
   useEffect(() => {
     if (user && currentPage === 'vault' && isUnlocked) {
@@ -578,17 +745,65 @@ const App: React.FC = () => {
   // All hooks are now at the top - conditional rendering only below
   // Early returns for rendering (not hooks)
   
+  // Show loading state ONLY for a brief moment (max 1 second) to prevent freeze
+  // After that, render the app even if auth check is still pending
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (isCheckingAuth) {
+        console.warn('[App] Auth check taking too long - rendering app anyway')
+        setIsCheckingAuth(false)
+      }
+    }, 1000) // Max 1 second loading screen
+    
+    return () => clearTimeout(timeoutId)
+  }, [isCheckingAuth])
+  
+  // Only show loading if we're actively checking AND it's been less than 1 second
+  // This prevents permanent freeze if backend is slow
+  if (isCheckingAuth && !user) {
+    // Show minimal loading state while checking auth
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary-500 mx-auto"></div>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  
   if (!user) {
     if (currentPage === 'auth') {
       return (
         <Auth 
           onAuthenticated={(userData) => {
+            console.log('[App] onAuthenticated called with userData:', userData)
+            console.log('[App] Current state before update - user:', user, 'currentPage:', currentPage)
+            
+            // Clear checking state immediately to prevent loading loop
+            setIsCheckingAuth(false)
+            
+            // Set user and reset vault state
             setUser(userData)
             setVault(null)
             setIsUnlocked(false)
+            
+            // Explicitly set currentPage to ensure we transition away from auth
             setCurrentPage('vault')
+            
+            console.log('[App] State updated - user set, currentPage set to vault')
+            console.log('[App] Navigating to /vault via React Router')
+            
+            // Navigate using React Router
+            navigate('/vault', { replace: true })
+            
+            console.log('[App] Navigation command sent')
           }}
-          onBackToLanding={() => setCurrentPage('landing')}
+          onBackToLanding={() => {
+            console.log('[App] Back to landing clicked')
+            setCurrentPage('landing')
+            navigate('/', { replace: true })
+          }}
           initialMode={authMode}
         />
       )
@@ -619,7 +834,31 @@ const App: React.FC = () => {
   }
 
   if (user && !isUnlocked) {
+    // Check if we're on settings or billing route - allow access without unlocking
+    if (location.pathname.startsWith('/settings') || location.pathname.startsWith('/billing')) {
+      // Allow access to settings/billing without unlocking vault
+      return (
+        <Routes>
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/*" element={<SettingsPage />} />
+          <Route path="/billing" element={<SubscribePage />} />
+          <Route path="/billing/*" element={<SubscribePage />} />
+        </Routes>
+      )
+    }
     return <UnlockVault onVaultUnlocked={handleVaultUnlocked} />
+  }
+
+  // Handle settings and billing routes when unlocked
+  if (user && isUnlocked && (location.pathname.startsWith('/settings') || location.pathname.startsWith('/billing'))) {
+    return (
+      <Routes>
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/*" element={<SettingsPage />} />
+        <Route path="/billing" element={<SubscribePage />} />
+        <Route path="/billing/*" element={<SubscribePage />} />
+      </Routes>
+    )
   }
 
   // At this point: user && isUnlocked - render vault UI
@@ -822,6 +1061,21 @@ const App: React.FC = () => {
                           className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         >
                           🔄 Change Master Password
+                        </motion.button>
+                        <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { navigate('/settings'); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          ⚙️ Settings
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { navigate('/billing'); setIsMoreMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          💳 Billing
                         </motion.button>
                       </div>
                     </motion.div>

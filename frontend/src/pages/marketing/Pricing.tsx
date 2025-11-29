@@ -242,9 +242,9 @@ export const PricingPage: React.FC = () => {
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              <a href="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm font-medium">
+              <Link to="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm font-medium">
                 Back to Home
-              </a>
+              </Link>
               <motion.button
                 onClick={() => navigate('/auth?mode=signup')}
                 className="px-5 py-2.5 bg-gradient-to-r from-secondary-600 to-secondary-500 hover:from-secondary-700 hover:to-secondary-600 text-white text-sm font-semibold rounded-lg transition-all duration-200"

@@ -49,6 +49,3 @@ export const adapter = getAdapter()
 export const readVault = () => adapter.readVault()
 export const writeVault = (vault: any) => adapter.writeVault(vault)
 
-// Export adapter type for TypeScript
-export type { StorageAdapter }
-
