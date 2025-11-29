@@ -91,8 +91,8 @@ export async function registerSecurityHeaders(server: FastifyInstance): Promise<
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: [
           "'self'",
-          'http://localhost:*',
-          'ws://localhost:*',
+          /^http:\/\/localhost:\d+$/,
+          /^ws:\/\/localhost:\d+$/,
           'https://api.stripe.com',
           'https://*.sentry.io'
         ],
@@ -107,7 +107,7 @@ export async function registerSecurityHeaders(server: FastifyInstance): Promise<
 
   await server.register(helmet, {
     contentSecurityPolicy: {
-      directives: cspDirectives
+      directives: cspDirectives as any
     },
     crossOriginEmbedderPolicy: config.nodeEnv === 'production',
     crossOriginOpenerPolicy: { policy: 'same-origin' },

@@ -32,6 +32,9 @@ export interface User {
   stripeCustomerId?: string
   stripeSubscriptionId?: string
   
+  // Admin/role
+  role?: 'user' | 'admin' | 'superadmin' // User role for system-level permissions
+  
   // Device limits
   devices: Array<{
     id: string
@@ -65,5 +68,6 @@ export interface UpdateUserInput {
   subscriptionExpiresAt?: number
   stripeCustomerId?: string
   stripeSubscriptionId?: string
+  role?: User['role']
 }
 

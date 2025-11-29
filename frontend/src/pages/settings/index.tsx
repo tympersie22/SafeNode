@@ -5,12 +5,14 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate, Link } from 'react-router-dom'
 import { SaasTabs, Tab } from '../../ui/SaasTabs'
 import { SecuritySettings } from './Security'
 import { DevicesSettings } from './Devices'
 import { BillingSettings } from './Billing'
 
 export const SettingsPage: React.FC = () => {
+  const navigate = useNavigate()
   const tabs: Tab[] = [
     { id: 'security', label: 'Security', icon: '🔒', content: <SecuritySettings /> },
     { id: 'devices', label: 'Devices', icon: '🖥️', content: <DevicesSettings /> },
@@ -23,13 +25,26 @@ export const SettingsPage: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
         >
+          <div className="flex items-center justify-between mb-4">
+            <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             Settings
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mb-8">
+              <p className="text-slate-600 dark:text-slate-400">
             Manage your account settings and preferences
           </p>
+            </div>
+            <motion.button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              ← Back to Vault
+            </motion.button>
+          </div>
         </motion.div>
 
         <SaasTabs

@@ -291,6 +291,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
               onClick={onSwitchToLogin}
               className="text-secondary-600 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-1"
               aria-label="Switch to sign in form"
+              data-testid="switch-to-login"
             >
               Sign In
             </button>

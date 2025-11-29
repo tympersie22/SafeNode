@@ -1,29 +1,24 @@
 {
-  "name": "safenode-desktop",
+  "name": "safenode",
   "version": "0.1.0",
-  "description": "SafeNode Desktop - Secure Password Manager",
-  "main": "index.js",
+  "description": "SafeNode - Secure Password Manager",
+  "private": true,
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
-    "build:debug": "tauri build --debug",
-    "tauri": "tauri",
-    "fix:all": "ts-node scripts/debug/fixConsoleErrors.ts",
-    "fix:dry-run": "ts-node scripts/debug/fixConsoleErrors.ts --dry-run",
-    "fix:auto": "ts-node scripts/debug/fixConsoleErrors.ts --fix",
-    "debug:check": "npm run fix:dry-run"
+    "test:apis": "node test-apis.js",
+    "test:apis:bash": "./test-apis.sh",
+    "test:apis:help": "echo 'Usage: npm run test:apis (Node.js) or npm run test:apis:bash (Bash)'"
   },
   "keywords": [
     "password-manager",
     "security",
-    "encryption",
-    "desktop-app",
-    "tauri"
+    "encryption"
   ],
   "author": "SafeNode Team",
   "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5"
+  },
   "devDependencies": {
-    "@tauri-apps/cli": "^1.5.0",
-    "typescript": "^5.9.3"
+    "@types/cors": "^2.8.19"
   }
 }

@@ -76,7 +76,7 @@ function getConfig(): Config {
     
     // CORS - in production, restrict to your frontend domain
     corsOrigin: nodeEnv === 'production' 
-      ? process.env.CORS_ORIGIN?.split(',') || ['https://safenode.app']
+      ? (process.env.CORS_ORIGIN?.split(',') || ['https://safenode.app']) as unknown as string | RegExp[]
       : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/]
   }
 }

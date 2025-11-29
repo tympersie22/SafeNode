@@ -40,6 +40,9 @@ function prismaUserToDomain(prismaUser: any): User {
     stripeCustomerId: prismaUser.stripeCustomerId || undefined,
     stripeSubscriptionId: prismaUser.stripeSubscriptionId || undefined,
     
+    // Role
+    role: (prismaUser.role || 'user') as 'user' | 'admin' | 'superadmin',
+    
     // Device limits
     devices: (prismaUser.devices || []).map((d: any) => ({
       id: d.deviceId,
@@ -82,7 +85,8 @@ export const prismaUserAdapter = {
         subscriptionStatus: user.subscriptionStatus,
         subscriptionExpiresAt: user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null,
         stripeCustomerId: user.stripeCustomerId || null,
-        stripeSubscriptionId: user.stripeSubscriptionId || null
+        stripeSubscriptionId: user.stripeSubscriptionId || null,
+        role: user.role || 'user'
       }
     })
     
@@ -160,6 +164,13 @@ export const prismaUserAdapter = {
       updateData.subscriptionExpiresAt = input.subscriptionExpiresAt 
         ? new Date(input.subscriptionExpiresAt) 
         : null
+    }
+    if (input.role !== undefined) updateData.role = input.role
+    if (input.stripeCustomerId !== undefined) {
+      updateData.stripeCustomerId = input.stripeCustomerId || null
+    }
+    if (input.stripeSubscriptionId !== undefined) {
+      updateData.stripeSubscriptionId = input.stripeSubscriptionId || null
     }
     
     const updated = await prisma.user.update({

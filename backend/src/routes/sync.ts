@@ -104,7 +104,12 @@ export async function registerSyncRoutes(server: FastifyInstance) {
 
       const { localVersion, localEntries = [] } = validation.data
 
-      const conflicts = await detectConflicts(user.id, localEntries, localVersion)
+      // Ensure all entries have required fields
+      const validEntries = localEntries.filter((entry): entry is { id: string; updatedAt: number; version?: number } => 
+        typeof entry.id === 'string' && typeof entry.updatedAt === 'number'
+      )
+
+      const conflicts = await detectConflicts(user.id, validEntries, localVersion)
 
       return {
         conflicts,
@@ -141,7 +146,12 @@ export async function registerSyncRoutes(server: FastifyInstance) {
 
       const { resolutions } = validation.data
 
-      const result = await resolveConflicts(user.id, resolutions)
+      // Ensure all resolutions have required fields
+      const validResolutions = resolutions.filter((res): res is { entryId: string; resolution: 'accept_local' | 'accept_server' | 'merge' | 'keep_both'; mergedData?: any } =>
+        typeof res.entryId === 'string' && typeof res.resolution === 'string'
+      )
+
+      const result = await resolveConflicts(user.id, validResolutions)
 
       return {
         success: result.success,

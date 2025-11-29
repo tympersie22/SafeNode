@@ -3,21 +3,32 @@
  * Marketing page for downloading SafeNode on different platforms
  */
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
 import Logo from '../../components/Logo'
 import Footer from '../../components/marketing/Footer'
+import { getLatestDownloads } from '../../services/downloadService'
 
-// Detect user's platform
-const detectPlatform = () => {
+// Detect user's platform with better accuracy
+const detectPlatform = (): 'android' | 'ios' | 'windows' | 'macos' | 'linux' | null => {
   if (typeof window === 'undefined') return null
-  const ua = navigator.userAgent || navigator.vendor || (window as any).opera
+  const ua = navigator.userAgent || navigator.vendor || (window as any).opera || ''
+  
+  // Check for mobile first
   if (/android/i.test(ua)) return 'android'
-  if (/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream) return 'ios'
-  if (/Win/.test(ua)) return 'windows'
-  if (/Mac/.test(ua)) return 'macos'
-  if (/Linux/.test(ua)) return 'linux'
+  
+  // iOS detection (more accurate)
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream
+  // Also check for iOS 13+ on iPad
+  const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  if (isIOS || isIPadOS) return 'ios'
+  
+  // Desktop platforms
+  if (/Win/.test(ua) || /Windows/.test(ua)) return 'windows'
+  if (/Mac/.test(ua) || /Macintosh/.test(ua)) return 'macos'
+  if (/Linux/.test(ua) && !/Android/.test(ua)) return 'linux'
+  
   return null
 }
 
@@ -116,11 +127,43 @@ export const DownloadsPage: React.FC = () => {
   const prefersReducedMotion = useReducedMotion()
   const navigate = useNavigate()
   const userPlatform = detectPlatform()
+  const [downloadInfo, setDownloadInfo] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch download info from API
+  useEffect(() => {
+    const fetchDownloadInfo = async () => {
+      try {
+        setIsLoading(true)
+        const info = await getLatestDownloads(userPlatform || undefined)
+        setDownloadInfo(info)
+      } catch (error) {
+        console.error('Failed to fetch download info:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchDownloadInfo()
+  }, [userPlatform])
 
   // Get recommended download for user's platform
   const getRecommendedDownload = () => {
+    if (downloadInfo?.suggested) {
+      return downloadInfo.suggested
+    }
     if (!userPlatform) return null
     
+    // Mobile platforms
+    if (userPlatform === 'ios') {
+      const mobilePlatform = PLATFORMS.find(p => p.name === 'Mobile App')
+      return mobilePlatform?.downloads?.find(d => d.platform === 'iOS') || null
+    }
+    if (userPlatform === 'android') {
+      const mobilePlatform = PLATFORMS.find(p => p.name === 'Mobile App')
+      return mobilePlatform?.downloads?.find(d => d.platform === 'Android') || null
+    }
+    
+    // Desktop platforms
     const desktopPlatform = PLATFORMS.find(p => p.name === 'Desktop App')
     if (!desktopPlatform?.downloads) return null
     
@@ -135,6 +178,54 @@ export const DownloadsPage: React.FC = () => {
   }
 
   const recommendedDownload = getRecommendedDownload()
+
+  // Check if a download URL is available (not placeholder)
+  const isDownloadAvailable = (url: string): boolean => {
+    if (!url || url.trim() === '') return false
+    if (url.startsWith('#') || url === '#') return false
+    if (url.includes('placeholder')) return false
+    
+    // Check for placeholder IDs
+    if (url.includes('apps.apple.com') && (url.includes('id1234567890') || url.includes('id1234567891'))) return false
+    if (url.includes('play.google.com') && url.includes('id=com.safenode.app')) return false
+    if (url.includes('chrome.google.com') && url.includes('abcdefghijklmnopqrstuvwxyz')) return false
+    if (url.includes('microsoftedge.microsoft.com') && url.includes('abcdefghijklmnopqrstuvwxyz')) return false
+    if (url.includes('addons.mozilla.org') && url.includes('placeholder')) return false
+    
+    // GitHub releases URLs are valid even if file doesn't exist yet (they'll 404 but that's OK)
+    if (url.includes('github.com') && url.includes('releases/latest')) {
+      return true
+    }
+    
+    // Valid URLs that don't match placeholder patterns
+    return true
+  }
+
+  // Check if platform is coming soon
+  const isComingSoon = (platform: typeof PLATFORMS[0]) => {
+    if (platform.status !== 'Available Now') return true
+    if (!platform.downloads) return false
+    return platform.downloads.every(d => !isDownloadAvailable(d.url))
+  }
+
+  // Get button state for download
+  const getDownloadButtonState = (url: string, platformStatus: string) => {
+    const available = isDownloadAvailable(url)
+    if (!available || platformStatus !== 'Available Now') {
+      return { 
+        disabled: true, 
+        text: 'Coming Soon', 
+        className: 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-60',
+        onClick: (e: React.MouseEvent) => e.preventDefault()
+      }
+    }
+    return { 
+      disabled: false, 
+      text: 'Download', 
+      className: 'bg-secondary-600 hover:bg-secondary-700 text-white',
+      onClick: undefined
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900">
@@ -190,7 +281,7 @@ export const DownloadsPage: React.FC = () => {
             >
               Access your secure vault on any device, anywhere. Your data syncs seamlessly across all platforms.
             </motion.p>
-            {recommendedDownload && (
+            {recommendedDownload && isDownloadAvailable(recommendedDownload.url) && (
               <motion.div
                 className="mt-8"
                 initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
@@ -202,6 +293,7 @@ export const DownloadsPage: React.FC = () => {
                   className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-secondary-600 to-secondary-500 hover:from-secondary-700 hover:to-secondary-600 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl"
                   whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
                   whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
+                  aria-label={`Download SafeNode for ${recommendedDownload.platform}`}
                 >
                   <span className="text-2xl">{recommendedDownload.icon}</span>
                   <span>Download for {recommendedDownload.platform}</span>
@@ -260,31 +352,57 @@ export const DownloadsPage: React.FC = () => {
                     ))}
                   </ul>
 
+                  {/* Coming Soon Banner */}
+                  {isComingSoon(platform) && (
+                    <motion.div 
+                      className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200 text-sm">
+                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <span>Coming soon - download links will be available after release</span>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {/* Download Buttons */}
                   {platform.downloads ? (
                     <div className="space-y-3">
-                      {platform.downloads.map((download, idx) => (
-                        <motion.a
-                          key={idx}
-                          href={download.url}
-                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all ${
-                            platform.status === 'Available Now'
-                              ? 'bg-secondary-600 hover:bg-secondary-700 text-white'
-                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 cursor-not-allowed'
-                          }`}
-                          whileHover={platform.status === 'Available Now' && !prefersReducedMotion ? { scale: 1.02 } : {}}
-                          whileTap={platform.status === 'Available Now' && !prefersReducedMotion ? { scale: 0.98 } : {}}
-                          onClick={(e) => {
-                            if (platform.status !== 'Available Now') {
-                              e.preventDefault()
-                            }
-                          }}
-                        >
-                          <span>{download.icon}</span>
-                          <span>Download for {download.platform}</span>
-                          {(download as any).badge && <span className="text-xs">({(download as any).badge})</span>}
-                        </motion.a>
-                      ))}
+                      {platform.downloads.map((download, idx) => {
+                        const buttonState = getDownloadButtonState(download.url, platform.status)
+                        const isAvailable = isDownloadAvailable(download.url)
+                        return (
+                          <motion.button
+                            key={idx}
+                            type="button"
+                            onClick={(e) => {
+                              if (buttonState.disabled || !isAvailable) {
+                                e.preventDefault()
+                                return
+                              }
+                              // Open download in new tab
+                              window.open(download.url, '_blank', 'noopener,noreferrer')
+                            }}
+                            disabled={buttonState.disabled}
+                            className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all ${buttonState.className}`}
+                            whileHover={!buttonState.disabled && !prefersReducedMotion ? { scale: 1.02 } : {}}
+                            whileTap={!buttonState.disabled && !prefersReducedMotion ? { scale: 0.98 } : {}}
+                            aria-disabled={buttonState.disabled}
+                            aria-label={`Download SafeNode for ${download.platform}`}
+                          >
+                            <span>{download.icon}</span>
+                            <span>{buttonState.text} for {download.platform}</span>
+                            {(download as any).badge && <span className="text-xs opacity-75">({(download as any).badge})</span>}
+                            {buttonState.disabled && (
+                              <span className="text-xs ml-1 opacity-75">(Coming Soon)</span>
+                            )}
+                          </motion.button>
+                        )
+                      })}
                     </div>
                   ) : (
                     <motion.button
