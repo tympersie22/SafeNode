@@ -115,11 +115,26 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         // Don't fail registration if email sending fails
       })
 
-              // Generate JWT token
+              // Generate JWT token with tokenVersion
               const token = issueToken({
                 id: user.id,
-                email: user.email
+                email: user.email,
+                tokenVersion: (user as any).tokenVersion || 1
               })
+
+              // Set HTTP-only cookie (optional, controlled by USE_COOKIE_AUTH env var)
+              const nodeEnv = process.env.NODE_ENV || 'development'
+              const useCookieAuth = process.env.USE_COOKIE_AUTH === 'true'
+              if (useCookieAuth) {
+                const isProduction = nodeEnv === 'production'
+                reply.setCookie('safenode_token', token, {
+                  httpOnly: true,
+                  secure: isProduction, // true in prod, false on localhost
+                  sameSite: isProduction ? 'none' : 'lax', // none in prod (for cross-origin), lax in dev
+                  maxAge: 24 * 60 * 60, // 24 hours
+                  path: '/'
+                })
+              }
 
               // Set user context in Sentry
               setUser({
@@ -169,8 +184,37 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    */
   server.post('/api/auth/login', async (request, reply) => {
     try {
-      request.log.info({ body: request.body }, 'Login request received')
+      // CRITICAL DEBUG: Log everything about the request
+      request.log.info({ 
+        body: request.body,
+        bodyType: typeof request.body,
+        bodyIsUndefined: request.body === undefined,
+        bodyIsNull: request.body === null,
+        contentType: request.headers['content-type'],
+        hasBody: !!request.body,
+        bodyKeys: request.body && typeof request.body === 'object' ? Object.keys(request.body) : 'N/A'
+      }, 'Login request received - FULL DEBUG')
+      
       const body = request.body as any
+      
+      // CRITICAL: If body is undefined, log error and return helpful message
+      if (body === undefined || body === null) {
+        request.log.error({
+          contentType: request.headers['content-type'],
+          method: request.method,
+          url: request.url,
+          headers: request.headers
+        }, 'CRITICAL: request.body is undefined - JSON parsing may have failed')
+        
+        return reply.code(400).send({
+          error: 'invalid_request',
+          message: 'Request body is missing or invalid. Please ensure Content-Type is application/json.',
+          debug: {
+            contentType: request.headers['content-type'],
+            bodyReceived: false
+          }
+        })
+      }
       
       // Validate input
       const validation = loginSchema.safeParse(body)
@@ -184,22 +228,48 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       const { email, password } = validation.data
-      request.log.info({ email }, 'Starting authentication')
+      const normalizedEmail = email.toLowerCase().trim()
+      
+      // Get password config for diagnostics
+      const { getPasswordConfig } = await import('../utils/password')
+      const passwordConfig = getPasswordConfig()
+      
+      request.log.info({ 
+        email: normalizedEmail,
+        normalizedEmail,
+        hashingParamsVersion: passwordConfig.hashingParamsVersion
+      }, 'Starting authentication')
 
-      // Authenticate user - increased timeout to 30 seconds
-      let user: User | null
+      // Authenticate user with detailed error codes
+      let authResult: { user: User | null; reason: 'USER_NOT_FOUND' | 'BAD_PASSWORD' | 'SUCCESS' }
       try {
-        const authPromise = authenticateUser(email, password)
-        const timeoutPromise = new Promise<null>((_, reject) => 
+        const authPromise = authenticateUser(normalizedEmail, password)
+        const timeoutPromise = new Promise<{ user: null; reason: 'BAD_PASSWORD' }>((_, reject) => 
           setTimeout(() => reject(new Error('Authentication timeout')), 30000)
         )
         
-        user = await Promise.race([authPromise, timeoutPromise])
-        request.log.info({ email, userId: user?.id }, 'Authentication completed')
+        authResult = await Promise.race([authPromise, timeoutPromise])
+        
+        // Log structured info (never log raw passwords)
+        request.log.info({ 
+          email: normalizedEmail,
+          normalizedEmail,
+          reason: authResult.reason,
+          hashingParamsVersion: passwordConfig.hashingParamsVersion,
+          userId: authResult.user?.id
+        }, 'Authentication completed')
       } catch (authError: any) {
-        request.log.error({ error: authError, email, stack: authError?.stack }, 'Authentication error')
+        request.log.error({ 
+          error: authError?.message,
+          email: normalizedEmail,
+          normalizedEmail,
+          reason: 'AUTH_ERROR',
+          hashingParamsVersion: passwordConfig.hashingParamsVersion,
+          stack: authError?.stack 
+        }, 'Authentication error')
         return reply.code(500).send({
           error: 'auth_error',
+          code: 'AUTH_ERROR',
           message: authError?.message === 'Authentication timeout' 
             ? 'Authentication request timed out. Please try again.'
             : 'Authentication failed',
@@ -207,9 +277,41 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
       
-      if (!user) {
+      // Handle authentication results with specific error codes
+      if (authResult.reason === 'USER_NOT_FOUND') {
+        request.log.warn({ 
+          email: normalizedEmail,
+          normalizedEmail,
+          reason: 'USER_NOT_FOUND',
+          hashingParamsVersion: passwordConfig.hashingParamsVersion
+        }, 'User not found')
         return reply.code(401).send({
           error: 'invalid_credentials',
+          code: 'USER_NOT_FOUND',
+          message: 'Invalid email or password'
+        })
+      }
+      
+      if (authResult.reason === 'BAD_PASSWORD') {
+        request.log.warn({ 
+          email: normalizedEmail,
+          normalizedEmail,
+          reason: 'BAD_PASSWORD',
+          hashingParamsVersion: passwordConfig.hashingParamsVersion
+        }, 'Password mismatch')
+        return reply.code(401).send({
+          error: 'invalid_credentials',
+          code: 'BAD_PASSWORD',
+          message: 'Invalid email or password'
+        })
+      }
+      
+      const user = authResult.user
+      if (!user) {
+        // Fallback (should not happen)
+        return reply.code(401).send({
+          error: 'invalid_credentials',
+          code: 'AUTH_FAILED',
           message: 'Invalid email or password'
         })
       }
@@ -241,19 +343,53 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
       
-      // Generate JWT token (no 2FA required)
+      // Sanity check: Verify user exists and audit log succeeds after login
+      // This ensures data consistency
+      try {
+        const verifyUser = await findUserById(user.id)
+        if (!verifyUser) {
+          request.log.error({ userId: user.id }, 'User not found after login - data inconsistency')
+          return reply.code(500).send({
+            error: 'internal_error',
+            message: 'Login verification failed. Please try again.'
+          })
+        }
+        
+        // Log successful login with structured logging
+        await createAuditLog({
+          userId: user.id,
+          action: 'login',
+          ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+          userAgent: request.headers['user-agent'] || undefined
+        })
+      } catch (err: any) {
+        request.log.error({ 
+          error: err?.message,
+          userId: user.id 
+        }, 'Failed to verify login or create audit log')
+        // Don't fail login if audit log fails, but log the error
+      }
+
+      // Generate JWT token (no 2FA required) with tokenVersion
       const token = issueToken({
         id: user.id,
-        email: user.email
+        email: user.email,
+        tokenVersion: (user as any).tokenVersion || 1
       })
 
-      // Log successful login
-      createAuditLog({
-        userId: user.id,
-        action: 'login',
-        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
-        userAgent: request.headers['user-agent'] || undefined
-      }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
+      // Set HTTP-only cookie (optional, controlled by USE_COOKIE_AUTH env var)
+      const nodeEnv = process.env.NODE_ENV || 'development'
+      const useCookieAuth = process.env.USE_COOKIE_AUTH === 'true'
+      if (useCookieAuth) {
+        const isProduction = nodeEnv === 'production'
+        reply.setCookie('safenode_token', token, {
+          httpOnly: true,
+          secure: isProduction, // true in prod, false on localhost
+          sameSite: isProduction ? 'none' : 'lax', // none in prod (for cross-origin), lax in dev
+          maxAge: 24 * 60 * 60, // 24 hours
+          path: '/'
+        })
+      }
 
       // Return user data (exclude sensitive fields) - format: { token, userId, user }
       return reply.code(200).send({
@@ -293,10 +429,23 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const userData = await findUserById(user.id)
       
       if (!userData) {
-        request.log.warn({ userId: user.id }, 'User not found in database')
-        return reply.code(404).send({
-          error: 'user_not_found',
-          message: 'User not found'
+        // If JWT is valid but user doesn't exist, token is invalid (user deleted or token issued before reseed)
+        // Return 401 with machine-readable code for frontend to handle
+        const dbUrl = process.env.DATABASE_URL || 'not_set'
+        const dbUrlHash = dbUrl ? require('crypto').createHash('sha256').update(dbUrl).digest('hex').substring(0, 8) : 'unknown'
+        
+        request.log.warn({ 
+          userId: user.id,
+          tokenSub: user.id,
+          dbUrlHash,
+          schema: 'public',
+          reason: 'user_not_found_after_token_verification'
+        }, 'User not found in database - token invalid')
+        
+        return reply.code(401).send({
+          error: 'unauthorized',
+          code: 'USER_NOT_FOUND',
+          message: 'User not found - authentication invalid'
         })
       }
 
@@ -376,6 +525,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
   /**
    * GET /api/auth/vault/salt
    * Get vault salt for master password derivation (requires authentication)
+   * If no salt exists, generates one (32 bytes, base64 encoded)
    */
   server.get('/api/auth/vault/salt', { preHandler: requireAuth }, async (request, reply) => {
     try {
@@ -390,8 +540,19 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
 
+      // If user doesn't have a salt yet, generate one
+      let salt = userData.vaultSalt
+      if (!salt || salt.length === 0) {
+        const { randomBytes } = await import('crypto')
+        salt = randomBytes(32).toString('base64')
+        
+        // Save the generated salt
+        await updateUser(user.id, { vaultSalt: salt })
+        request.log.info({ userId: user.id }, 'Generated new vault salt for user')
+      }
+
       return {
-        salt: userData.vaultSalt
+        salt
       }
     } catch (error: any) {
       request.log.error(error)
@@ -499,6 +660,55 @@ export async function registerAuthRoutes(server: FastifyInstance) {
     }
   })
   
+  /**
+   * POST /api/auth/refresh
+   * Refresh JWT token (requires valid token)
+   */
+  server.post('/api/auth/refresh', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      
+      if (!user || !user.id) {
+        return reply.code(401).send({
+          error: 'unauthorized',
+          message: 'Invalid token'
+        })
+      }
+
+      // Fetch fresh user data
+      const userData = await findUserById(user.id)
+      
+      if (!userData) {
+        return reply.code(401).send({
+          error: 'user_not_found',
+          message: 'User not found'
+        })
+      }
+
+      // Issue new token
+      const newToken = issueToken({
+        id: userData.id,
+        email: userData.email,
+        tokenVersion: (userData as any).tokenVersion || 1
+      })
+
+      return {
+        token: newToken,
+        user: {
+          id: userData.id,
+          email: userData.email,
+          displayName: userData.displayName
+        }
+      }
+    } catch (error: any) {
+      request.log.error({ error: error?.message }, 'Token refresh failed')
+      return reply.code(500).send({
+        error: 'server_error',
+        message: 'Failed to refresh token'
+      })
+    }
+  })
+
   /**
    * POST /api/auth/verify
    * Verify JWT token validity
@@ -902,7 +1112,8 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       // Generate JWT token
       const token = issueToken({
         id: user.id,
-        email: user.email
+        email: user.email,
+        tokenVersion: (user as any).tokenVersion || 1
       })
 
       // Return user data

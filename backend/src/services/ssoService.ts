@@ -315,8 +315,12 @@ export async function handleSSOCallback(
       })
     }
 
-    // Generate JWT token
-    const token = issueToken(user)
+    // Generate JWT token with tokenVersion
+    const token = issueToken({
+      id: user.id,
+      email: user.email,
+      tokenVersion: (user as any).tokenVersion || 1
+    })
 
     // Clean up state and verifier
     oauthStates.delete(state)

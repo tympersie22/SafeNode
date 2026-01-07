@@ -41,11 +41,36 @@ export type AuditAction =
 
 /**
  * Create an audit log entry
+ * Includes structured logging with DB context for debugging
  */
 export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
   const prisma = getPrismaClient()
+  const dbUrl = process.env.DATABASE_URL || 'not_set'
+  const dbUrlHash = dbUrl ? require('crypto').createHash('sha256').update(dbUrl).digest('hex').substring(0, 8) : 'unknown'
 
   try {
+    // Check if user exists before creating audit log (prevents foreign key errors)
+    // This can happen if database is reseeded and old tokens reference deleted users
+    if (entry.userId && entry.userId !== 'anonymous') {
+      const userExists = await prisma.user.findUnique({
+        where: { id: entry.userId },
+        select: { id: true }
+      })
+      
+      // If user doesn't exist, log structured error with context
+      if (!userExists) {
+        const errorContext = {
+          tokenSub: entry.userId,
+          dbUrlHash,
+          schema: 'public',
+          action: entry.action,
+          reason: 'user_not_found'
+        }
+        console.error('Skipping audit log - user not found:', JSON.stringify(errorContext))
+        return
+      }
+    }
+
     await prisma.auditLog.create({
       data: {
         userId: entry.userId,
@@ -58,9 +83,18 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
         createdAt: new Date()
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     // Don't throw - audit logging should not break the application
-    console.error('Failed to create audit log:', error)
+    // Log structured error with DB context
+    const errorContext = {
+      error: error?.message,
+      code: error?.code,
+      tokenSub: entry.userId,
+      dbUrlHash,
+      schema: 'public',
+      action: entry.action
+    }
+    console.error('Failed to create audit log:', JSON.stringify(errorContext))
   }
 }
 

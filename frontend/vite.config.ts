@@ -12,6 +12,8 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
+        // Forward cookies and credentials
+        cookieDomainRewrite: '',
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             if (req.headers.cookie) {

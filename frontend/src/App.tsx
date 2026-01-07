@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, startTransition } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
 import EntryForm from './components/EntryForm';
@@ -45,11 +46,14 @@ interface VaultData {
   entries: VaultEntry[];
 }
 
+// Single source of truth for vault state
+type VaultStatus = 'LOCKED' | 'UNLOCKED'
+
 const App: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [vault, setVault] = useState<VaultData | null>(null);
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [vaultStatus, setVaultStatus] = useState<VaultStatus>('LOCKED');
   const [query, setQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
@@ -60,7 +64,7 @@ const App: React.FC = () => {
   const [shareEntry, setShareEntry] = useState<VaultEntry | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<'landing' | 'auth' | 'vault'>('landing');
-  const [user, setUser] = useState<any>(null);
+  const { user, isAuthenticated, isAuthInitialized, logout: authLogout } = useAuth();
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [syncState, setSyncState] = useState<{ status: SyncStatus; lastSyncedAt: number | null }>({
     status: 'idle',
@@ -99,76 +103,8 @@ const App: React.FC = () => {
   const [masterPassword, setMasterPassword] = useState<string>('');
   const [vaultSalt, setVaultSalt] = useState<ArrayBuffer | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
-  // All hooks must be declared before any conditional returns
-  
-  // Check for existing authentication on mount - NON-BLOCKING - ONLY CALLED ONCE
-  const hasCheckedAuthRef = React.useRef(false)
-  useEffect(() => {
-    // Prevent multiple calls - only run once
-    if (hasCheckedAuthRef.current) {
-      console.log('[App] Auth check already performed - skipping')
-      return
-    }
-    hasCheckedAuthRef.current = true
-    
-    const checkAuth = async () => {
-      console.log('[App] Checking authentication on mount (ONCE)')
-      
-      // Set a timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
-        console.warn('[App] Auth check timeout - proceeding without blocking')
-        setIsCheckingAuth(false)
-      }, 3000) // 3 second timeout
-      
-      try {
-        const { getToken, getCurrentUser } = await import('./services/authService')
-        const token = getToken()
-        console.log('[App] Token exists:', !!token)
-        
-        if (token) {
-          // Token exists - mark as authenticated immediately, then hydrate user data in background
-          console.log('[App] Token found - marking as authenticated immediately')
-          setIsCheckingAuth(false) // Don't block rendering
-          
-          // Hydrate user data in background (non-blocking) - ONLY ONCE
-          getCurrentUser()
-            .then((userData) => {
-              console.log('[App] User data hydrated:', userData)
-              setUser({
-                ...userData,
-                isNewUser: false
-              })
-            })
-            .catch((error: any) => {
-              console.error('[App] Failed to hydrate user data (non-blocking):', error)
-              // Token might be invalid, but don't block the UI
-              // User can still try to use the app
-              if (error.message?.includes('401') || error.message?.includes('expired')) {
-                import('./services/authService').then(({ logout }) => {
-                  logout()
-                  setUser(null)
-                  setCurrentPage('landing')
-                })
-              }
-            })
-        } else {
-          // No token, not authenticated
-          console.log('[App] No token found - user not authenticated')
-          clearTimeout(timeoutId)
-          setIsCheckingAuth(false)
-        }
-      } catch (error) {
-        console.error('[App] Failed to check authentication:', error)
-        clearTimeout(timeoutId)
-        setIsCheckingAuth(false)
-      }
-    }
-    
-    checkAuth()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Empty deps - only run once on mount
+  const [showMasterPasswordSetup, setShowMasterPasswordSetup] = useState(false);
+  // Auth is now handled by AuthProvider - no need for local auth checking
   
   useEffect(() => {
     const unsubscribe = syncManager.subscribe((status, info) => {
@@ -177,133 +113,36 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Sync URL with internal routing state - prevent infinite loops
-  const lastPathRef = React.useRef<string>('')
-  const isNavigatingRef = React.useRef(false)
+  // CRITICAL: This effect only updates internal page state for UI purposes
+  // It does NOT make routing decisions - React Router owns navigation
+  // Route guards (ProtectedRoute/PublicRoute) handle all redirects
   useEffect(() => {
-    const path = location.pathname;
-    
-    // Prevent re-triggering if path hasn't changed
-    if (lastPathRef.current === path && !isNavigatingRef.current) {
-      return
-    }
-    lastPathRef.current = path
-    
-    // Prevent loops - don't navigate if we're already navigating
-    if (isNavigatingRef.current) {
-      return
-    }
-    
-    console.log('[App] URL sync effect - path:', path, 'user:', !!user, 'isUnlocked:', isUnlocked)
-    
-    // Handle /vault route
-    if (path === '/vault' || path.startsWith('/vault/')) {
-      console.log('[App] /vault route detected')
-      if (!user) {
-        console.log('[App] No user - redirecting to landing')
-        isNavigatingRef.current = true
-        navigate('/', { replace: true });
-        setCurrentPage('landing');
-        setTimeout(() => { isNavigatingRef.current = false }, 100)
-        return;
-      }
-      if (user && !isUnlocked) {
-        console.log('[App] User authenticated but vault not unlocked - showing unlock screen')
-        setCurrentPage('vault');
-        return;
-      }
-      if (user && isUnlocked) {
-        console.log('[App] User authenticated and vault unlocked - showing vault')
-        setCurrentPage('vault');
-        return;
-      }
-    }
-    
-    // Handle settings and billing routes
-    if (path.startsWith('/settings') || path.startsWith('/billing')) {
-      // These routes are handled by React Router, but we need user to be authenticated
-      if (!user) {
-        isNavigatingRef.current = true
-        navigate('/', { replace: true });
-        setTimeout(() => { isNavigatingRef.current = false }, 100)
-        return;
-      }
-      // If user is authenticated but vault not unlocked, they need to unlock first
-      if (!isUnlocked && path !== '/settings' && path !== '/billing') {
-        // Keep the route but show unlock screen
-        return;
-      }
-    }
-    
-    // Handle /auth route
-    if (path === '/auth' || path.startsWith('/auth/')) {
-      console.log('[App] /auth route detected, path:', path)
-      
-      // Handle SSO callback routes - let Auth component handle them
-      if (path === '/auth/sso/callback' || path === '/auth/sso/error') {
-        console.log('[App] SSO callback route - allowing Auth component to handle')
-        if (!user) {
-          setCurrentPage('auth')
-        }
-        return
-      }
-      
-      if (user) {
-        console.log('[App] User already authenticated - redirecting to vault')
-        isNavigatingRef.current = true
-        navigate('/vault', { replace: true });
-        setCurrentPage('vault');
-        setTimeout(() => { isNavigatingRef.current = false }, 100)
-        return;
-      }
-      setCurrentPage('auth');
-      // Parse query params for mode
-      const params = new URLSearchParams(location.search);
-      const mode = params.get('mode');
+    const path = location.pathname
+    if (path === '/vault' || path.startsWith('/vault')) {
+      setCurrentPage('vault')
+    } else if (path === '/auth' || path.startsWith('/auth')) {
+      setCurrentPage('auth')
+      const params = new URLSearchParams(location.search)
+      const mode = params.get('mode')
       if (mode === 'login' || mode === 'signup') {
-        setAuthMode(mode);
-      }
-      return;
-    }
-    
-    // Handle hash-based routing for backward compatibility
-    const hash = location.hash.slice(1);
-    if (hash.startsWith('auth') && !user) {
-        setCurrentPage('auth');
-      // Parse query params from hash (e.g., #auth?mode=signup&plan=individual)
-      const hashParts = hash.split('?');
-      if (hashParts.length > 1) {
-        const params = new URLSearchParams(hashParts[1]);
-        const mode = params.get('mode');
-        if (mode === 'login' || mode === 'signup') {
-          setAuthMode(mode);
-        } else {
-        setAuthMode('signup');
-        }
-      } else {
-        setAuthMode('signup');
+        setAuthMode(mode)
       }
     } else if (path === '/' || path === '') {
-      // Root path - show landing if no user, vault if user
-      if (!user) {
-        setCurrentPage('landing');
-      } else if (user && isUnlocked) {
-        setCurrentPage('vault');
-      }
+      setCurrentPage('landing')
     }
-  }, [location.pathname, location.search, location.hash, user, isUnlocked, navigate]);
+  }, [location.pathname, location.search])
 
   useEffect(() => {
-    if (user && currentPage === 'vault' && isUnlocked) {
+    if (user && currentPage === 'vault' && vaultStatus === 'UNLOCKED') {
       syncManager.start();
       return () => {
         syncManager.stop();
       };
     }
-    if (!isUnlocked) {
+    if (vaultStatus === 'LOCKED') {
       syncManager.stop();
     }
-  }, [user, currentPage, isUnlocked]);
+  }, [user, currentPage, vaultStatus]);
 
   useEffect(() => {
     if (vault && vault.entries.length > 0) {
@@ -319,13 +158,13 @@ const App: React.FC = () => {
   }, [dismissedAlerts]);
 
   useEffect(() => {
-    if (!vault || !isUnlocked || isScanningBreaches) return;
+    if (!vault || vaultStatus !== 'UNLOCKED' || isScanningBreaches) return;
     const threshold = 24 * 60 * 60 * 1000; // 24h
     if (!lastBreachScanAt || Date.now() - lastBreachScanAt > threshold) {
       handleBreachScan();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vault, isUnlocked, isScanningBreaches, lastBreachScanAt]);
+  }, [vault, vaultStatus, isScanningBreaches, lastBreachScanAt]);
 
   useEffect(() => {
     const issues = healthSummary?.issues ?? [];
@@ -364,29 +203,42 @@ const App: React.FC = () => {
   );
 
   const handleVaultUnlocked = (unlockedVault: VaultData, password: string, salt: ArrayBuffer) => {
+    // CRITICAL: Vault unlock is NOT authentication - it's local state only
+    // This function MUST NOT:
+    // - Call navigate() (React Router owns navigation)
+    // - Call getCurrentUser() (AuthProvider owns auth)
+    // - Trigger auth refresh (vault state is separate from auth state)
+    
     // Prevent multiple calls
-    if (isUnlocked) {
+    if (vaultStatus === 'UNLOCKED') {
       return;
     }
     
-    // Update state synchronously - this will trigger immediate re-render
-    // Use functional updates to ensure we're working with latest state
+    // Update vault state ONLY - pure state update, no side effects
     setVault(unlockedVault);
-    setIsUnlocked(true);
+    setVaultStatus('UNLOCKED');
     setMasterPassword(password);
     setVaultSalt(salt);
-    setCurrentPage('vault'); // Ensure we're on the vault page
+    setCurrentPage('vault');
+    
+    // NO NAVIGATION - Route guards ensure we're on the correct route
+    // If user is on /vault, ProtectedRoute keeps them there
+    // If user is elsewhere, they shouldn't be unlocking vault
     
     // Initialize account storage and load current account (fire-and-forget)
     accountStorage.init().then(async () => {
       try {
         const activeAccount = await accountStorage.getActiveAccount();
-        if (activeAccount) {
+        const currentUserEmail = user?.email?.toLowerCase();
+        
+        // Check if active account belongs to current user (email must match)
+        if (activeAccount && activeAccount.email?.toLowerCase() === currentUserEmail) {
           setCurrentAccount(activeAccount);
         } else {
-          // Create default account if none exists
+          // No matching account found - create new account with user's displayName from signup
+          const accountName = user?.displayName || 'Personal';
           const defaultAccount = await accountStorage.createAccount(
-            'Personal',
+            accountName,
             user?.email || 'demo@safenode.app',
             'personal'
           );
@@ -411,13 +263,16 @@ const App: React.FC = () => {
   };
 
   const handleLock = () => {
+    // CRITICAL: Lock vault is local state only - does NOT logout
+    // If user wants to logout, they should use the logout button
+    // This just locks the vault (clears local decryption state)
     setVault(null);
-    setIsUnlocked(false);
-    setUser(null);
+    setVaultStatus('LOCKED');
     setMasterPassword('');
     setVaultSalt(null);
-    setCurrentPage('landing');
+    setCurrentPage('vault'); // Stay on vault page, just locked
     syncManager.stop();
+    // NO NAVIGATION - User stays on /vault, just sees unlock screen
   };
 
   const handleKeyRotationSuccess = () => {
@@ -742,67 +597,37 @@ const App: React.FC = () => {
     }
   }
 
-  // All hooks are now at the top - conditional rendering only below
-  // Early returns for rendering (not hooks)
+  // ============================================================================
+  // CRITICAL ARCHITECTURE RULES:
+  // 1. App.tsx renders UI based on STATE only (auth state, vault state)
+  // 2. App.tsx NEVER calls navigate() - React Router owns navigation
+  // 3. App.tsx NEVER checks location.pathname for routing decisions
+  // 4. Route guards (ProtectedRoute/PublicRoute) handle ALL redirects
+  // 5. Vault unlock is local state - does NOT affect authentication
+  // ============================================================================
   
-  // Show loading state ONLY for a brief moment (max 1 second) to prevent freeze
-  // After that, render the app even if auth check is still pending
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isCheckingAuth) {
-        console.warn('[App] Auth check taking too long - rendering app anyway')
-        setIsCheckingAuth(false)
-      }
-    }, 1000) // Max 1 second loading screen
-    
-    return () => clearTimeout(timeoutId)
-  }, [isCheckingAuth])
-  
-  // Only show loading if we're actively checking AND it's been less than 1 second
-  // This prevents permanent freeze if backend is slow
-  if (isCheckingAuth && !user) {
-    // Show minimal loading state while checking auth
+  // Wait for auth initialization before rendering
+  if (!isAuthInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary-500 mx-auto"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           <p className="mt-4 text-slate-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
   }
   
-  if (!user) {
+  // Render based on AUTH STATE only (not location.pathname)
+  // Route guards ensure we're on the correct route
+  if (!isAuthenticated || !user) {
+    // Not authenticated - show landing/auth based on currentPage state
+    // PublicRoute will redirect authenticated users away from /auth
     if (currentPage === 'auth') {
       return (
         <Auth 
-          onAuthenticated={(userData) => {
-            console.log('[App] onAuthenticated called with userData:', userData)
-            console.log('[App] Current state before update - user:', user, 'currentPage:', currentPage)
-            
-            // Clear checking state immediately to prevent loading loop
-            setIsCheckingAuth(false)
-            
-            // Set user and reset vault state
-            setUser(userData)
-            setVault(null)
-            setIsUnlocked(false)
-            
-            // Explicitly set currentPage to ensure we transition away from auth
-            setCurrentPage('vault')
-            
-            console.log('[App] State updated - user set, currentPage set to vault')
-            console.log('[App] Navigating to /vault via React Router')
-            
-            // Navigate using React Router
-            navigate('/vault', { replace: true })
-            
-            console.log('[App] Navigation command sent')
-          }}
           onBackToLanding={() => {
-            console.log('[App] Back to landing clicked')
             setCurrentPage('landing')
-            navigate('/', { replace: true })
           }}
           initialMode={authMode}
         />
@@ -814,54 +639,57 @@ const App: React.FC = () => {
     }} />
   }
 
-  // Check if new user needs to set up master password
-  if (user && (user as any).needsMasterPassword) {
+  // Authenticated user - render based on vault state and route
+  // Route guards ensure we're on /vault, /settings, or /billing
+  
+  // Check if user needs to set up master password (only if explicitly triggered)
+  // Don't check user.needsMasterPassword as it may be stale - let UnlockVault handle vault existence check
+  if (showMasterPasswordSetup) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center p-4">
         <MasterPasswordSetup
           email={user.email}
           onComplete={() => {
-            setUser({ ...user, needsMasterPassword: false })
-            // After master password setup, vault is initialized, show unlock screen
+            // After master password setup, vault is initialized
+            // NO NAVIGATION - Route guards keep us on /vault
+            setShowMasterPasswordSetup(false)
+            setCurrentPage('vault')
           }}
           onSkip={() => {
-            setUser({ ...user, needsMasterPassword: false })
             // Allow skipping for now, but vault won't work until master password is set
+            // NO NAVIGATION - Route guards keep us on /vault
+            setShowMasterPasswordSetup(false)
+            setCurrentPage('vault')
           }}
         />
       </div>
     )
   }
 
-  if (user && !isUnlocked) {
-    // Check if we're on settings or billing route - allow access without unlocking
-    if (location.pathname.startsWith('/settings') || location.pathname.startsWith('/billing')) {
-      // Allow access to settings/billing without unlocking vault
-      return (
-        <Routes>
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/*" element={<SettingsPage />} />
-          <Route path="/billing" element={<SubscribePage />} />
-          <Route path="/billing/*" element={<SubscribePage />} />
-        </Routes>
-      )
-    }
-    return <UnlockVault onVaultUnlocked={handleVaultUnlocked} />
-  }
-
-  // Handle settings and billing routes when unlocked
-  if (user && isUnlocked && (location.pathname.startsWith('/settings') || location.pathname.startsWith('/billing'))) {
+  // Authenticated but vault not unlocked
+  // Settings and billing are rendered by AppRouter directly (not through App.tsx)
+  // So we only show UnlockVault here
+  if (vaultStatus === 'LOCKED') {
     return (
-      <Routes>
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/settings/*" element={<SettingsPage />} />
-        <Route path="/billing" element={<SubscribePage />} />
-        <Route path="/billing/*" element={<SubscribePage />} />
-      </Routes>
+      <UnlockVault 
+        onVaultUnlocked={handleVaultUnlocked}
+        onSetupMasterPassword={() => {
+          setShowMasterPasswordSetup(true)
+        }}
+        onLogout={() => {
+          // Clear vault state and logout
+          // NO NAVIGATION - Route guards will redirect after logout
+          setVaultStatus('LOCKED')
+          setVault(null)
+          setMasterPassword('')
+          setVaultSalt(null)
+          authLogout()
+        }}
+      />
     )
   }
 
-  // At this point: user && isUnlocked - render vault UI
+  // At this point: user && vaultStatus === 'UNLOCKED' - render vault UI
   // Wrap vault UI in page transition
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900">

@@ -16,19 +16,21 @@ import { config } from '../config'
 export interface JWTPayload {
   userId: string
   email: string
+  tokenVersion?: number // Token version for invalidation
   iat?: number
   exp?: number
 }
 
 /**
  * Issues a JWT token for a user
- * @param user - User object with id and email
+ * @param user - User object with id, email, and optional tokenVersion
  * @returns JWT token string
  */
-export function issueToken(user: { id: string; email: string }): string {
+export function issueToken(user: { id: string; email: string; tokenVersion?: number }): string {
   const payload: JWTPayload = {
     userId: user.id,
-    email: user.email
+    email: user.email,
+    tokenVersion: user.tokenVersion || 1
   }
   
   // Token expires in 24 hours (configurable via JWT_EXPIRES_IN env var)
@@ -61,7 +63,8 @@ export function verifyToken(token: string): JWTPayload | null {
 
 /**
  * Authentication middleware for Fastify
- * Verifies JWT token from Authorization header
+ * Verifies JWT token from Authorization header or cookie
+ * Validates token version against user's current tokenVersion
  * 
  * Usage:
  * server.get('/protected', { preHandler: requireAuth }, handler)
@@ -71,38 +74,92 @@ export async function requireAuth(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const authHeader = request.headers.authorization
+    // Try to get token from Authorization header first, then from cookie
+    let token: string | undefined
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      request.log.warn({ path: request.url }, 'Missing or invalid Authorization header')
+    const authHeader = request.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7) // Remove 'Bearer ' prefix
+    } else {
+      // Try cookie
+      token = (request.cookies as any)?.safenode_token
+    }
+    
+    if (!token) {
+      request.log.warn({ path: request.url }, 'Missing or invalid Authorization header/cookie')
       return reply.code(401).send({
         error: 'unauthorized',
+        code: 'MISSING_TOKEN',
         message: 'Missing or invalid Authorization header. Expected: Bearer <token>'
       })
     }
     
-    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
     const payload = verifyToken(token)
     
     if (!payload) {
       request.log.warn({ path: request.url }, 'Invalid or expired token')
       return reply.code(401).send({
         error: 'unauthorized',
+        code: 'INVALID_TOKEN',
         message: 'Invalid or expired token'
+      })
+    }
+    
+    // Verify user exists and check token version
+    const { db } = await import('../services/database')
+    const user = await db.users.findById(payload.userId)
+    
+    if (!user) {
+      // User not found - token is invalid (user deleted or reseeded)
+      request.log.warn({ 
+        userId: payload.userId, 
+        tokenSub: payload.userId,
+        path: request.url 
+      }, 'User not found in database - token invalid')
+      
+      return reply.code(401).send({
+        error: 'unauthorized',
+        code: 'USER_NOT_FOUND',
+        message: 'User not found - authentication invalid'
+      })
+    }
+    
+    // Check token version (if token has version, it must match user's current version)
+    const userTokenVersion = (user as any).tokenVersion || 1
+    const tokenVersion = payload.tokenVersion || 1
+    
+    if (tokenVersion < userTokenVersion) {
+      // Token version is outdated (user's tokenVersion was bumped)
+      request.log.warn({ 
+        userId: payload.userId,
+        tokenVersion,
+        userTokenVersion,
+        path: request.url 
+      }, 'Token version mismatch - token invalidated')
+      
+      return reply.code(401).send({
+        error: 'unauthorized',
+        code: 'TOKEN_VERSION_MISMATCH',
+        message: 'Token has been invalidated. Please log in again.'
       })
     }
     
     // Attach user info to request for use in handlers
     ;(request as any).user = {
-      id: payload.userId,
-      email: payload.email
+      id: user.id,
+      email: user.email
     }
     
-    request.log.debug({ userId: payload.userId, path: request.url }, 'Authentication successful')
+    request.log.debug({ userId: user.id, path: request.url }, 'Authentication successful')
   } catch (error: any) {
-    request.log.error({ error: error?.message, path: request.url }, 'Authentication error')
+    request.log.error({ 
+      error: error?.message, 
+      stack: error?.stack,
+      path: request.url 
+    }, 'Authentication error')
     return reply.code(401).send({
       error: 'unauthorized',
+      code: 'AUTH_ERROR',
       message: 'Authentication failed',
       details: error?.message
     })

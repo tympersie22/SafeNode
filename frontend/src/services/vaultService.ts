@@ -12,7 +12,7 @@ import {
   base64ToArrayBuffer
 } from '../crypto/crypto'
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface VaultEntry {
   id: string
@@ -82,6 +82,12 @@ export async function getVaultSalt(): Promise<string> {
   }
 
   const data = await response.json()
+  
+  // Validate salt exists and is not empty
+  if (!data.salt || typeof data.salt !== 'string' || data.salt.trim().length === 0) {
+    throw new Error('Vault salt not available. Please try refreshing the page.')
+  }
+  
   return data.salt
 }
 
@@ -169,9 +175,22 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   }
 
   // Decrypt vault
-  const salt = base64ToArrayBuffer(data.salt)
-  const encrypted = base64ToArrayBuffer(data.encryptedVault)
-  const iv = base64ToArrayBuffer(data.iv)
+  // Validate base64 strings before decoding
+  let salt: ArrayBuffer
+  let encrypted: ArrayBuffer
+  let iv: ArrayBuffer
+  
+  try {
+    salt = base64ToArrayBuffer(data.salt)
+    encrypted = base64ToArrayBuffer(data.encryptedVault)
+    iv = base64ToArrayBuffer(data.iv)
+  } catch (error: any) {
+    // If vault data is invalid (e.g., contains test data), clear it and throw a helpful error
+    if (error.message.includes('base64') || error.message.includes('atob') || error.message.includes('decode')) {
+      throw new Error('Vault data is corrupted or invalid. Please reinitialize your vault by setting up your master password again.')
+    }
+    throw error
+  }
 
   const decrypted = await decrypt(
     {
