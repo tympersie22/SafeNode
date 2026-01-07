@@ -1,0 +1,9 @@
+IMPORTANT: This repository must never contain API keys or secrets.
+
+Before committing, ensure:
+- No Stripe keys (sk_test_, sk_live_, pk_test_, pk_live_)
+- No database passwords
+- No JWT secrets
+- No other sensitive credentials
+
+Use [REDACTED] or environment variables instead.
