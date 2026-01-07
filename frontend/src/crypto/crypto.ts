@@ -164,14 +164,32 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 /**
  * Convert base64 string to ArrayBuffer
+ * Handles empty/invalid base64 strings gracefully
  */
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = window.atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  // Validate base64 string
+  if (!base64 || typeof base64 !== 'string' || base64.trim().length === 0) {
+    throw new Error('Invalid base64 string: string is empty or invalid')
   }
-  return bytes.buffer;
+  
+  // Remove padding if needed and validate base64 format
+  const cleaned = base64.trim()
+  
+  // Check if it's valid base64 (optional: can contain A-Z, a-z, 0-9, +, /, and = for padding)
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleaned)) {
+    throw new Error(`Invalid base64 string: contains invalid characters. Got: ${cleaned.substring(0, 20)}...`)
+  }
+  
+  try {
+    const binary = window.atob(cleaned);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  } catch (error: any) {
+    throw new Error(`Failed to decode base64: ${error.message}. String: ${cleaned.substring(0, 20)}...`)
+  }
 }
 
 // SHA-1 (for HIBP k-anonymity). Returns uppercase hex

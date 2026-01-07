@@ -3,23 +3,18 @@
  * Handles user authentication, registration, and management
  */
 
-import argon2 from 'argon2'
 import { randomBytes } from 'crypto'
 import { User, CreateUserInput, UpdateUserInput } from '../models/User'
 import { db } from './database'
+import { hashPassword, verifyPassword } from '../utils/password'
 
 /**
  * Create a new user account
  */
 export async function createUser(input: CreateUserInput): Promise<User> {
   // Hash the account password (not master password)
-  const passwordHash = await argon2.hash(input.password, {
-    type: argon2.argon2id,
-    memoryCost: 64 * 1024, // 64 MB
-    timeCost: 3,
-    parallelism: 1,
-    hashLength: 32
-  })
+  // Uses password utility with pepper support
+  const passwordHash = await hashPassword(input.password)
 
   // Generate vault salt for master password derivation
   const vaultSalt = randomBytes(32).toString('base64')
@@ -53,52 +48,62 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     // Role (defaults to user)
     role: 'user',
     
+    // Token versioning (starts at 1)
+    tokenVersion: 1,
+    
     // Device limits
     devices: []
   }
 
-  await db.users.create(user)
-  return user
+  const created = await db.users.create(user)
+  ;(created as any).tokenVersion = 1
+  return created
 }
 
 /**
  * Authenticate a user by email and password
  */
-export async function authenticateUser(email: string, password: string): Promise<User | null> {
+export async function authenticateUser(
+  email: string, 
+  password: string
+): Promise<{ user: User | null; reason: 'USER_NOT_FOUND' | 'BAD_PASSWORD' | 'SUCCESS' }> {
   try {
     const normalizedEmail = email.toLowerCase().trim()
-    console.log(`[AUTH] Looking up user: ${normalizedEmail}`)
     
     const user = await db.users.findByEmail(normalizedEmail)
     
     if (!user) {
-      console.log(`[AUTH] User not found: ${normalizedEmail}`)
-      return null
+      return { user: null, reason: 'USER_NOT_FOUND' }
     }
 
-    console.log(`[AUTH] User found, verifying password for: ${normalizedEmail}`)
-    // Verify password hash
-    const valid = await argon2.verify(user.passwordHash, password)
+    // Verify password hash with timeout protection
+    const verifyPromise = verifyPassword(password, user.passwordHash)
+    const timeoutPromise = new Promise<boolean>((_, reject) => 
+      setTimeout(() => reject(new Error('Password verification timeout')), 30000)
+    )
+    const valid = await Promise.race([verifyPromise, timeoutPromise]) as boolean
     
     if (!valid) {
-      console.log(`[AUTH] Invalid password for user: ${normalizedEmail}`)
-      return null
+      return { user: null, reason: 'BAD_PASSWORD' }
     }
 
-    console.log(`[AUTH] Password valid, updating last login for: ${normalizedEmail}`)
     // Update last login time (don't wait for this to complete)
     db.users.update(user.id, {
       lastLoginAt: Date.now()
     }).catch(err => console.error('Failed to update last login:', err))
 
-    console.log(`[AUTH] Successfully authenticated user: ${normalizedEmail}`)
     return {
+      user: {
       ...user,
       lastLoginAt: Date.now()
+      },
+      reason: 'SUCCESS'
     }
   } catch (error: any) {
-    console.error('Error in authenticateUser:', error)
-    console.error('Stack:', error?.stack)
+    // If timeout or other error, treat as bad password
+    if (error?.message?.includes('timeout')) {
+      return { user: null, reason: 'BAD_PASSWORD' }
+    }
     throw new Error(`Authentication failed: ${error?.message || 'Unknown error'}`)
   }
 }

@@ -35,6 +35,9 @@ export interface User {
   // Admin/role
   role?: 'user' | 'admin' | 'superadmin' // User role for system-level permissions
   
+  // Token versioning (for invalidating old tokens)
+  tokenVersion?: number // Incremented to invalidate old JWTs
+  
   // Device limits
   devices: Array<{
     id: string
@@ -69,5 +72,6 @@ export interface UpdateUserInput {
   stripeCustomerId?: string
   stripeSubscriptionId?: string
   role?: User['role']
+  tokenVersion?: number
 }
 

@@ -27,31 +27,57 @@ class DatabaseService {
   async init(): Promise<void> {
     if (this.isInitialized) return
 
-    try {
       if (this.adapter === 'prisma') {
+      // STRICT MODE: Fail hard if Prisma connection fails
+      // NO FALLBACK to in-memory database
+      if (!config.databaseUrl) {
+        const error = new Error(
+          'DATABASE_URL is required when using Prisma adapter. ' +
+          'Please set DATABASE_URL in your .env file.'
+        )
+        console.error('❌ Database configuration error:', error.message)
+        throw error
+      }
+
+      try {
         await initPrisma()
-        // Verify connection
+        // Verify connection with a test query
         const prisma = getPrismaClient()
         await prisma.$queryRaw`SELECT 1`
-        console.log(`📦 Database adapter initialized: ${this.adapter} (Prisma)`)
+        console.log(`✅ Database adapter initialized: ${this.adapter} (Prisma)`)
+        console.log(`   Connected to: ${config.databaseUrl.replace(/:[^:@]+@/, ':****@')}`)
+      } catch (error: any) {
+        console.error('❌ CRITICAL: Prisma database connection failed!')
+        console.error('   Error:', error.message)
+        console.error('   Code:', error.code)
+        console.error('')
+        console.error('🔧 FIX REQUIRED:')
+        console.error('   1. Ensure PostgreSQL is running')
+        console.error('   2. Verify DATABASE_URL is correct')
+        console.error('   3. Check database exists: psql -U postgres -c "\\l"')
+        console.error('   4. Create database if needed: createdb safenode')
+        console.error('   5. Check user permissions')
+        console.error('')
+        console.error('❌ Server will NOT start without a valid database connection.')
+        console.error('   This prevents data loss and ensures production reliability.')
+        throw error
+      }
       } else if (this.adapter === 'mongo') {
         // MongoDB initialization will be handled by mongoAdapter
         console.log(`📦 Database adapter initialized: ${this.adapter}`)
       } else {
-        console.log(`📦 Database adapter initialized: ${this.adapter} (in-memory)`)
+      // Only allow in-memory in development mode
+      if (config.nodeEnv === 'production') {
+        throw new Error(
+          'In-memory database adapter is not allowed in production. ' +
+          'Please set DB_ADAPTER=prisma and provide DATABASE_URL.'
+        )
       }
-      this.isInitialized = true
-    } catch (error) {
-      console.error('❌ Database initialization failed:', error)
-      // Fall back to memory adapter if Prisma fails
-      if (this.adapter === 'prisma') {
-        console.warn('⚠️ Falling back to in-memory database')
-        this.adapter = 'memory'
-        this.isInitialized = true
-      } else {
-        throw error
-      }
+      console.log(`⚠️  Database adapter initialized: ${this.adapter} (in-memory) - DEVELOPMENT ONLY`)
+      console.log(`   WARNING: Data will be lost on server restart!`)
     }
+    
+        this.isInitialized = true
   }
 
   users = {
@@ -73,7 +99,10 @@ class DatabaseService {
      * Find user by ID
      */
     async findById(id: string): Promise<User | null> {
-      if (this.adapter === 'prisma') {
+      // Ensure adapter is set (fix for undefined adapter issue)
+      const adapter = this.adapter || (config.dbAdapter === 'mongo' ? 'mongo' : config.dbAdapter === 'prisma' ? 'prisma' : 'memory')
+      
+      if (adapter === 'prisma') {
         return prismaUserAdapter.findById(id)
       }
       
@@ -86,7 +115,10 @@ class DatabaseService {
      * Find user by email
      */
     async findByEmail(email: string): Promise<User | null> {
-      if (this.adapter === 'prisma') {
+      // Ensure adapter is set (fix for undefined adapter issue - can happen with module loading)
+      const adapter = this.adapter || (config.dbAdapter === 'mongo' ? 'mongo' : config.dbAdapter === 'prisma' ? 'prisma' : 'memory')
+      
+      if (adapter === 'prisma') {
         return prismaUserAdapter.findByEmail(email)
       }
       
@@ -102,7 +134,10 @@ class DatabaseService {
      * Update user
      */
     async update(id: string, input: UpdateUserInput): Promise<User | null> {
-      if (this.adapter === 'prisma') {
+      // Ensure adapter is set (fix for undefined adapter issue)
+      const adapter = this.adapter || (config.dbAdapter === 'mongo' ? 'mongo' : config.dbAdapter === 'prisma' ? 'prisma' : 'memory')
+      
+      if (adapter === 'prisma') {
         return prismaUserAdapter.update(id, input)
       }
       

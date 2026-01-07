@@ -35,13 +35,12 @@ export interface RegisterCredentials {
   displayName?: string
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
-// Log API base URL at module load for debugging
-if (typeof window !== 'undefined') {
-  console.log('[authService] API_BASE:', API_BASE)
-  console.log('[authService] VITE_API_URL env:', (import.meta as any).env?.VITE_API_URL)
-}
+// Promise mutex to prevent duplicate getCurrentUser calls
+let getCurrentUserPromise: Promise<User> | null = null
+let getCurrentUserPromiseResolve: ((user: User) => void) | null = null
+let getCurrentUserPromiseReject: ((error: Error) => void) | null = null
 
 /**
  * Store authentication token in localStorage
@@ -62,6 +61,7 @@ export function getToken(): string | null {
  */
 function removeToken(): void {
   localStorage.removeItem('safenode_token')
+  clearGetCurrentUserCache()
 }
 
 /**
@@ -84,7 +84,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
       if (!controller.signal.aborted) {
         controller.abort()
       }
-    }, 30000) // 30 second timeout
+    }, 90000) // 90 second timeout (safety net for argon2 hashing)
     
     console.log('[authService] Making register request to:', `${API_BASE}/api/auth/register`)
     let response: Response
@@ -130,9 +130,8 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     }
     
     // Store token immediately
-    console.log('[authService] Storing token in localStorage')
     setToken(data.token)
-    console.log('[authService] Token stored successfully')
+    clearGetCurrentUserCache() // Clear cache so next getCurrentUser fetches fresh data
     
     return data
   } catch (error: any) {
@@ -166,7 +165,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
       if (!controller.signal.aborted) {
         controller.abort()
       }
-    }, 30000) // 30 second timeout
+    }, 90000) // 90 second timeout (safety net for argon2 hashing)
     
     let response: Response
     try {
@@ -221,9 +220,9 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     }
     
     // Store token immediately - CRITICAL for navigation to work
-    console.log('[authService] Storing token in localStorage')
     setToken(data.token)
-    console.log('[authService] Token stored successfully')
+    // Clear getCurrentUser cache so next call fetches fresh data
+    clearGetCurrentUserCache()
     
     // Set user context in Sentry
     setSentryUser({
@@ -257,78 +256,125 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
 export function logout(): void {
   removeToken()
   clearSentryUser()
+  clearGetCurrentUserCache()
 }
 
 /**
  * Get current user information
- * Non-blocking - has timeout to prevent freeze
+ * 
+ * CRITICAL: Uses promise mutex to ensure only ONE request is made at a time.
+ * All concurrent callers receive the same promise, preventing duplicate API calls.
+ * This is essential for production to avoid race conditions and unnecessary load.
  */
 export async function getCurrentUser(): Promise<User> {
-  console.log('[authService] getCurrentUser called')
-  const token = getToken()
-  console.log('[authService] Token exists:', !!token)
-  
-  if (!token) {
-    console.error('[authService] No token found')
-    // Return immediately without making request
-    throw new Error('Not authenticated')
+  // If there's already a pending request, return the same promise
+  if (getCurrentUserPromise) {
+    return getCurrentUserPromise
   }
 
-  console.log('[authService] Making request to /api/auth/me')
-  console.log('[authService] Request URL:', `${API_BASE}/api/auth/me`)
-  console.log('[authService] Authorization header:', `Bearer ${token.substring(0, 20)}...`)
+  // Create new promise for this request
+  getCurrentUserPromise = new Promise<User>((resolve, reject) => {
+    getCurrentUserPromiseResolve = resolve
+    getCurrentUserPromiseReject = reject
+  })
 
-  try {
-    // Each request gets its own AbortController - never shared
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => {
-      if (!controller.signal.aborted) {
-        console.warn('[authService] getCurrentUser timeout - aborting request')
-        controller.abort()
+  // Execute the actual request
+  const executeRequest = async (): Promise<User> => {
+    const token = getToken()
+    
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        if (!controller.signal.aborted) {
+          controller.abort()
+        }
+      }, 30000) // 30 second timeout (reasonable for production)
+
+      const response = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          const error = await response.json().catch(() => ({ message: 'Authentication expired' }))
+          
+          // If error code is USER_NOT_FOUND, clear auth storage and force re-login
+          if (error.code === 'USER_NOT_FOUND') {
+            console.warn('[authService] User not found - clearing auth storage')
+          removeToken()
+            clearGetCurrentUserCache()
+            throw new Error('User not found - please log in again')
+          }
+          
+          // Token is invalid - DO NOT auto-logout, just throw error
+          // Let the caller decide what to do (AuthProvider will handle it)
+          throw new Error(error.message || 'Authentication expired')
+        }
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch user' }))
+        throw new Error(error.message || error.error || 'Failed to fetch user')
       }
-    }, 30000) // 30 second timeout - increased from 5
 
-    const response = await fetch(`${API_BASE}/api/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      signal: controller.signal
+      const userData = await response.json()
+      return userData
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - server is not responding')
+      }
+      
+      if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+        throw new Error('Unable to connect to server. Please check if the backend is running.')
+      }
+      
+      throw error
+    }
+  }
+
+  // Execute request and handle result
+  executeRequest()
+    .then((userData) => {
+      // Resolve all waiting promises
+      if (getCurrentUserPromiseResolve) {
+        getCurrentUserPromiseResolve(userData)
+      }
+      // Clear cache after resolving
+      getCurrentUserPromise = null
+      getCurrentUserPromiseResolve = null
+      getCurrentUserPromiseReject = null
+    })
+    .catch((error: any) => {
+      // Reject all waiting promises
+      if (getCurrentUserPromiseReject) {
+        getCurrentUserPromiseReject(error)
+      }
+      // Clear cache after rejecting
+      getCurrentUserPromise = null
+      getCurrentUserPromiseResolve = null
+      getCurrentUserPromiseReject = null
     })
 
-    clearTimeout(timeoutId)
-    console.log('[authService] Response status:', response.status, response.statusText)
+  // Return the promise (all callers will get the same one)
+  return getCurrentUserPromise
+}
 
-    if (!response.ok) {
-      console.error('[authService] Request failed with status:', response.status)
-      if (response.status === 401) {
-        console.error('[authService] 401 Unauthorized - removing token')
-        removeToken()
-        throw new Error('Authentication expired')
-      }
-      const error = await response.json().catch(() => ({ message: 'Failed to fetch user' }))
-      console.error('[authService] Error response:', error)
-      throw new Error(error.message || error.error || 'Failed to fetch user')
-    }
-
-    const userData = await response.json()
-    console.log('[authService] User data received:', userData)
-    return userData
-  } catch (error: any) {
-    console.error('[authService] getCurrentUser error:', error)
-    
-    // Handle abort (timeout)
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - server is not responding')
-    }
-    
-    // Handle network errors
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to server. Please check if the backend is running.')
-    }
-    throw error
-  }
+/**
+ * Clear the getCurrentUser promise cache
+ * Call this when you know the user state has changed (login/logout)
+ */
+export function clearGetCurrentUserCache(): void {
+  getCurrentUserPromise = null
+  getCurrentUserPromiseResolve = null
+  getCurrentUserPromiseReject = null
 }
 
 /**

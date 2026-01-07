@@ -20,6 +20,7 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   lastLoginAt DateTime? @map("last_login_at")
+  tokenVersion Int @default(1) @map("token_version") // Incremented to invalidate old tokens
   
   // Vault configuration
   vaultSalt String @map("vault_salt")

@@ -11,7 +11,7 @@ import { Prisma } from '@prisma/client'
  * Convert Prisma user to domain User model
  */
 function prismaUserToDomain(prismaUser: any): User {
-  return {
+  const user: User = {
     id: prismaUser.id,
     email: prismaUser.email,
     passwordHash: prismaUser.passwordHash,
@@ -43,6 +43,9 @@ function prismaUserToDomain(prismaUser: any): User {
     // Role
     role: (prismaUser.role || 'user') as 'user' | 'admin' | 'superadmin',
     
+    // Token versioning
+    tokenVersion: prismaUser.tokenVersion || 1,
+    
     // Device limits
     devices: (prismaUser.devices || []).map((d: any) => ({
       id: d.deviceId,
@@ -51,6 +54,10 @@ function prismaUserToDomain(prismaUser: any): User {
       registeredAt: d.registeredAt.getTime()
     }))
   }
+  
+  // Attach tokenVersion as a property (for middleware access)
+  ;(user as any).tokenVersion = prismaUser.tokenVersion || 1
+  return user
 }
 
 /**
@@ -86,11 +93,14 @@ export const prismaUserAdapter = {
         subscriptionExpiresAt: user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null,
         stripeCustomerId: user.stripeCustomerId || null,
         stripeSubscriptionId: user.stripeSubscriptionId || null,
-        role: user.role || 'user'
+        role: user.role || 'user',
+        tokenVersion: user.tokenVersion || 1
       }
     })
     
-    return prismaUserToDomain(created)
+    const result = prismaUserToDomain(created)
+    ;(result as any).tokenVersion = created.tokenVersion || 1
+    return result
   },
 
   /**
@@ -109,7 +119,10 @@ export const prismaUserAdapter = {
       }
     })
     
-    return user ? prismaUserToDomain(user) : null
+    if (!user) return null
+    const result = prismaUserToDomain(user)
+    ;(result as any).tokenVersion = user.tokenVersion || 1
+    return result
   },
 
   /**
@@ -117,9 +130,10 @@ export const prismaUserAdapter = {
    */
   async findByEmail(email: string): Promise<User | null> {
     const prisma = getPrismaClient()
+    const normalizedEmail = email.toLowerCase().trim()
     
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
       include: {
         devices: {
           where: { isActive: true },
@@ -128,7 +142,11 @@ export const prismaUserAdapter = {
       }
     })
     
-    return user ? prismaUserToDomain(user) : null
+    if (!user) return null
+    
+    const result = prismaUserToDomain(user)
+    ;(result as any).tokenVersion = user.tokenVersion || 1
+    return result
   },
 
   /**
@@ -166,6 +184,7 @@ export const prismaUserAdapter = {
         : null
     }
     if (input.role !== undefined) updateData.role = input.role
+    if (input.tokenVersion !== undefined) updateData.tokenVersion = input.tokenVersion
     if (input.stripeCustomerId !== undefined) {
       updateData.stripeCustomerId = input.stripeCustomerId || null
     }
@@ -184,7 +203,9 @@ export const prismaUserAdapter = {
       }
     })
     
-    return prismaUserToDomain(updated)
+    const result = prismaUserToDomain(updated)
+    ;(result as any).tokenVersion = updated.tokenVersion || 1
+    return result
   },
 
   /**
