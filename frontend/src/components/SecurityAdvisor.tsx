@@ -12,6 +12,7 @@ export interface AdvisorEntry {
 
 interface SecurityAdvisorProps {
   entries: AdvisorEntry[]
+  onActionClick?: (action: string) => void
 }
 
 type BreachMap = Record<string, number>
@@ -28,7 +29,7 @@ function scorePasswordStrength (password: string): { score: number; issues: stri
   return { score: Math.max(0, Math.min(5, score)), issues }
 }
 
-const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
+const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries, onActionClick }) => {
   const [breaches, setBreaches] = React.useState<BreachMap>({})
   const [scanning, setScanning] = React.useState(false)
 
@@ -80,12 +81,27 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
       total
     };
 
-    aiService.generateSecurityRecommendations(entries, healthSummary)
+    // Convert AdvisorEntry[] to VaultEntry[] for AI service
+    const vaultEntries: any[] = entries.map(e => ({
+      id: e.id,
+      name: e.name,
+      username: e.username,
+      password: e.password,
+      url: e.url,
+      passwordUpdatedAt: Date.now() - (90 * 24 * 60 * 60 * 1000) // Default to 90 days ago
+    }));
+
+    console.log('[SecurityAdvisor] Generating recommendations for', vaultEntries.length, 'entries');
+    console.log('[SecurityAdvisor] Health summary:', healthSummary);
+
+    aiService.generateSecurityRecommendations(vaultEntries, healthSummary)
       .then(recommendations => {
+        console.log('[SecurityAdvisor] Generated', recommendations.length, 'recommendations');
         setAiRecommendations(recommendations);
       })
       .catch(error => {
-        console.error('Failed to generate AI recommendations:', error);
+        console.error('[SecurityAdvisor] Failed to generate AI recommendations:', error);
+        setAiRecommendations([]);
       })
       .finally(() => {
         setIsLoadingAI(false);
@@ -292,7 +308,26 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
                         {rec.message}
                       </p>
                       {rec.action && (
-                        <button className="mt-2 text-xs font-medium underline">
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[SecurityAdvisor] Action clicked:', rec.action);
+                            if (onActionClick) {
+                              onActionClick(rec.action);
+                            } else {
+                              // Default behavior: open password generator for password-related actions
+                              if (rec.action.toLowerCase().includes('password') || rec.action.toLowerCase().includes('generate')) {
+                                // Trigger password generator - this will be handled by parent
+                                const event = new CustomEvent('openPasswordGenerator');
+                                window.dispatchEvent(event);
+                              }
+                            }
+                          }}
+                          className="mt-2 text-xs font-medium text-secondary-600 hover:text-secondary-700 underline hover:no-underline cursor-pointer transition-all active:scale-95"
+                          style={{ pointerEvents: 'auto' }}
+                        >
                           {rec.action} →
                         </button>
                       )}

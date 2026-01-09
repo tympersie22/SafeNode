@@ -56,6 +56,19 @@ const EntryForm: React.FC<EntryFormProps> = ({
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, onClose])
 
+  // Listen for password generator trigger from SecurityAdvisor
+  useEffect(() => {
+    if (!isOpen) return
+    
+    const handleTriggerPasswordGenerator = () => {
+      console.log('[EntryForm] Password generator triggered from SecurityAdvisor');
+      setShowPasswordGenerator(true);
+    }
+    
+    window.addEventListener('triggerPasswordGenerator', handleTriggerPasswordGenerator);
+    return () => window.removeEventListener('triggerPasswordGenerator', handleTriggerPasswordGenerator);
+  }, [isOpen])
+
   // Reset form when entry changes or modal opens
   useEffect(() => {
     if (isOpen) {
@@ -420,11 +433,15 @@ const EntryForm: React.FC<EntryFormProps> = ({
                   className="w-full px-2.5 py-1.5 pr-20 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500"
                   placeholder="Enter password"
                 />
-                <div className="absolute right-1 top-1 flex space-x-1">
+                <div className="absolute right-1 top-1 flex space-x-1 z-10" style={{ pointerEvents: 'auto' }}>
                   <motion.button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="p-1.5 hover:bg-slate-100 rounded transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowPassword(!showPassword);
+                    }}
+                    className="p-1.5 hover:bg-slate-100 rounded transition-colors cursor-pointer"
                     whileTap={{ scale: 0.95 }}
                   >
                     {showPassword ? (
@@ -440,9 +457,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
                   </motion.button>
                   <motion.button
                     type="button"
-                    onClick={handleGeneratePassword}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Generate password button clicked');
+                      handleGeneratePassword();
+                    }}
                     disabled={isGeneratingPassword}
-                    className="p-1.5 hover:bg-slate-100 rounded transition-colors disabled:opacity-50"
+                    className="p-1.5 hover:bg-slate-100 rounded transition-colors disabled:opacity-50 cursor-pointer"
                     whileTap={{ scale: 0.95 }}
                   >
                     {isGeneratingPassword ? (

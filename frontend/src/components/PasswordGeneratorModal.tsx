@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { generateSecurePassword, type PasswordGeneratorOptions } from '../crypto/crypto';
 
@@ -29,14 +29,7 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Generate password on mount and when options change
-  useEffect(() => {
-    if (isOpen) {
-      handleGenerate();
-    }
-  }, [isOpen]);
-
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
     setError(null);
     try {
@@ -44,10 +37,18 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
       setGeneratedPassword(password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate password');
+      console.error('Password generation error:', err);
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [options]);
+
+  // Generate password when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      handleGenerate();
+    }
+  }, [isOpen, handleGenerate]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedPassword);
@@ -84,73 +85,82 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
       {isOpen && (
         <>
           <motion.div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 z-40"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 8 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-generator-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="card-body">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900">Password Generator</h2>
-                  <button
-                    onClick={onClose}
-                    className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
+            <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                <h3 id="password-generator-title" className="text-base font-semibold text-slate-900">Generate Password</h3>
+                <motion.button 
+                  onClick={onClose} 
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors" 
+                  whileTap={{ scale: 0.96 }} 
+                  aria-label="Close dialog"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </motion.button>
+              </div>
+
+              {/* Content */}
+              <div className="px-4 py-4 space-y-4">
 
                 {/* Generated Password Display */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Generated Password
-                  </label>
-                  <div className="flex gap-2">
+                <div>
+                  <div className="flex gap-2 mb-3">
                     <input
                       type="text"
                       readOnly
                       value={generatedPassword}
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg bg-white font-mono text-lg"
+                      className="flex-1 px-3 py-2.5 border border-slate-300 rounded-lg bg-slate-50 font-mono text-sm"
                     />
-                    <button
+                    <motion.button
                       onClick={handleCopy}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                      className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      whileTap={{ scale: 0.96 }}
                     >
                       Copy
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
                       onClick={handleGenerate}
                       disabled={isGenerating}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
+                      whileTap={{ scale: 0.96 }}
+                      title="Regenerate"
                     >
                       {isGenerating ? '...' : '↻'}
-                    </button>
+                    </motion.button>
                   </div>
                   {error && (
-                    <p className="mt-2 text-sm text-red-600">{error}</p>
+                    <p className="text-xs text-red-600 mb-2">{error}</p>
                   )}
                 </div>
 
                 {/* Presets */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Quick Presets
-                  </label>
-                  <div className="flex flex-wrap gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-2">Quick Presets</label>
+                  <div className="flex flex-wrap gap-1.5">
                     {presetOptions.map((preset) => (
                       <button
                         key={preset.label}
                         onClick={() => applyPreset(preset)}
-                        className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                        className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
                       >
                         {preset.label}
                       </button>
@@ -159,136 +169,81 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
                 </div>
 
                 {/* Length */}
-                <div className="mb-6">
+                <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      Length: {options.length}
-                    </label>
-                    <span className="text-sm text-slate-500">{options.length} characters</span>
+                    <label className="text-xs font-medium text-slate-600">Length</label>
+                    <span className="text-xs text-slate-500">{options.length}</span>
                   </div>
                   <input
                     type="range"
-                    min="4"
-                    max="128"
+                    min="8"
+                    max="64"
                     value={options.length}
                     onChange={(e) => setOptions(prev => ({ ...prev, length: parseInt(e.target.value) }))}
                     className="w-full"
                   />
                 </div>
 
-                {/* Character Types */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-3">
-                    Character Types
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                {/* Character Types - Compact Grid */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-2">Include</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
                       <input
                         type="checkbox"
                         checked={options.includeUppercase}
                         onChange={(e) => setOptions(prev => ({ ...prev, includeUppercase: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                        className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                       />
-                      <span className="text-slate-700">Uppercase (A-Z)</span>
+                      <span className="text-slate-700">A-Z</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
                       <input
                         type="checkbox"
                         checked={options.includeLowercase}
                         onChange={(e) => setOptions(prev => ({ ...prev, includeLowercase: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                        className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                       />
-                      <span className="text-slate-700">Lowercase (a-z)</span>
+                      <span className="text-slate-700">a-z</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
                       <input
                         type="checkbox"
                         checked={options.includeNumbers}
                         onChange={(e) => setOptions(prev => ({ ...prev, includeNumbers: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                        className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                       />
-                      <span className="text-slate-700">Numbers (0-9)</span>
+                      <span className="text-slate-700">0-9</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
                       <input
                         type="checkbox"
                         checked={options.includeSymbols}
                         onChange={(e) => setOptions(prev => ({ ...prev, includeSymbols: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                        className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                       />
-                      <span className="text-slate-700">Symbols (!@#$%...)</span>
+                      <span className="text-slate-700">!@#$</span>
                     </label>
                   </div>
-                </div>
-
-                {/* Exclusion Options */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-3">
-                    Exclusion Rules
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={options.excludeSimilar}
-                        onChange={(e) => setOptions(prev => ({ ...prev, excludeSimilar: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-slate-700">Exclude similar characters (i, l, 1, L, o, 0, O)</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={options.excludeAmbiguous}
-                        onChange={(e) => setOptions(prev => ({ ...prev, excludeAmbiguous: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-slate-700">Exclude ambiguous symbols (&#123; &#125; [ ] ( ) / \ &apos; &quot; ` ~ , ; : . &lt; &gt;)</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={options.requireEachType}
-                        onChange={(e) => setOptions(prev => ({ ...prev, requireEachType: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-slate-700">Require at least one of each selected type</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Custom Exclude */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Custom Exclusions (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={options.customExclude || ''}
-                    onChange={(e) => setOptions(prev => ({ ...prev, customExclude: e.target.value }))}
-                    placeholder="e.g., abc123"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    Enter characters to exclude from the password
-                  </p>
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 justify-end">
-                  <button
+                <div className="flex gap-2 pt-2 border-t border-slate-200">
+                  <motion.button
                     onClick={onClose}
-                    className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    className="flex-1 px-3 py-2 text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    whileTap={{ scale: 0.98 }}
                   >
-                    Cancel
-                  </button>
-                  <button
+                    Close
+                  </motion.button>
+                  <motion.button
                     onClick={handleUse}
                     disabled={!generatedPassword || isGenerating}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    whileTap={{ scale: 0.98 }}
                   >
-                    Use Password
-                  </button>
+                    Use
+                  </motion.button>
                 </div>
               </div>
             </div>

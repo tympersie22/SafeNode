@@ -94,12 +94,47 @@ class AIService {
     const recommendations: AIRecommendation[] = [];
     const total = entries.length;
 
+    if (total === 0) {
+      return recommendations;
+    }
+
+    // Always provide recommendations based on health summary if available
+    if (healthSummary.breachedCount > 0) {
+      recommendations.push({
+        priority: 'high',
+        message: `${healthSummary.breachedCount} password${healthSummary.breachedCount > 1 ? 's have' : ' has'} been found in data breaches. These are extremely vulnerable and should be changed immediately.`,
+        action: 'Change breached passwords',
+        confidence: 0.95,
+        reasoning: 'Passwords found in known data breaches'
+      });
+    }
+
+    if (healthSummary.weakCount > 0) {
+      recommendations.push({
+        priority: 'high',
+        message: `${healthSummary.weakCount} password${healthSummary.weakCount > 1 ? 's are' : ' is'} too weak. Weak passwords can be cracked in seconds. Consider using our password generator.`,
+        action: 'Strengthen weak passwords',
+        confidence: 0.9,
+        reasoning: 'Passwords do not meet strength requirements'
+      });
+    }
+
+    if (healthSummary.reuseCount > 0) {
+      recommendations.push({
+        priority: 'high',
+        message: `You're reusing passwords across ${healthSummary.reuseCount} account${healthSummary.reuseCount > 1 ? 's' : ''}. If one account is compromised, all accounts with the same password are at risk.`,
+        action: 'Generate unique passwords',
+        confidence: 0.9,
+        reasoning: 'Password reuse detected'
+      });
+    }
+
     // Analyze password patterns
     const passwordPatterns = this.analyzePasswordPatterns(entries);
     if (passwordPatterns.hasCommonPattern) {
       recommendations.push({
         priority: 'high',
-        message: `Detected ${passwordPatterns.commonPatternCount} passwords following predictable patterns. Attackers often exploit these patterns. Consider using our password generator for truly random passwords.`,
+        message: `Detected ${passwordPatterns.commonPatternCount} password${passwordPatterns.commonPatternCount > 1 ? 's' : ''} following predictable patterns. Attackers often exploit these patterns. Consider using our password generator for truly random passwords.`,
         action: 'Generate secure passwords',
         confidence: 0.85,
         reasoning: `Found ${passwordPatterns.commonPatternCount} passwords with common patterns like sequential characters or keyboard walks`
@@ -108,7 +143,7 @@ class AIService {
 
     // Analyze reuse patterns
     const reuseAnalysis = this.analyzePasswordReuse(entries);
-    if (reuseAnalysis.reuseScore > 0.3) {
+    if (reuseAnalysis.reuseScore > 0.3 && healthSummary.reuseCount === 0) {
       recommendations.push({
         priority: 'high',
         message: `You're reusing passwords across ${reuseAnalysis.uniquePasswords} unique passwords for ${total} accounts. This creates a single point of failure - if one account is compromised, others are at risk.`,
@@ -132,7 +167,7 @@ class AIService {
 
     // Analyze breach correlation
     const breachAnalysis = this.analyzeBreachCorrelation(entries);
-    if (breachAnalysis.correlationScore > 0.5) {
+    if (breachAnalysis.correlationScore > 0.5 && breachAnalysis.commonPatterns.length > 0) {
       recommendations.push({
         priority: 'high',
         message: `Your breached passwords share ${breachAnalysis.commonPatterns.join(', ')}. This suggests a pattern attackers might exploit. Consider a complete password reset strategy.`,
@@ -151,6 +186,16 @@ class AIService {
         action: 'Review account security',
         confidence: 0.7,
         reasoning: `Identified ${domainAnalysis.weakDomainCount} accounts on potentially insecure services`
+      });
+    }
+
+    // If no issues found, provide positive feedback
+    if (recommendations.length === 0 && total > 0) {
+      recommendations.push({
+        priority: 'low',
+        message: `Great job! Your password security looks strong. Keep it up by regularly reviewing and updating your passwords.`,
+        confidence: 0.8,
+        reasoning: 'No security issues detected'
       });
     }
 

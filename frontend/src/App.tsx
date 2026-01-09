@@ -37,6 +37,7 @@ import AuditLogsModal from './components/AuditLogsModal';
 import TeamVaultsModal from './components/TeamVaultsModal';
 import PINSetupModal from './components/PINSetupModal';
 import BiometricSetupModal from './components/BiometricSetupModal';
+import PasswordGeneratorModal from './components/PasswordGeneratorModal';
 import { accountStorage, type Account } from './storage/accountStorage';
 import { auditLogStorage } from './storage/auditLogs';
 import { teamVaultStorage } from './storage/teamVaults';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
   const [isSharingKeysOpen, setIsSharingKeysOpen] = useState(false);
   const [shareEntry, setShareEntry] = useState<VaultEntry | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
   const { user, isAuthenticated, isAuthInitialized, logout: authLogout } = useAuth();
   const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
@@ -1115,13 +1117,22 @@ const App: React.FC = () => {
             )}
 
             {/* Security Advisor */}
-            <SecurityAdvisor entries={(vault?.entries || []).map(e => ({
-              id: e.id,
-              name: e.name,
-              username: e.username,
-              password: e.password,
-              url: e.url
-            }))} />
+            <SecurityAdvisor 
+              entries={(vault?.entries || []).map(e => ({
+                id: e.id,
+                name: e.name,
+                username: e.username,
+                password: e.password,
+                url: e.url
+              }))}
+              onActionClick={(action) => {
+                console.log('[App] SecurityAdvisor action clicked:', action);
+                // Open password generator modal directly (NOT entry form)
+                if (action.toLowerCase().includes('password') || action.toLowerCase().includes('generate')) {
+                  setIsPasswordGeneratorOpen(true);
+                }
+              }}
+            />
             {/* Search + Tags + Add Button */}
             <motion.div className="card card-hover" variants={listItem}>
               <div className="card-body">
@@ -1350,6 +1361,22 @@ const App: React.FC = () => {
         isOpen={isKeyRotationOpen}
         onClose={() => setIsKeyRotationOpen(false)}
         onSuccess={handleKeyRotationSuccess}
+      />
+
+      {/* Standalone Password Generator Modal */}
+      <PasswordGeneratorModal
+        isOpen={isPasswordGeneratorOpen}
+        onClose={() => setIsPasswordGeneratorOpen(false)}
+        onGenerate={(password) => {
+          // Copy password to clipboard when generated from SecurityAdvisor
+          navigator.clipboard.writeText(password).then(() => {
+            setNotification({
+              message: 'Password generated and copied to clipboard!',
+              type: 'success'
+            });
+            setTimeout(() => setNotification(null), 3000);
+          });
+        }}
       />
 
       {/* Sharing */}
