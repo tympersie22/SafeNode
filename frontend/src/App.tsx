@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, startTransition, useRef } from 're
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { getAuthHeader } from './services/authService';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
 import EntryForm from './components/EntryForm';
@@ -460,9 +461,14 @@ const App: React.FC = () => {
 
       const salt = base64ToArrayBuffer(storedVault.salt);
       
+      // Get master password from state (required for encryption)
+      if (!masterPassword) {
+        throw new Error('Master password is required to save vault');
+      }
+
       // Encrypt the updated vault
       const vaultJson = JSON.stringify(vaultData);
-      const encrypted = await encrypt(vaultJson, 'demo-password', salt);
+      const encrypted = await encrypt(vaultJson, masterPassword, salt);
       
       const payload = {
         encryptedVault: arrayBufferToBase64(encrypted.encrypted),
@@ -482,10 +488,19 @@ const App: React.FC = () => {
         method = 'DELETE';
       }
 
+      // Get auth header
+      const authHeader = getAuthHeader();
+      if (!authHeader) {
+        throw new Error('Not authenticated. Please log in again.');
+      }
+
       // Send to server
       const response = await fetch(endpoint, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authHeader
+        },
         body: JSON.stringify(payload)
       });
 
