@@ -11,9 +11,11 @@ import compress from '@fastify/compress'
 import { config } from './config'
 import { registerAuthRoutes } from './routes/auth'
 import { registerBillingRoutes } from './routes/billing'
+import { registerDeviceRoutes } from './routes/devices'
 import { registerSyncRoutes } from './routes/sync'
 import { registerSSORoutes } from './routes/sso'
 import { registerHealthRoutes } from './routes/health'
+import { findUserById } from './services/userService'
 import { requireAuth } from './middleware/auth'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
 import { getBreachRange, getCacheStats } from './controllers/breachController'
@@ -74,6 +76,9 @@ export async function createApp() {
 
   // Register billing routes
   await registerBillingRoutes(server)
+
+  // Register device routes
+  await registerDeviceRoutes(server)
 
   // Register sync routes
   await registerSyncRoutes(server)
@@ -221,6 +226,42 @@ export async function createApp() {
   // Breach check routes (public, but rate limited)
   server.get('/api/breach/range/:prefix', getBreachRange)
   server.get('/api/breach/cache/stats', getCacheStats)
+
+  // Legacy /api/user/salt endpoint (for backward compatibility)
+  // New code should use /api/auth/vault/salt instead
+  server.get('/api/user/salt', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const userData = await findUserById(user.id)
+      
+      if (!userData) {
+        return reply.code(404).send({
+          error: 'user_not_found',
+          message: 'User not found'
+        })
+      }
+
+      // If user doesn't have a salt yet, generate one
+      let salt = userData.vaultSalt
+      if (!salt || salt.length === 0) {
+        const { randomBytes } = await import('crypto')
+        salt = randomBytes(32).toString('base64')
+        
+        // Save the generated salt
+        const { updateUser } = await import('./services/userService')
+        await updateUser(user.id, { vaultSalt: salt })
+        request.log.info({ userId: user.id }, 'Generated new vault salt for user')
+      }
+
+      return { salt }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to fetch vault salt'
+      })
+    }
+  })
 
   return server
 }
