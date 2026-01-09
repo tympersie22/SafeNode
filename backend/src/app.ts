@@ -50,8 +50,14 @@ export async function createApp() {
   // This ensures consistent CSP configuration across the application
 
   // Register rate limiting
+  // In development, use much higher limits to prevent issues during testing
+  // In production, use configured limits for security
+  const rateLimitMax = config.nodeEnv === 'development' 
+    ? 10000 // Very high limit in development (10k requests per 15 min)
+    : config.rateLimitMax;
+    
   await server.register(rateLimit, {
-    max: config.rateLimitMax,
+    max: rateLimitMax,
     timeWindow: config.rateLimitWindowMinutes * 60 * 1000, // Convert minutes to ms
     errorResponseBuilder: (request, context) => {
       return {
@@ -135,7 +141,7 @@ export async function createApp() {
       
       return { 
         ok: true, 
-        version: updated.vaultVersion,
+        version: Number(updated.vaultVersion), // Convert BigInt to number for JSON response
         message: 'Entry created successfully' 
       }
     } catch (error: any) {

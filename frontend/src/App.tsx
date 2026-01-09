@@ -434,6 +434,12 @@ const App: React.FC = () => {
   };
 
   const handleDeleteEntry = async (entryId: string) => {
+    // Prevent multiple simultaneous operations
+    if (isSaving) {
+      console.warn('[handleDeleteEntry] Save already in progress, ignoring duplicate call');
+      return;
+    }
+
     if (!vault || !confirm('Are you sure you want to delete this entry?')) return;
 
     setIsSaving(true);
@@ -454,18 +460,37 @@ const App: React.FC = () => {
   };
 
   const saveVaultToServer = async (vaultData: VaultData, operation: 'CREATE' | 'UPDATE' | 'DELETE', entryId?: string) => {
+    let saltBase64: string; // Declare outside try block for use in finally
+    
     try {
       // Get stored vault to get salt
       const storedVault = await vaultStorage.getVault();
-      if (!storedVault) throw new Error('No vault found');
+      
+      // Determine salt source: prefer stored vault, fallback to state
+      if (storedVault?.salt) {
+        saltBase64 = storedVault.salt;
+      } else if (vaultSalt) {
+        // Fallback to salt from state (converted back to base64)
+        saltBase64 = arrayBufferToBase64(vaultSalt);
+        console.warn('[saveVaultToServer] Using salt from state instead of stored vault');
+      } else {
+        console.error('[saveVaultToServer] No salt available from storage or state');
+        throw new Error('Vault salt is missing. Please unlock your vault again.');
+      }
 
-      const salt = base64ToArrayBuffer(storedVault.salt);
+      if (!storedVault && !vaultSalt) {
+        console.error('[saveVaultToServer] No stored vault found and no salt in state');
+        throw new Error('No vault found in local storage. Please unlock your vault first.');
+      }
+
+      const salt = base64ToArrayBuffer(saltBase64);
       
       // Get master password from state (required for encryption)
       if (!masterPassword) {
-        throw new Error('Master password is required to save vault');
+        console.error('[saveVaultToServer] Master password is missing');
+        throw new Error('Master password is required to save vault. Please unlock your vault first.');
       }
-
+      
       // Encrypt the updated vault
       const vaultJson = JSON.stringify(vaultData);
       const encrypted = await encrypt(vaultJson, masterPassword, salt);
@@ -505,14 +530,16 @@ const App: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: `Server error: ${response.status}` }));
+        const errorMessage = errorData.message || errorData.error || `Server error: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       // Update local storage
       const updatedStoredVault = vaultStorage.createVault(
         payload.encryptedVault,
         payload.iv,
-        storedVault.salt,
+        saltBase64, // Use the salt we determined earlier
         payload.version
       );
       await vaultStorage.storeVault(updatedStoredVault);
@@ -524,7 +551,21 @@ const App: React.FC = () => {
   };
 
   const handleSaveEntry = async (entryData: VaultEntry) => {
-    if (!vault) return;
+    // Prevent multiple simultaneous saves
+    if (isSaving) {
+      console.warn('[handleSaveEntry] Save already in progress, ignoring duplicate call');
+      return;
+    }
+
+    if (!vault) {
+      alert('Vault is not loaded. Please unlock your vault first.');
+      return;
+    }
+
+    if (!masterPassword) {
+      alert('Master password is required to save entries. Please unlock your vault first.');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -551,9 +592,23 @@ const App: React.FC = () => {
       setIsEntryFormOpen(false);
       setEditingEntry(null);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save entry:', error);
-      alert('Failed to save entry. Please try again.');
+      const errorMessage = error?.message || 'Failed to save entry. Please try again.';
+      
+      // Check if it's a rate limit error
+      if (errorMessage.includes('rate_limit') || errorMessage.includes('Rate limit')) {
+        const retryAfter = error?.retryAfter || 15;
+        alert(`Too many requests. Please wait ${retryAfter} seconds before trying again.`);
+      } else {
+        console.error('Error details:', {
+          message: errorMessage,
+          masterPasswordExists: !!masterPassword,
+          vaultExists: !!vault,
+          user: user?.email
+        });
+        alert(errorMessage);
+      }
     } finally {
       setIsSaving(false);
     }

@@ -511,7 +511,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       return {
         success: true,
         message: 'Vault initialized successfully',
-        version: updated.vaultVersion
+        version: Number(updated.vaultVersion) // Convert BigInt to number for JSON response
       }
     } catch (error: any) {
       request.log.error(error)
@@ -596,7 +596,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
 
       return {
         success: true,
-        version: updated.vaultVersion
+        version: Number(updated.vaultVersion) // Convert BigInt to number for JSON response
       }
     } catch (error: any) {
       request.log.error(error)
@@ -669,7 +669,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         if (!isNaN(since) && userData.vaultVersion && since >= userData.vaultVersion) {
           return {
             upToDate: true,
-            version: userData.vaultVersion
+            version: Number(userData.vaultVersion) // Convert BigInt to number for JSON response
           }
         }
       }
@@ -679,7 +679,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         exists: true,
         encryptedVault: userData.vaultEncrypted,
         iv: userData.vaultIV,
-        version: userData.vaultVersion,
+        version: Number(userData.vaultVersion), // Convert BigInt to number for JSON response
         salt: userData.vaultSalt
       }
     } catch (error: any) {

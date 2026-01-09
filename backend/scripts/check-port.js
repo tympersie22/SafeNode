@@ -31,19 +31,25 @@ async function killProcessOnPort(port) {
     // Try lsof first (macOS/Linux)
     exec(`lsof -ti:${port}`, (error, stdout) => {
       if (stdout.trim()) {
-        const pids = stdout.trim().split('\n');
+        const pids = stdout.trim().split('\n').filter(p => p);
         console.log(`⚠️  Found ${pids.length} process(es) on port ${port}`);
         console.log(`🛑 Killing PIDs: ${pids.join(', ')}`);
         
+        // First try SIGTERM (graceful)
         pids.forEach(pid => {
           try {
             process.kill(parseInt(pid), 'SIGTERM');
           } catch (e) {
-            console.log(`   Failed to kill ${pid}: ${e.message}`);
+            // Ignore if process doesn't exist
           }
         });
         
-        setTimeout(() => resolve(true), 1000);
+        // Wait a bit, then force kill with SIGKILL
+        setTimeout(() => {
+          exec(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, () => {
+            setTimeout(() => resolve(true), 500);
+          });
+        }, 1000);
       } else {
         resolve(false);
       }

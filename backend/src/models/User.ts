@@ -61,7 +61,7 @@ export interface UpdateUserInput {
   vaultSalt?: string
   vaultEncrypted?: string
   vaultIV?: string
-  vaultVersion?: number
+  vaultVersion?: number | bigint
   twoFactorEnabled?: boolean
   twoFactorSecret?: string
   twoFactorBackupCodes?: string[]

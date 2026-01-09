@@ -176,12 +176,14 @@ export async function updateVault(
   userId: string,
   encryptedVault: string,
   iv: string,
-  version: number
+  version: number | bigint
 ): Promise<User | null> {
+  // Convert version to BigInt for database storage (Prisma BigInt field)
+  const versionBigInt = typeof version === 'bigint' ? version : BigInt(version)
   return updateUser(userId, {
     vaultEncrypted: encryptedVault,
     vaultIV: iv,
-    vaultVersion: version
+    vaultVersion: versionBigInt
   })
 }
 
