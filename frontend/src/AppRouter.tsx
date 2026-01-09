@@ -5,6 +5,7 @@
 
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
 import App from './App'
 import { PricingPage } from './pages/marketing/Pricing'
 import { SecurityPage } from './pages/marketing/Security'
@@ -23,6 +24,7 @@ import { SubscribePage } from './pages/billing/Subscribe'
  */
 export const AppRouter: React.FC = () => {
   return (
+    <AuthProvider>
     <BrowserRouter>
       <Routes>
         {/* Marketing Pages - accessible without authentication */}
@@ -53,6 +55,7 @@ export const AppRouter: React.FC = () => {
         <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
   )
 }
 

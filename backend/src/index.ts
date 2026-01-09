@@ -5,7 +5,6 @@ import argon2 from 'argon2'
 import { TextEncoder } from 'util'
 import fetch from 'node-fetch'
 import { initSentry } from './services/sentryService'
-import { initLogger } from './utils/logger'
 import { registerAuthRoutes } from './routes/auth'
 import { registerBillingRoutes } from './routes/billing'
 import { seedDatabase } from './db/seed'
@@ -16,7 +15,6 @@ import { registerSSORoutes } from './routes/sso'
 import { registerSyncRoutes } from './routes/sync'
 import { registerDownloadRoutes } from './routes/downloads'
 import { registerLogRoutes } from './routes/logs'
-import { registerContactRoutes } from './routes/contact'
 import { registerHealthRoutes } from './routes/health'
 import { createAuditLog } from './services/auditLogService'
 import { registerRateLimit } from './middleware/rateLimit'
@@ -1219,10 +1217,8 @@ server.post('/api/passkeys/authenticate/verify', async (req, reply) => {
 
 const start = async () => {
   try{
-    // Initialize logger first (uses Fastify's pino logger)
-    initLogger(server)
-
     // Initialize Sentry (must be early, wrapped in try/catch)
+    // Note: Fastify logger is already initialized via logger: true in server config
     try {
       initSentry()
     } catch (error) {
@@ -1375,10 +1371,8 @@ const start = async () => {
     // Register log aggregation routes
     await registerLogRoutes(server)
 
-    // Register contact routes
-    await registerContactRoutes(server)
-
     // Register health check routes
+    // Note: Contact routes not implemented yet
     await registerHealthRoutes(server)
 
     // Generate demo vault (for backward compatibility)

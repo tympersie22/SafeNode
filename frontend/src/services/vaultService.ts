@@ -164,8 +164,21 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   const data = await response.json()
 
   // Check if vault exists
-  if (data.exists === false || !data.encryptedVault) {
+  if (data.exists === false || !data.encryptedVault || !data.iv || !data.salt) {
     throw new Error('Vault not initialized. Please create your master password first.')
+  }
+
+  // Validate that all required fields are present and non-empty
+  if (!data.salt || typeof data.salt !== 'string' || data.salt.trim().length === 0) {
+    throw new Error('Vault salt is missing. Please reinitialize your vault by setting up your master password again.')
+  }
+
+  if (!data.encryptedVault || typeof data.encryptedVault !== 'string' || data.encryptedVault.trim().length === 0) {
+    throw new Error('Vault data is missing. Please reinitialize your vault by setting up your master password again.')
+  }
+
+  if (!data.iv || typeof data.iv !== 'string' || data.iv.trim().length === 0) {
+    throw new Error('Vault IV is missing. Please reinitialize your vault by setting up your master password again.')
   }
 
   // Check if up to date (client already has latest)
@@ -181,9 +194,23 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   let iv: ArrayBuffer
   
   try {
+    // Validate salt is valid base64 and has minimum length (32 bytes = 44 base64 chars)
+    if (data.salt.length < 32) {
+      throw new Error('Vault salt is too short. Please reinitialize your vault.')
+    }
     salt = base64ToArrayBuffer(data.salt)
-    encrypted = base64ToArrayBuffer(data.encryptedVault)
+    
+    // Validate IV is valid base64 and has minimum length (12 bytes for AES-GCM = 16 base64 chars)
+    if (data.iv.length < 12) {
+      throw new Error('Vault IV is too short. Please reinitialize your vault.')
+    }
     iv = base64ToArrayBuffer(data.iv)
+    
+    // Validate encrypted data exists
+    if (data.encryptedVault.length === 0) {
+      throw new Error('Vault data is empty. Please reinitialize your vault.')
+    }
+    encrypted = base64ToArrayBuffer(data.encryptedVault)
   } catch (error: any) {
     // If vault data is invalid (e.g., contains test data), clear it and throw a helpful error
     if (error.message.includes('base64') || error.message.includes('atob') || error.message.includes('decode')) {
@@ -192,7 +219,9 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
     throw error
   }
 
-  const decrypted = await decrypt(
+  let decrypted: string
+  try {
+    decrypted = await decrypt(
     {
       encrypted,
       iv,
@@ -200,8 +229,29 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
     },
     masterPassword
   )
+  } catch (error: any) {
+    // OperationError from WebCrypto means decryption failed
+    // This usually means wrong password or corrupted vault data
+    if (error.name === 'OperationError' || error.message?.includes('Decryption failed')) {
+      throw new Error('Incorrect master password. Please check your password and try again. If you recently changed your master password, the vault may need to be reinitialized.')
+    }
+    throw error
+  }
 
-  const vault: Vault = JSON.parse(decrypted)
+  // Try to parse decrypted JSON
+  let vault: Vault
+  try {
+    vault = JSON.parse(decrypted)
+  } catch (error: any) {
+    // If JSON parsing fails, vault data is corrupted
+    throw new Error('Vault data is corrupted and cannot be decrypted. Please reinitialize your vault by setting up your master password again.')
+  }
+
+  // Validate vault structure
+  if (!vault || typeof vault !== 'object' || !Array.isArray(vault.entries)) {
+    throw new Error('Vault data is in an invalid format. Please reinitialize your vault.')
+  }
+
   return vault
 }
 

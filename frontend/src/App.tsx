@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, startTransition } from 'react';
+import React, { useEffect, useMemo, useState, startTransition, useRef } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
@@ -63,8 +63,8 @@ const App: React.FC = () => {
   const [isSharingKeysOpen, setIsSharingKeysOpen] = useState(false);
   const [shareEntry, setShareEntry] = useState<VaultEntry | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'landing' | 'auth' | 'vault'>('landing');
   const { user, isAuthenticated, isAuthInitialized, logout: authLogout } = useAuth();
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [syncState, setSyncState] = useState<{ status: SyncStatus; lastSyncedAt: number | null }>({
     status: 'idle',
@@ -105,6 +105,7 @@ const App: React.FC = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showMasterPasswordSetup, setShowMasterPasswordSetup] = useState(false);
   // Auth is now handled by AuthProvider - no need for local auth checking
+  const syncStartedFor = useRef<string | null>(null); // Track which user/vault combo we started sync for
   
   useEffect(() => {
     const unsubscribe = syncManager.subscribe((status, info) => {
@@ -113,36 +114,40 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // CRITICAL: This effect only updates internal page state for UI purposes
-  // It does NOT make routing decisions - React Router owns navigation
-  // Route guards (ProtectedRoute/PublicRoute) handle all redirects
+  // Sync auth mode from URL query params
   useEffect(() => {
-    const path = location.pathname
-    if (path === '/vault' || path.startsWith('/vault')) {
-      setCurrentPage('vault')
-    } else if (path === '/auth' || path.startsWith('/auth')) {
-      setCurrentPage('auth')
       const params = new URLSearchParams(location.search)
       const mode = params.get('mode')
       if (mode === 'login' || mode === 'signup') {
         setAuthMode(mode)
       }
-    } else if (path === '/' || path === '') {
-      setCurrentPage('landing')
-    }
-  }, [location.pathname, location.search])
+  }, [location.search])
 
   useEffect(() => {
-    if (user && currentPage === 'vault' && vaultStatus === 'UNLOCKED') {
+    const isOnVaultPage = location.pathname.startsWith('/vault');
+    const syncKey = `${user?.id || 'none'}-${vaultStatus}-${isOnVaultPage}`;
+    
+    if (user && isOnVaultPage && vaultStatus === 'UNLOCKED') {
+      // Only start if we haven't already started for this combination
+      if (syncStartedFor.current !== syncKey) {
+        syncStartedFor.current = syncKey;
       syncManager.start();
+      }
       return () => {
+        // Only stop if we're changing away from this combination
+        if (syncStartedFor.current === syncKey) {
+          syncStartedFor.current = null;
         syncManager.stop();
+        }
       };
-    }
-    if (vaultStatus === 'LOCKED') {
+    } else {
+      // Stop if we were running for a different combination
+      if (syncStartedFor.current && syncStartedFor.current !== syncKey) {
+        syncStartedFor.current = null;
       syncManager.stop();
     }
-  }, [user, currentPage, vaultStatus]);
+    }
+  }, [user?.id, location.pathname, vaultStatus]);
 
   useEffect(() => {
     if (vault && vault.entries.length > 0) {
@@ -176,10 +181,11 @@ const App: React.FC = () => {
   }, [healthSummary]);
 
   useEffect(() => {
-    if (user && currentPage === 'vault') {
+    const isOnVaultPage = location.pathname.startsWith('/vault');
+    if (user && isOnVaultPage) {
       refreshBackups();
     }
-  }, [user, currentPage]);
+  }, [user, location.pathname]);
 
   useEffect(() => {
     if (!isMoreMenuOpen) return;
@@ -219,7 +225,6 @@ const App: React.FC = () => {
     setVaultStatus('UNLOCKED');
     setMasterPassword(password);
     setVaultSalt(salt);
-    setCurrentPage('vault');
     
     // NO NAVIGATION - Route guards ensure we're on the correct route
     // If user is on /vault, ProtectedRoute keeps them there
@@ -246,9 +251,19 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to initialize account storage:', error);
+        setNotification({
+          message: 'Failed to load account settings. Using defaults.',
+          type: 'error'
+        });
+        setTimeout(() => setNotification(null), 5000);
       }
     }).catch(error => {
       console.error('Failed to init account storage:', error);
+      setNotification({
+        message: 'Failed to load account settings. Using defaults.',
+        type: 'error'
+      });
+      setTimeout(() => setNotification(null), 5000);
     });
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
@@ -258,7 +273,11 @@ const App: React.FC = () => {
       password: password
     }).catch(error => {
       console.warn('Failed to store password in keychain:', error);
-      // Non-critical, continue
+      setNotification({
+        message: 'Could not enable biometric unlock. You can set this up later in settings.',
+        type: 'info'
+      });
+      setTimeout(() => setNotification(null), 5000);
     });
   };
 
@@ -270,7 +289,6 @@ const App: React.FC = () => {
     setVaultStatus('LOCKED');
     setMasterPassword('');
     setVaultSalt(null);
-    setCurrentPage('vault'); // Stay on vault page, just locked
     syncManager.stop();
     // NO NAVIGATION - User stays on /vault, just sees unlock screen
   };
@@ -598,12 +616,12 @@ const App: React.FC = () => {
   }
 
   // ============================================================================
-  // CRITICAL ARCHITECTURE RULES:
-  // 1. App.tsx renders UI based on STATE only (auth state, vault state)
-  // 2. App.tsx NEVER calls navigate() - React Router owns navigation
-  // 3. App.tsx NEVER checks location.pathname for routing decisions
-  // 4. Route guards (ProtectedRoute/PublicRoute) handle ALL redirects
-  // 5. Vault unlock is local state - does NOT affect authentication
+  // ARCHITECTURE RULES:
+  // 1. App.tsx renders UI based on auth state and vault state
+  // 2. React Router handles all navigation via navigate()
+  // 3. Route guards (ProtectedRoute/PublicRoute) enforce access control
+  // 4. Vault unlock is local state - separate from authentication
+  // 5. Use location.pathname to check current route, never maintain duplicate state
   // ============================================================================
   
   // Wait for auth initialization before rendering
@@ -612,22 +630,20 @@ const App: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading...</p>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Initializing SafeNode...</p>
         </div>
       </div>
     )
   }
   
-  // Render based on AUTH STATE only (not location.pathname)
-  // Route guards ensure we're on the correct route
+  // Not authenticated - show landing/auth based on route
   if (!isAuthenticated || !user) {
-    // Not authenticated - show landing/auth based on currentPage state
-    // PublicRoute will redirect authenticated users away from /auth
-    if (currentPage === 'auth') {
+    const isOnAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth');
+    if (isOnAuthPage) {
       return (
         <Auth 
           onBackToLanding={() => {
-            setCurrentPage('landing')
+            navigate('/');
           }}
           initialMode={authMode}
         />
@@ -635,12 +651,21 @@ const App: React.FC = () => {
     }
     return <Landing onEnterApp={(mode) => {
       setAuthMode(mode || 'signup');
-      setCurrentPage('auth');
+      navigate('/auth');
     }} />
   }
 
   // Authenticated user - render based on vault state and route
   // Route guards ensure we're on /vault, /settings, or /billing
+  
+  // Handle settings and billing routes
+  if (location.pathname.startsWith('/settings')) {
+    return <SettingsPage />;
+  }
+  
+  if (location.pathname.startsWith('/billing')) {
+    return <SubscribePage />;
+  }
   
   // Check if user needs to set up master password (only if explicitly triggered)
   // Don't check user.needsMasterPassword as it may be stale - let UnlockVault handle vault existence check
@@ -651,15 +676,13 @@ const App: React.FC = () => {
           email={user.email}
           onComplete={() => {
             // After master password setup, vault is initialized
-            // NO NAVIGATION - Route guards keep us on /vault
             setShowMasterPasswordSetup(false)
-            setCurrentPage('vault')
+            navigate('/vault')
           }}
           onSkip={() => {
             // Allow skipping for now, but vault won't work until master password is set
-            // NO NAVIGATION - Route guards keep us on /vault
             setShowMasterPasswordSetup(false)
-            setCurrentPage('vault')
+            navigate('/vault')
           }}
         />
       </div>
@@ -667,8 +690,7 @@ const App: React.FC = () => {
   }
 
   // Authenticated but vault not unlocked
-  // Settings and billing are rendered by AppRouter directly (not through App.tsx)
-  // So we only show UnlockVault here
+  // Show unlock screen - user must unlock vault to access it
   if (vaultStatus === 'LOCKED') {
     return (
       <UnlockVault 
@@ -1400,6 +1422,34 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Notification Toast */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className={`fixed top-4 right-4 z-[70] px-4 py-3 rounded-lg shadow-lg ${
+              notification.type === 'error' 
+                ? 'bg-red-500 text-white' 
+                : notification.type === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-blue-500 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span>{notification.message}</span>
+              <button
+                onClick={() => setNotification(null)}
+                className="font-bold hover:opacity-80 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

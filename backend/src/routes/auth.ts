@@ -354,13 +354,13 @@ export async function registerAuthRoutes(server: FastifyInstance) {
             message: 'Login verification failed. Please try again.'
           })
         }
-        
+
         // Log successful login with structured logging
         await createAuditLog({
-          userId: user.id,
-          action: 'login',
-          ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
-          userAgent: request.headers['user-agent'] || undefined
+        userId: user.id,
+        action: 'login',
+        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+        userAgent: request.headers['user-agent'] || undefined
         })
       } catch (err: any) {
         request.log.error({ 
@@ -625,8 +625,39 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
 
-      // Check if vault exists
-      if (!userData.vaultEncrypted || !userData.vaultIV) {
+      // Check if vault exists - must have encrypted data, IV, and salt
+      if (!userData.vaultEncrypted || !userData.vaultIV || !userData.vaultSalt || userData.vaultSalt.length === 0) {
+        return {
+          exists: false
+        }
+      }
+
+      // Validate vault data format (must be valid base64 strings)
+      try {
+        // Validate that encrypted data, IV, and salt are valid base64 strings
+        if (typeof userData.vaultEncrypted !== 'string' || userData.vaultEncrypted.trim().length === 0) {
+          return {
+            exists: false
+          }
+        }
+        if (typeof userData.vaultIV !== 'string' || userData.vaultIV.trim().length === 0) {
+          return {
+            exists: false
+          }
+        }
+        if (typeof userData.vaultSalt !== 'string' || userData.vaultSalt.trim().length === 0) {
+          return {
+            exists: false
+          }
+        }
+        
+        // Try to decode to validate base64 format (but don't use the result)
+        Buffer.from(userData.vaultEncrypted, 'base64')
+        Buffer.from(userData.vaultIV, 'base64')
+        Buffer.from(userData.vaultSalt, 'base64')
+      } catch (error) {
+        // Invalid base64 data - vault is corrupted or not initialized
+        request.log.warn({ userId: user.id }, 'Vault data has invalid base64 format')
         return {
           exists: false
         }
@@ -1064,14 +1095,17 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       // Authenticate user
-      const user = await authenticateUser(body.email, body.password)
+      const authResult = await authenticateUser(body.email, body.password)
       
-      if (!user) {
+      if (authResult.reason !== 'SUCCESS' || !authResult.user) {
         return reply.code(401).send({
           error: 'invalid_credentials',
           message: 'Invalid email or password'
         })
       }
+
+      // Type guard: at this point, authResult.user is guaranteed to be non-null
+      const user: User = authResult.user
 
       if (!user.twoFactorEnabled) {
         return reply.code(400).send({
@@ -1113,7 +1147,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const token = issueToken({
         id: user.id,
         email: user.email,
-        tokenVersion: (user as any).tokenVersion || 1
+        tokenVersion: user.tokenVersion || 1
       })
 
       // Return user data

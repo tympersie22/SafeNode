@@ -3,7 +3,7 @@
  * Uses the new vaultService instead of old vaultStorage
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { unlockVault, vaultExists } from '../services/vaultService'
 import { logout } from '../services/authService'
@@ -27,10 +27,16 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
   const { user } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const prefersReducedMotion = useReducedMotion()
+  const lastCheckedUserId = useRef<string | null>(null)
+  const checkInProgress = useRef(false)
 
   useEffect(() => {
-    // Check if vault exists (user is already authenticated via ProtectedRoute)
-    if (user) {
+    // Check if vault exists only once per user
+    // Prevent multiple simultaneous checks
+    if (user?.id && user.id !== lastCheckedUserId.current && !checkInProgress.current) {
+      checkInProgress.current = true
+      lastCheckedUserId.current = user.id
+      
       vaultExists()
         .then((exists) => {
           setHasVault(exists)
@@ -39,8 +45,15 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
           console.error('Failed to check vault:', err)
           setError('Failed to check vault status')
         })
+        .finally(() => {
+          checkInProgress.current = false
+        })
+    } else if (!user?.id) {
+      // Reset when user is null
+      lastCheckedUserId.current = null
+      setHasVault(null)
     }
-  }, [user])
+  }, [user?.id]) // Only depend on user.id, not the entire user object
 
   const handleUnlock = async () => {
     if (!masterPassword) {
