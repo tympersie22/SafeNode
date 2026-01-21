@@ -8,10 +8,13 @@ Railway needs to know which directory to use for each service. **You MUST config
 
 1. **In Railway Dashboard:**
    - Go to your backend service
-   - Click on **Settings** tab
-   - Scroll to **"Root Directory"** section
-   - Set Root Directory to: `backend`
-   - Save changes
+   - Click on **Settings** tab (or the **Source** section)
+   - Find **"Root Directory"** field
+   - **CURRENT VALUE**: `/.github` ❌ (WRONG!)
+   - **CHANGE TO**: `backend` ✅
+   - Click **Update** to save changes
+   
+   **IMPORTANT**: The Root Directory must be `backend`, NOT `/.github` or `/` or empty!
 
 2. **Alternative: If Root Directory setting is not available:**
    - Delete the current service
