@@ -1,0 +1,23 @@
+# Railway Config-as-Code for SafeNode Backend
+# This file automatically configures Railway deployment settings
+# Railway will use this directory as the root when it finds this config file
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "node ./dist/index.new.js"
+healthcheckPath = "/api/health"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Watch patterns - only rebuild when backend files change
+watchPatterns = [
+  "/backend/**",
+  "/backend/src/**",
+  "/backend/package.json",
+  "/backend/package-lock.json",
+  "/backend/tsconfig.json",
+  "/backend/prisma/**"
+]
