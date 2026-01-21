@@ -1,0 +1,76 @@
+# SafeNode Backend - Railway Environment Variables (READY TO USE)
+# Copy and paste these into Railway's Raw Editor for your backend service
+# Replace placeholder values with your actual values
+
+# ============================================
+# CRITICAL - REQUIRED FOR PRODUCTION
+# ============================================
+
+NODE_ENV=production
+PORT=4000
+DB_ADAPTER=prisma
+
+# Database URL (Railway automatically provides this when you add PostgreSQL)
+# DATABASE_URL is set automatically by Railway - no need to add it manually
+
+# JWT Secret - 32-byte base64-encoded key
+JWT_SECRET=WMVrntaGF9RoAuPunVdZnPuBFKmIS3pHYAQ/TMFYMdQ=
+
+# Encryption Key - Generate another one with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+ENCRYPTION_KEY=REPLACE_WITH_YOUR_32_BYTE_BASE64_ENCRYPTION_KEY_HERE
+
+# CORS Origin - Set to your frontend URL
+# Replace with your actual frontend domain
+CORS_ORIGIN=https://your-frontend-service.railway.app
+
+# ============================================
+# IMPORTANT - REQUIRED FOR FULL FUNCTIONALITY
+# ============================================
+
+# Rate Limiting
+RATE_LIMIT_MAX=100
+RATE_LIMIT_WINDOW_MINUTES=15
+
+# Stripe Configuration (if using billing)
+# Get from: https://dashboard.stripe.com/apikeys
+# STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key_here
+# STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# Stripe Price IDs (optional - only if using custom pricing)
+# STRIPE_PRICE_INDIVIDUAL=price_individual_monthly
+# STRIPE_PRICE_FAMILY=price_family_monthly
+# STRIPE_PRICE_TEAMS=price_teams_monthly
+# STRIPE_PRICE_BUSINESS=price_business_monthly
+
+# ============================================
+# OPTIONAL - RECOMMENDED FOR PRODUCTION
+# ============================================
+
+# Sentry Error Tracking
+# Get from: https://sentry.io/settings/projects/
+# SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+# SENTRY_ENABLED_IN_DEV=false
+
+# Email Configuration (for verification emails)
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASS=your-app-password
+# SMTP_FROM=noreply@safenode.app
+
+# SSO - Google OAuth (optional)
+# GOOGLE_CLIENT_ID=your-google-client-id
+# GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# SSO - GitHub OAuth (optional)
+# GITHUB_CLIENT_ID=your-github-client-id
+# GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Seeding - Set to false in production
+SEED_ON_BOOT=false
+
+# ============================================
+# GENERATION COMMANDS
+# ============================================
+# To generate ENCRYPTION_KEY, run:
+# node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
