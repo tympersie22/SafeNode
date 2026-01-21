@@ -18,7 +18,7 @@
     "kill:force": "pkill -9 -f 'ts-node-dev' || true",
     "status": "ps aux | grep -E 'ts-node|node.*index' | grep -v grep || echo 'No backend processes running'",
     "restart": "npm run kill && sleep 2 && npm run dev",
-    "build": "tsc",
+    "build": "npm run db:generate && tsc",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "jest",
