@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState, startTransition } from 'react';
+import React, { useEffect, useMemo, useState, startTransition, useRef } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
 import EntryForm from './components/EntryForm';
-import { generateTotpCode, encrypt, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount } from './crypto/crypto';
+import { generateTotpCode, encrypt, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
 import { vaultSync } from './sync/vaultSync';
 import { enhancedCopyToClipboard, isTauri, DesktopVault } from './desktop/integration';
@@ -17,8 +17,9 @@ import ShareEntryModal from './components/ShareEntryModal';
 import ImportSharedModal from './components/ImportSharedModal';
 import Button from './components/ui/Button';
 import { LockIcon, SearchIcon } from './components/icons';
+import { Logout } from './icons/Logout';
 import Logo from './components/Logo';
-import Landing from './pages/Landing';
+import Home from './pages/Home';
 import Auth from './pages/Auth';
 import { SettingsPage } from './pages/settings/index';
 import { SubscribePage } from './pages/billing/Subscribe';
@@ -41,6 +42,9 @@ import { auditLogStorage } from './storage/auditLogs';
 import { teamVaultStorage } from './storage/teamVaults';
 import { pinManager } from './utils/pinManager';
 import { keychainService } from './utils/keychain';
+import { apiPost, apiPut, apiDelete } from './utils/apiClient';
+import PasswordGeneratorModal from './components/PasswordGeneratorModal';
+import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
 
 interface VaultData {
   entries: VaultEntry[];
@@ -63,8 +67,8 @@ const App: React.FC = () => {
   const [isSharingKeysOpen, setIsSharingKeysOpen] = useState(false);
   const [shareEntry, setShareEntry] = useState<VaultEntry | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'landing' | 'auth' | 'vault'>('landing');
   const { user, isAuthenticated, isAuthInitialized, logout: authLogout } = useAuth();
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [syncState, setSyncState] = useState<{ status: SyncStatus; lastSyncedAt: number | null }>({
     status: 'idle',
@@ -104,45 +108,150 @@ const App: React.FC = () => {
   const [vaultSalt, setVaultSalt] = useState<ArrayBuffer | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showMasterPasswordSetup, setShowMasterPasswordSetup] = useState(false);
+  const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
+  const [isStrengthenPasswordsOpen, setIsStrengthenPasswordsOpen] = useState(false);
+  const [securityFilter, setSecurityFilter] = useState<'weak' | 'breached' | 'reused' | null>(null);
+  const [selectedEntryDetail, setSelectedEntryDetail] = useState<VaultEntry | null>(null);
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const [sessionTimeoutMinutes] = useState(30); // 30 minute session timeout
+  const [remainingSessionTime, setRemainingSessionTime] = useState<number | null>(null);
+  const [syncPendingCount, setSyncPendingCount] = useState(0);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   // Auth is now handled by AuthProvider - no need for local auth checking
+  const syncStartedFor = useRef<string | null>(null); // Track which user/vault combo we started sync for
   
   useEffect(() => {
     const unsubscribe = syncManager.subscribe((status, info) => {
       setSyncState({ status, lastSyncedAt: info.lastSyncedAt });
+      if (status === 'error') {
+        setSyncError('Sync failed. Check your connection and try again.');
+      } else {
+        setSyncError(null);
+      }
     });
     return unsubscribe;
   }, []);
 
-  // CRITICAL: This effect only updates internal page state for UI purposes
-  // It does NOT make routing decisions - React Router owns navigation
-  // Route guards (ProtectedRoute/PublicRoute) handle all redirects
+  // Session timeout tracking
   useEffect(() => {
-    const path = location.pathname
-    if (path === '/vault' || path.startsWith('/vault')) {
-      setCurrentPage('vault')
-    } else if (path === '/auth' || path.startsWith('/auth')) {
-      setCurrentPage('auth')
-      const params = new URLSearchParams(location.search)
-      const mode = params.get('mode')
-      if (mode === 'login' || mode === 'signup') {
-        setAuthMode(mode)
-      }
-    } else if (path === '/' || path === '') {
-      setCurrentPage('landing')
+    if (vaultStatus === 'UNLOCKED' && !sessionStartTime) {
+      setSessionStartTime(Date.now());
+    } else if (vaultStatus === 'LOCKED') {
+      setSessionStartTime(null);
+      setRemainingSessionTime(null);
     }
-  }, [location.pathname, location.search])
+  }, [vaultStatus, sessionStartTime]);
+
+  // Update remaining session time (real-time)
+  useEffect(() => {
+    if (!sessionStartTime || vaultStatus !== 'UNLOCKED') {
+      setRemainingSessionTime(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      if (!sessionStartTime) return;
+      
+      const now = Date.now();
+      const elapsed = (now - sessionStartTime) / 1000; // elapsed seconds
+      const totalTimeoutSeconds = sessionTimeoutMinutes * 60;
+      const remainingSeconds = totalTimeoutSeconds - elapsed;
+      const remainingMinutes = remainingSeconds / 60;
+      
+      // Update state every second for real-time countdown (this triggers re-render)
+      setRemainingSessionTime(Math.max(0, remainingMinutes));
+
+      // Show warning at 2 minutes remaining (only once per session)
+      if (remainingMinutes > 0 && remainingMinutes <= 2 && remainingMinutes > 1.98) {
+        // Use a ref or state to track if warning was shown
+        const warningKey = `warning-${sessionStartTime}`;
+        if (!sessionStorage.getItem(warningKey)) {
+          sessionStorage.setItem(warningKey, 'true');
+          setNotification({
+            message: 'Your session will expire in 2 minutes. Click anywhere to extend.',
+            type: 'info'
+          });
+          setTimeout(() => setNotification(null), 10000);
+        }
+      }
+
+      // Auto-lock when session expires
+      if (remainingSeconds <= 0) {
+        handleLock();
+        setNotification({
+          message: 'Session expired for security. Please unlock again.',
+          type: 'info'
+        });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    };
+
+    // Update immediately for instant display
+    updateTimer();
+    
+    // Update every second for real-time countdown
+    const interval = setInterval(updateTimer, 1000);
+    
+    return () => {
+      clearInterval(interval);
+      // Clear warning flag when component unmounts or session changes
+      if (sessionStartTime) {
+        sessionStorage.removeItem(`warning-${sessionStartTime}`);
+      }
+    };
+  }, [sessionStartTime, vaultStatus, sessionTimeoutMinutes]);
+
+  // Extend session on user activity
+  useEffect(() => {
+    if (vaultStatus !== 'UNLOCKED') return;
+
+    const extendSession = () => {
+      if (sessionStartTime) {
+        setSessionStartTime(Date.now());
+      }
+    };
+
+    // Extend on any user interaction
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, extendSession, { passive: true }));
+    return () => events.forEach(event => window.removeEventListener(event, extendSession));
+  }, [vaultStatus, sessionStartTime]);
+
+  // Sync auth mode from URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const mode = params.get('mode')
+    if (mode === 'login' || mode === 'signup') {
+      setAuthMode(mode)
+    }
+  }, [location.search])
 
   useEffect(() => {
-    if (user && currentPage === 'vault' && vaultStatus === 'UNLOCKED') {
-      syncManager.start();
+    const isOnVaultPage = location.pathname.startsWith('/vault');
+    const syncKey = `${user?.id || 'none'}-${vaultStatus}-${isOnVaultPage}`;
+    
+    if (user && isOnVaultPage && vaultStatus === 'UNLOCKED') {
+      // Only start if we haven't already started for this combination
+      if (syncStartedFor.current !== syncKey) {
+        syncStartedFor.current = syncKey;
+        syncManager.start();
+      }
       return () => {
-        syncManager.stop();
+        // Only stop if we're changing away from this combination
+        if (syncStartedFor.current === syncKey) {
+          syncStartedFor.current = null;
+          syncManager.stop();
+        }
       };
+    } else {
+      // Stop if we were running for a different combination
+      if (syncStartedFor.current && syncStartedFor.current !== syncKey) {
+        syncStartedFor.current = null;
+        syncManager.stop();
+      }
     }
-    if (vaultStatus === 'LOCKED') {
-      syncManager.stop();
-    }
-  }, [user, currentPage, vaultStatus]);
+  }, [user?.id, location.pathname, vaultStatus]);
 
   useEffect(() => {
     if (vault && vault.entries.length > 0) {
@@ -157,12 +266,28 @@ const App: React.FC = () => {
     window.localStorage.setItem('safenode_watchtower_dismissed', JSON.stringify(dismissedAlerts));
   }, [dismissedAlerts]);
 
+  // Defer breach scanning - run in background after unlock, don't block access
   useEffect(() => {
+    // Skip if vault is not unlocked or already scanning
     if (!vault || vaultStatus !== 'UNLOCKED' || isScanningBreaches) return;
+    
+    // Skip if vault is empty (no entries to scan)
+    if (!vault.entries || vault.entries.length === 0) return;
+    
+    // Check if we need to scan (24h threshold)
     const threshold = 24 * 60 * 60 * 1000; // 24h
-    if (!lastBreachScanAt || Date.now() - lastBreachScanAt > threshold) {
-      handleBreachScan();
-    }
+    if (lastBreachScanAt && Date.now() - lastBreachScanAt <= threshold) return;
+    
+    // Defer scan to run asynchronously in background - don't block user
+    // Use setTimeout to ensure it runs after vault is fully loaded
+    const scanTimeout = setTimeout(() => {
+      handleBreachScan().catch(error => {
+        // Silently handle errors - don't block user, just log
+        console.error('Background breach scan failed:', error);
+      });
+    }, 500); // Small delay to ensure vault UI is rendered first
+    
+    return () => clearTimeout(scanTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vault, vaultStatus, isScanningBreaches, lastBreachScanAt]);
 
@@ -176,10 +301,11 @@ const App: React.FC = () => {
   }, [healthSummary]);
 
   useEffect(() => {
-    if (user && currentPage === 'vault') {
+    const isOnVaultPage = location.pathname.startsWith('/vault');
+    if (user && isOnVaultPage) {
       refreshBackups();
     }
-  }, [user, currentPage]);
+  }, [user, location.pathname]);
 
   useEffect(() => {
     if (!isMoreMenuOpen) return;
@@ -219,7 +345,6 @@ const App: React.FC = () => {
     setVaultStatus('UNLOCKED');
     setMasterPassword(password);
     setVaultSalt(salt);
-    setCurrentPage('vault');
     
     // NO NAVIGATION - Route guards ensure we're on the correct route
     // If user is on /vault, ProtectedRoute keeps them there
@@ -246,9 +371,19 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to initialize account storage:', error);
+        setNotification({
+          message: 'Failed to load account settings. Using defaults.',
+          type: 'error'
+        });
+        setTimeout(() => setNotification(null), 5000);
       }
     }).catch(error => {
       console.error('Failed to init account storage:', error);
+      setNotification({
+        message: 'Failed to load account settings. Using defaults.',
+        type: 'error'
+      });
+      setTimeout(() => setNotification(null), 5000);
     });
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
@@ -258,7 +393,45 @@ const App: React.FC = () => {
       password: password
     }).catch(error => {
       console.warn('Failed to store password in keychain:', error);
-      // Non-critical, continue
+      setNotification({
+        message: 'Could not enable biometric unlock. You can set this up later in settings.',
+        type: 'info'
+      });
+      setTimeout(() => setNotification(null), 5000);
+    });
+    
+    // Store encrypted vault in IndexedDB for future saves (fire-and-forget)
+    // This ensures saveVaultToServer can access the salt
+    vaultStorage.init().then(async () => {
+      try {
+        // Get the encrypted vault from server to store it
+        const token = localStorage.getItem('safenode_token');
+        if (token) {
+          const vaultResponse = await fetch('/api/auth/vault/latest', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (vaultResponse.ok) {
+            const vaultData = await vaultResponse.json();
+            if (vaultData.encryptedVault && vaultData.iv && vaultData.salt) {
+              const storedVault = vaultStorage.createVault(
+                vaultData.encryptedVault,
+                vaultData.iv,
+                vaultData.salt,
+                vaultData.version || Date.now()
+              );
+              await vaultStorage.storeVault(storedVault);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to store vault in IndexedDB:', error);
+        // Non-critical - we can still save using state salt
+      }
+    }).catch(error => {
+      console.warn('Failed to init vault storage:', error);
     });
   };
 
@@ -270,9 +443,61 @@ const App: React.FC = () => {
     setVaultStatus('LOCKED');
     setMasterPassword('');
     setVaultSalt(null);
-    setCurrentPage('vault'); // Stay on vault page, just locked
+    setSessionStartTime(null);
+    setRemainingSessionTime(null);
     syncManager.stop();
+    // Clear any revealed passwords
     // NO NAVIGATION - User stays on /vault, just sees unlock screen
+  };
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    try {
+      // Clear vault state first
+      setVault(null);
+      setVaultStatus('LOCKED');
+      setMasterPassword('');
+      setVaultSalt(null);
+      setCurrentAccount(null);
+      setSessionStartTime(null);
+      setRemainingSessionTime(null);
+      
+      // Stop sync
+      syncManager.stop();
+      
+      // Clear local storage (optional - vault data is encrypted anyway)
+      vaultStorage.clearAll().catch((err: any) => {
+        console.warn('Failed to clear vault storage:', err);
+      });
+      
+      // Logout from auth context (clears token and user state)
+      authLogout();
+      
+      // Navigate to home page
+      navigate('/');
+      
+      // Show success notification
+      setNotification({
+        message: 'Logged out successfully',
+        type: 'success'
+      });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (error: any) {
+      console.error('Error during logout:', error);
+      // Still try to logout even if there's an error
+      authLogout();
+      navigate('/');
+      setNotification({
+        message: 'Logged out (some data may not have been cleared)',
+        type: 'info'
+      });
+      setTimeout(() => setNotification(null), 3000);
+    } finally {
+      setShowLogoutConfirm(false);
+    }
   };
 
   const handleKeyRotationSuccess = () => {
@@ -283,7 +508,10 @@ const App: React.FC = () => {
   };
 
   const handleBreachScan = async () => {
-    if (!vault) return;
+    // Skip if vault is empty or doesn't exist
+    if (!vault || !vault.entries || vault.entries.length === 0) {
+      return;
+    }
 
     setIsScanningBreaches(true);
     setBreachScanError(null);
@@ -292,15 +520,30 @@ const App: React.FC = () => {
       const passwordCache = new Map<string, number>();
       const updatedEntries: VaultEntry[] = [];
 
-      for (const entry of vault.entries) {
+      // Only scan entries that have passwords
+      const entriesWithPasswords = vault.entries.filter(entry => entry.password);
+      
+      // If no entries have passwords, skip scan
+      if (entriesWithPasswords.length === 0) {
+        setLastBreachScanAt(Date.now());
+        return;
+      }
+
+      for (const entry of entriesWithPasswords) {
         let breachCount = entry.breachCount ?? null;
         if (entry.password) {
           if (passwordCache.has(entry.password)) {
             breachCount = passwordCache.get(entry.password)!;
           } else {
-            const count = await getPasswordBreachCount(entry.password);
-            passwordCache.set(entry.password, count);
-            breachCount = count;
+            try {
+              const count = await getPasswordBreachCount(entry.password);
+              passwordCache.set(entry.password, count);
+              breachCount = count;
+            } catch (error) {
+              // If individual password check fails, continue with others
+              console.warn(`Failed to check breach for entry ${entry.id}:`, error);
+              // Keep existing breachCount if available
+            }
           }
         }
 
@@ -311,13 +554,27 @@ const App: React.FC = () => {
         });
       }
 
-      const updatedVault = { ...vault, entries: updatedEntries };
-      await saveVaultToServer(updatedVault, 'UPDATE');
-      setVault(updatedVault);
-      setLastBreachScanAt(Date.now());
+      // Merge with entries that don't have passwords (preserve them)
+      const entriesWithoutPasswords = vault.entries.filter(entry => !entry.password);
+      const allUpdatedEntries = [...updatedEntries, ...entriesWithoutPasswords];
+
+      const updatedVault = { ...vault, entries: allUpdatedEntries };
+      
+      // Save to server (non-blocking - don't wait if it fails)
+      try {
+        await saveVaultToServer(updatedVault, 'UPDATE');
+        setVault(updatedVault);
+        setLastBreachScanAt(Date.now());
+      } catch (saveError) {
+        // If save fails, still update local state so user sees results
+        console.warn('Failed to save breach scan results to server:', saveError);
+        setVault(updatedVault);
+        setLastBreachScanAt(Date.now());
+      }
     } catch (error) {
       console.error('Breach scan failed:', error);
       setBreachScanError(error instanceof Error ? error.message : 'Failed to run breach scan');
+      // Don't throw - allow user to continue using vault
     } finally {
       setIsScanningBreaches(false);
     }
@@ -329,6 +586,18 @@ const App: React.FC = () => {
       setBackups(list);
     } catch (error) {
       console.error('Failed to load backups', error);
+    }
+  };
+
+  const formatSessionTime = (minutes: number): string => {
+    if (minutes <= 0) return '0m';
+    const mins = Math.floor(minutes);
+    const secs = Math.floor((minutes - mins) * 60);
+    
+    if (mins >= 1) {
+      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    } else {
+      return `${secs}s`;
     }
   };
 
@@ -436,15 +705,33 @@ const App: React.FC = () => {
 
   const saveVaultToServer = async (vaultData: VaultData, operation: 'CREATE' | 'UPDATE' | 'DELETE', entryId?: string) => {
     try {
-      // Get stored vault to get salt
-      const storedVault = await vaultStorage.getVault();
-      if (!storedVault) throw new Error('No vault found');
+      // Ensure vault storage is initialized
+      await vaultStorage.init();
+      
+      // Get stored vault to get salt, or use salt from state if vault not in storage
+      let storedVault = await vaultStorage.getVault();
+      let salt: ArrayBuffer;
+      
+      if (storedVault && storedVault.salt) {
+        // Use salt from stored vault
+        salt = base64ToArrayBuffer(storedVault.salt);
+      } else if (vaultSalt) {
+        // Use salt from state (from unlock)
+        salt = vaultSalt;
+        // Create a stored vault entry for future use
+        storedVault = null; // Will be created after encryption
+      } else {
+        throw new Error('No vault salt available. Please unlock your vault again.');
+      }
 
-      const salt = base64ToArrayBuffer(storedVault.salt);
+      // Use the actual master password from state, not hardcoded
+      if (!masterPassword) {
+        throw new Error('Master password not available. Please unlock your vault again.');
+      }
       
       // Encrypt the updated vault
       const vaultJson = JSON.stringify(vaultData);
-      const encrypted = await encrypt(vaultJson, 'demo-password', salt);
+      const encrypted = await encrypt(vaultJson, masterPassword, salt);
       
       const payload = {
         encryptedVault: arrayBufferToBase64(encrypted.encrypted),
@@ -452,41 +739,42 @@ const App: React.FC = () => {
         version: Date.now()
       };
 
-      // Determine endpoint and method
-      let endpoint = '/api/vault/entry';
-      let method = 'POST';
-      
-      if (operation === 'UPDATE' && entryId) {
-        endpoint = `/api/vault/entry/${entryId}`;
-        method = 'PUT';
+      // Use API client with authentication
+      let response;
+      if (operation === 'CREATE') {
+        response = await apiPost('/api/vault/entry', payload, { requireAuth: true });
+      } else if (operation === 'UPDATE' && entryId) {
+        response = await apiPut(`/api/vault/entry/${entryId}`, payload, { requireAuth: true });
       } else if (operation === 'DELETE' && entryId) {
-        endpoint = `/api/vault/entry/${entryId}`;
-        method = 'DELETE';
-      }
-
-      // Send to server
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        response = await apiDelete(`/api/vault/entry/${entryId}`, { requireAuth: true });
+      } else {
+        throw new Error('Invalid operation or missing entryId');
       }
 
       // Update local storage
+      // Use salt from storedVault if available, otherwise convert from ArrayBuffer
+      const saltBase64 = storedVault?.salt || arrayBufferToBase64(salt);
       const updatedStoredVault = vaultStorage.createVault(
         payload.encryptedVault,
         payload.iv,
-        storedVault.salt,
+        saltBase64,
         payload.version
       );
       await vaultStorage.storeVault(updatedStoredVault);
 
-    } catch (error) {
+      return response;
+    } catch (error: any) {
       console.error('Failed to save vault:', error);
-      throw error;
+      // Provide more detailed error message
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      console.error('Error details:', {
+        message: errorMessage,
+        operation,
+        entryId,
+        hasToken: !!localStorage.getItem('safenode_token'),
+        hasMasterPassword: !!masterPassword
+      });
+      throw new Error(errorMessage);
     }
   };
 
@@ -518,9 +806,32 @@ const App: React.FC = () => {
       setIsEntryFormOpen(false);
       setEditingEntry(null);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save entry:', error);
-      alert('Failed to save entry. Please try again.');
+      const errorMessage = error?.message || 'Unknown error occurred';
+      
+      // Handle rate limit errors with user-friendly message
+      if (error?.isRateLimit || errorMessage.includes('rate limit')) {
+        const retryAfter = error?.retryAfter || 15;
+        setNotification({
+          message: `Rate limit exceeded. Please wait ${retryAfter} seconds before trying again.`,
+          type: 'error'
+        });
+        setTimeout(() => setNotification(null), 5000);
+        return;
+      }
+      
+      console.error('Error details:', {
+        message: errorMessage,
+        hasToken: !!localStorage.getItem('safenode_token'),
+        hasMasterPassword: !!masterPassword,
+        vaultStatus
+      });
+      setNotification({
+        message: `Failed to save entry: ${errorMessage}`,
+        type: 'error'
+      });
+      setTimeout(() => setNotification(null), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -537,7 +848,17 @@ const App: React.FC = () => {
     return matchesQuery && matchesTag
   })
 
-  const allTags = Array.from(new Set((vault?.entries || []).flatMap(e => e.tags || []))).sort()
+  // Calculate tag usage frequency and get top tags
+  const tagUsage = (vault?.entries || []).reduce((acc, entry) => {
+    (entry.tags || []).forEach(tag => {
+      acc[tag] = (acc[tag] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const allTags = Object.keys(tagUsage).sort((a, b) => tagUsage[b] - tagUsage[a]);
+  const topTags = allTags.slice(0, 5);
+  const [showAllTags, setShowAllTags] = useState(false);
 
   // Page transition variants
   const pageVariants = prefersReducedMotion ? undefined : {
@@ -598,12 +919,12 @@ const App: React.FC = () => {
   }
 
   // ============================================================================
-  // CRITICAL ARCHITECTURE RULES:
-  // 1. App.tsx renders UI based on STATE only (auth state, vault state)
-  // 2. App.tsx NEVER calls navigate() - React Router owns navigation
-  // 3. App.tsx NEVER checks location.pathname for routing decisions
-  // 4. Route guards (ProtectedRoute/PublicRoute) handle ALL redirects
-  // 5. Vault unlock is local state - does NOT affect authentication
+  // ARCHITECTURE RULES:
+  // 1. App.tsx renders UI based on auth state and vault state
+  // 2. React Router handles all navigation via navigate()
+  // 3. Route guards (ProtectedRoute/PublicRoute) enforce access control
+  // 4. Vault unlock is local state - separate from authentication
+  // 5. Use location.pathname to check current route, never maintain duplicate state
   // ============================================================================
   
   // Wait for auth initialization before rendering
@@ -612,35 +933,42 @@ const App: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading...</p>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Initializing SafeNode...</p>
         </div>
       </div>
     )
   }
   
-  // Render based on AUTH STATE only (not location.pathname)
-  // Route guards ensure we're on the correct route
+  // Not authenticated - show home/auth based on route
   if (!isAuthenticated || !user) {
-    // Not authenticated - show landing/auth based on currentPage state
-    // PublicRoute will redirect authenticated users away from /auth
-    if (currentPage === 'auth') {
+    const isOnAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth');
+    if (isOnAuthPage) {
       return (
         <Auth 
-          onBackToLanding={() => {
-            setCurrentPage('landing')
+          onBackToHome={() => {
+            navigate('/');
           }}
           initialMode={authMode}
         />
       )
     }
-    return <Landing onEnterApp={(mode) => {
+    return <Home onEnterApp={(mode) => {
       setAuthMode(mode || 'signup');
-      setCurrentPage('auth');
+      navigate('/auth');
     }} />
   }
 
   // Authenticated user - render based on vault state and route
   // Route guards ensure we're on /vault, /settings, or /billing
+  
+  // Handle settings and billing routes
+  if (location.pathname.startsWith('/settings')) {
+    return <SettingsPage />;
+  }
+  
+  if (location.pathname.startsWith('/billing')) {
+    return <SubscribePage />;
+  }
   
   // Check if user needs to set up master password (only if explicitly triggered)
   // Don't check user.needsMasterPassword as it may be stale - let UnlockVault handle vault existence check
@@ -649,17 +977,19 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center p-4">
         <MasterPasswordSetup
           email={user.email}
-          onComplete={() => {
-            // After master password setup, vault is initialized
-            // NO NAVIGATION - Route guards keep us on /vault
+          onComplete={(vault, masterPassword, salt) => {
+            // After master password setup, vault is initialized and unlocked
+            if (vault && masterPassword && salt) {
+              // Unlock the vault immediately
+              handleVaultUnlocked(vault, masterPassword, salt)
+            }
             setShowMasterPasswordSetup(false)
-            setCurrentPage('vault')
+            navigate('/vault')
           }}
           onSkip={() => {
             // Allow skipping for now, but vault won't work until master password is set
-            // NO NAVIGATION - Route guards keep us on /vault
             setShowMasterPasswordSetup(false)
-            setCurrentPage('vault')
+            navigate('/vault')
           }}
         />
       </div>
@@ -667,8 +997,7 @@ const App: React.FC = () => {
   }
 
   // Authenticated but vault not unlocked
-  // Settings and billing are rendered by AppRouter directly (not through App.tsx)
-  // So we only show UnlockVault here
+  // Show unlock screen - user must unlock vault to access it
   if (vaultStatus === 'LOCKED') {
     return (
       <UnlockVault 
@@ -700,8 +1029,8 @@ const App: React.FC = () => {
         animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo & Brand */}
             <motion.div 
               className="flex items-center space-x-3"
@@ -716,7 +1045,7 @@ const App: React.FC = () => {
                     SafeNode
                   </h1>
                 </Link>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <motion.span 
                     className="text-xs text-slate-500 dark:text-slate-400 font-medium"
                     initial={prefersReducedMotion ? undefined : { opacity: 0 }}
@@ -726,6 +1055,43 @@ const App: React.FC = () => {
                     {vault?.entries.length || 0} entries
                   </motion.span>
                   <span className="text-slate-300 dark:text-slate-600">•</span>
+                  
+                  {/* Vault Lock Status */}
+                  {vaultStatus === 'UNLOCKED' ? (
+                    <motion.div 
+                      className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400"
+                      initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                      animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                      transition={{ delay: 0.25 }}
+                      title="Vault is unlocked"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                      </svg>
+                      <span>Unlocked</span>
+                      {remainingSessionTime !== null && remainingSessionTime > 0 && (
+                        <span className="text-slate-400 dark:text-slate-500">
+                          | {formatSessionTime(remainingSessionTime)}
+                        </span>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
+                      initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                      animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                      transition={{ delay: 0.25 }}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Locked</span>
+                    </motion.div>
+                  )}
+                  
+                  <span className="text-slate-300 dark:text-slate-600">•</span>
+                  
+                  {/* Enhanced Sync Status */}
                   <motion.div 
                     className="flex items-center text-xs"
                     initial={prefersReducedMotion ? undefined : { opacity: 0 }}
@@ -739,17 +1105,48 @@ const App: React.FC = () => {
                           animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
                           transition={{ duration: 1.5, repeat: Infinity }}
                         />
-                        Syncing
+                        Syncing...
                       </span>
-                    ) : syncState.status === 'error' ? (
-                      <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                    ) : syncState.status === 'error' || syncError ? (
+                      <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400" title={syncError || 'Sync error'}>
                         <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                        Error
+                        <span>Sync failed</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await syncManager.syncOnce();
+                              setNotification({ message: 'Sync retried successfully', type: 'success' });
+                              setTimeout(() => setNotification(null), 3000);
+                            } catch (error) {
+                              setNotification({ message: 'Sync retry failed. Check your connection.', type: 'error' });
+                              setTimeout(() => setNotification(null), 5000);
+                            }
+                          }}
+                          className="ml-1 text-xs underline hover:no-underline"
+                        >
+                          Retry
+                        </button>
+                      </span>
+                    ) : syncState.lastSyncedAt ? (
+                      <span className="text-slate-500 dark:text-slate-400" title={`Last synced: ${new Date(syncState.lastSyncedAt).toLocaleString()}`}>
+                        <span className="text-green-600 dark:text-green-400">✓</span> {formatLastSynced(syncState.lastSyncedAt)}
                       </span>
                     ) : (
-                      <span className="text-slate-500 dark:text-slate-400">{formatLastSynced(syncState.lastSyncedAt)}</span>
+                      <span className="text-slate-400 dark:text-slate-500">Not synced</span>
                     )}
                   </motion.div>
+                  
+                  {/* Encryption Status */}
+                  <span className="text-slate-300 dark:text-slate-600">•</span>
+                  <motion.span 
+                    className="text-xs text-slate-500 dark:text-slate-400"
+                    initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    title="AES-256-GCM End-to-end encryption"
+                  >
+                    🔐 Encrypted
+                  </motion.span>
                 </div>
               </div>
             </motion.div>
@@ -779,7 +1176,7 @@ const App: React.FC = () => {
                     onClick={toggleDarkMode}
                     variant="ghost"
                     size="sm"
-                    className="w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 touch-manipulation"
                     title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                   >
                     {isDarkMode ? '☀️' : '🌙'}
@@ -790,8 +1187,9 @@ const App: React.FC = () => {
                     onClick={() => isTravelModeEnabled ? disableTravelMode() : enableTravelMode()}
                     variant={isTravelModeEnabled ? "primary" : "ghost"}
                     size="sm"
-                    className={`h-9 px-3 rounded-lg ${isTravelModeEnabled ? '' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                    className={`h-11 sm:h-9 px-3 rounded-lg touch-manipulation ${isTravelModeEnabled ? '' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                     title={isTravelModeEnabled ? "Disable Travel Mode" : "Enable Travel Mode"}
+                    aria-label={isTravelModeEnabled ? "Disable Travel Mode" : "Enable Travel Mode"}
                   >
                     <span className="text-sm">{isTravelModeEnabled ? '✈️' : '✈️'}</span>
                     <span className="ml-1.5 text-xs font-medium hidden sm:inline">Travel</span>
@@ -806,8 +1204,9 @@ const App: React.FC = () => {
                     onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
                     variant="ghost"
                     size="sm"
-                    className="w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 touch-manipulation"
                     title="More options"
+                    aria-label="More options"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -905,6 +1304,18 @@ const App: React.FC = () => {
                         >
                           💳 Billing
                         </motion.button>
+                        <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+                        <motion.button
+                          whileHover={{ x: 4 }}
+                          onClick={() => { 
+                            setIsMoreMenuOpen(false);
+                            handleLogout();
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                        >
+                          <Logout className="w-4 h-4" />
+                          <span>Logout</span>
+                        </motion.button>
                       </div>
                     </motion.div>
                   )}
@@ -917,8 +1328,9 @@ const App: React.FC = () => {
                   onClick={handleLock}
                   variant="outline"
                   size="sm"
-                  className="h-9 px-3 rounded-lg border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="h-11 sm:h-9 px-3 rounded-lg border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 touch-manipulation"
                   title="Lock vault"
+                  aria-label="Lock vault"
                 >
                   <LockIcon className="w-4 h-4 mr-1.5" />
                   <span className="text-xs font-medium hidden sm:inline">Lock</span>
@@ -933,7 +1345,7 @@ const App: React.FC = () => {
       <AnimatePresence mode="wait">
         <motion.main 
           key="vault-main"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+          className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6"
           variants={pageVariants}
           initial="initial"
           animate="animate"
@@ -1008,7 +1420,15 @@ const App: React.FC = () => {
                       >
                         Open Watchtower
                       </Button>
-                      {lastBreachScanAt && (
+                      {isScanningBreaches && (
+                        <p className="text-[11px] text-safenode-primary flex items-center gap-1">
+                          <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Checking for compromised passwords...
+                        </p>
+                      )}
+                      {!isScanningBreaches && lastBreachScanAt && (
                         <p className="text-[11px] text-slate-500">
                           Last scan {formatLastSynced(lastBreachScanAt)}
                         </p>
@@ -1023,17 +1443,95 @@ const App: React.FC = () => {
             )}
 
             {/* Security Advisor */}
-            <SecurityAdvisor entries={(vault?.entries || []).map(e => ({
+            <div id="security-advisor">
+            <SecurityAdvisor 
+              entries={(vault?.entries || []).map(e => ({
               id: e.id,
               name: e.name,
               username: e.username,
               password: e.password,
               url: e.url
-            }))} />
+              }))}
+              onStrengthenWeakPasswords={() => {
+                setIsStrengthenPasswordsOpen(true)
+              }}
+              onChangeBreachedPasswords={() => {
+                setSecurityFilter('breached')
+                setQuery('')
+                setActiveTag(null)
+                setNotification({
+                  message: 'Showing breached passwords. Please change these immediately.',
+                  type: 'error'
+                })
+                setTimeout(() => setNotification(null), 5000)
+              }}
+              onGenerateUniquePasswords={() => {
+                setIsPasswordGeneratorOpen(true)
+                setNotification({
+                  message: 'Generate a strong password and update your entries.',
+                  type: 'info'
+                })
+                setTimeout(() => setNotification(null), 5000)
+              }}
+              onReviewSecurityRecommendations={() => {
+                setSecurityFilter(null)
+                // Scroll to security advisor
+                const element = document.getElementById('security-advisor')
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                setNotification({
+                  message: 'Review the security recommendations above.',
+                  type: 'info'
+                })
+                setTimeout(() => setNotification(null), 5000)
+              }}
+              onEnable2FA={() => {
+                navigate('/settings/security')
+                setNotification({
+                  message: 'Navigate to Security settings to enable 2FA.',
+                  type: 'info'
+                })
+                setTimeout(() => setNotification(null), 5000)
+              }}
+              onRotateOldPasswords={() => {
+                setSecurityFilter(null)
+                setIsPasswordGeneratorOpen(true)
+                setNotification({
+                  message: 'Generate new passwords for entries that haven\'t been updated recently.',
+                  type: 'info'
+                })
+                setTimeout(() => setNotification(null), 5000)
+              }}
+            />
+            </div>
             {/* Search + Tags + Add Button */}
             <motion.div className="card card-hover" variants={listItem}>
               <div className="card-body">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                {securityFilter && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                      Filtering: {securityFilter === 'weak' ? 'Weak passwords' : securityFilter === 'breached' ? 'Breached passwords' : 'Reused passwords'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSecurityFilter(null)
+                        setNotification({
+                          message: 'Filter cleared',
+                          type: 'info'
+                        })
+                        setTimeout(() => setNotification(null), 2000)
+                      }}
+                      className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
+                      title="Clear filter"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
                 <div className="relative">
                   <input
                     className="w-full md:w-80 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 text-sm transition-all duration-200"
@@ -1048,33 +1546,63 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {allTags.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
                     <motion.button
                       onClick={() => setActiveTag(null)}
                       className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
                         activeTag === null 
                           ? 'bg-gradient-to-r from-secondary-600 to-secondary-500 dark:from-secondary-500 dark:to-secondary-400 text-white border-secondary-500 shadow-safenode-secondary' 
-                          : 'bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-md'
+                            : 'bg-white/80 backdrop-blur-sm text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
                       }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       aria-pressed={activeTag === null}
                     >All</motion.button>
-                    {allTags.map(tag => (
+                      {(showAllTags ? allTags : topTags).map(tag => (
                       <motion.button
                         key={tag}
                         onClick={() => setActiveTag(tag)}
                         className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
                           activeTag === tag 
                             ? 'bg-gradient-to-r from-secondary-600 to-secondary-500 dark:from-secondary-500 dark:to-secondary-400 text-white border-secondary-500 shadow-safenode-secondary' 
-                            : 'bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-md'
+                              : 'bg-white/80 backdrop-blur-sm text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
                         }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         aria-pressed={activeTag === tag}
-                      >{tag}</motion.button>
-                    ))}
+                          title={`${tagUsage[tag]} ${tagUsage[tag] === 1 ? 'entry' : 'entries'}`}
+                        >
+                          {tag}
+                          <span className="ml-1.5 text-[10px] opacity-70">({tagUsage[tag]})</span>
+                        </motion.button>
+                      ))}
+                      {allTags.length > 5 && (
+                        <motion.button
+                          onClick={() => setShowAllTags(!showAllTags)}
+                          className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white/80 backdrop-blur-sm text-slate-600 dark:text-slate-400 text-xs font-medium hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          {showAllTags ? (
+                            <>
+                              <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                              Show Less
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              +{allTags.length - 5} More
+                            </>
+                          )}
+                        </motion.button>
+                      )}
                   </div>
+                  )}
                   <Button
                     onClick={handleAddEntry}
                     disabled={isSaving}
@@ -1165,12 +1693,58 @@ const App: React.FC = () => {
             )}
 
             {/* Entries List */}
-            <motion.div className="card overflow-hidden" variants={listItem}>
-              <div className="card-header">
-                <h2 className="text-lg font-bold text-slate-900">Password Entries</h2>
-                <p className="text-sm text-slate-600">Your encrypted password vault</p>
+            <motion.div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden" variants={listItem}>
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-400 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
               </div>
-              <div className="card-body p-0">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Password Entries</h2>
+                      <p className="text-xs text-slate-500">Your encrypted password vault</p>
+                    </div>
+                  </div>
+                  {!isTravelModeEnabled && vault && (
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-slate-900">{filteredEntries.length}</div>
+                      <div className="text-xs text-slate-500">
+                        {filteredEntries.length === 1 ? 'entry' : 'entries'}
+                        {query || activeTag ? ' found' : ''}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Stats Bar */}
+              {!isTravelModeEnabled && vault && vault.entries.length > 0 && (
+                <div className="px-6 py-3 bg-slate-50 border-b border-slate-200">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-slate-900">{vault.entries.length}</div>
+                      <div className="text-xs text-slate-600">Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-blue-600">{vault.entries.filter(e => e.category).length}</div>
+                      <div className="text-xs text-slate-600">Categorized</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-green-600">{vault.entries.filter(e => e.totpSecret).length}</div>
+                      <div className="text-xs text-slate-600">2FA Enabled</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-purple-600">{allTags.length}</div>
+                      <div className="text-xs text-slate-600">Tags</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-0">
                 {isTravelModeEnabled ? (
                   <div className="p-12 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
@@ -1190,13 +1764,42 @@ const App: React.FC = () => {
                       Disable Travel Mode
                     </Button>
                   </div>
+                ) : filteredEntries.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-900 mb-1">No entries found</h3>
+                    <p className="text-sm text-slate-500 mb-4">
+                      {query || activeTag 
+                        ? 'Try adjusting your search or filter'
+                        : 'Get started by adding your first password entry'}
+                    </p>
+                    {!query && !activeTag && (
+                      <Button
+                        onClick={handleAddEntry}
+                        variant="primary"
+                        size="sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Your First Entry
+                      </Button>
+                    )}
+                  </div>
                 ) : (
-                <motion.div className="divide-y divide-slate-200" variants={listParent} initial="hidden" animate="visible">
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 max-h-[600px] overflow-y-auto relative">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-1">
+                    <AnimatePresence mode="popLayout">
                 {filteredEntries.map((entry, index) => (
                   <EntryCard 
                     key={entry.id} 
                     entry={entry} 
                     index={index}
+                          onClick={() => setSelectedEntryDetail(entry)}
                     onCopyPassword={() => enhancedCopyToClipboard(entry.password)}
                     onShare={() => setShareEntry(entry)}
                     onEdit={() => handleEditEntry(entry)}
@@ -1205,7 +1808,9 @@ const App: React.FC = () => {
                     variants={listItem}
                   />
                 ))}
-                </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
                 )}
               </div>
             </motion.div>
@@ -1263,6 +1868,93 @@ const App: React.FC = () => {
       {/* Sharing */}
       <SharingKeys isOpen={isSharingKeysOpen} onClose={() => setIsSharingKeysOpen(false)} />
       <ShareEntryModal isOpen={!!shareEntry} onClose={() => setShareEntry(null)} entry={shareEntry} />
+      
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-xl flex items-center justify-center">
+                <Logout className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Confirm Logout</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Are you sure you want to log out?</p>
+              </div>
+            </div>
+            
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>You will be logged out and must sign in again.</strong>
+              </p>
+              <ul className="mt-2 text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
+                <li>Your vault will remain encrypted on this device</li>
+                <li>Biometric unlock will need to be re-enabled after login</li>
+                <li>You'll need to enter your master password to unlock</li>
+              </ul>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowLogoutConfirm(false)}
+                variant="outline"
+                size="md"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmLogout}
+                variant="primary"
+                size="md"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Logout
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      <EntryDetailModal
+        entry={selectedEntryDetail}
+        isOpen={!!selectedEntryDetail}
+        onClose={() => setSelectedEntryDetail(null)}
+        onCopyPassword={(password) => {
+          enhancedCopyToClipboard(password);
+          setNotification({ message: 'Password copied to clipboard', type: 'success' });
+          setTimeout(() => setNotification(null), 3000);
+        }}
+        onEdit={() => {
+          if (selectedEntryDetail) {
+            handleEditEntry(selectedEntryDetail);
+            setSelectedEntryDetail(null);
+          }
+        }}
+        onDelete={() => {
+          if (selectedEntryDetail) {
+            handleDeleteEntry(selectedEntryDetail.id);
+            setSelectedEntryDetail(null);
+          }
+        }}
+        onShare={() => {
+          if (selectedEntryDetail) {
+            setShareEntry(selectedEntryDetail);
+            setSelectedEntryDetail(null);
+          }
+        }}
+      />
       <ImportSharedModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={(entry) => {
         // Reuse existing flow to add entry
         if (!vault) return;
@@ -1400,70 +2092,181 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Password Generator Modal */}
+      <PasswordGeneratorModal
+        isOpen={isPasswordGeneratorOpen}
+        onClose={() => setIsPasswordGeneratorOpen(false)}
+        onGenerate={(password) => {
+          // Copy password to clipboard
+          enhancedCopyToClipboard(password);
+          setNotification({
+            message: 'Password generated and copied to clipboard!',
+            type: 'success'
+          });
+          setTimeout(() => setNotification(null), 3000);
+        }}
+      />
+
+      {/* Strengthen Passwords Modal */}
+      <StrengthenPasswordsModal
+        isOpen={isStrengthenPasswordsOpen}
+        onClose={() => setIsStrengthenPasswordsOpen(false)}
+        entries={vault?.entries || []}
+        onUpdatePassword={async (entryId, newPassword) => {
+          try {
+            if (!vault) throw new Error('No vault available');
+            
+            // Find the entry
+            const entry = vault.entries.find(e => e.id === entryId);
+            if (!entry) throw new Error('Entry not found');
+
+            // Update the entry with new password
+            const updatedEntry = {
+              ...entry,
+              password: newPassword,
+              passwordUpdatedAt: Date.now()
+            };
+
+            // Update vault
+            const updatedVault = {
+              ...vault,
+              entries: vault.entries.map(e => e.id === entryId ? updatedEntry : e)
+            };
+
+            // Save to server
+            await saveVaultToServer(updatedVault, 'UPDATE', entryId);
+            
+            // Update local state
+            setVault(updatedVault);
+            
+            setNotification({
+              message: `Password updated for ${entry.name}`,
+              type: 'success'
+            });
+            setTimeout(() => setNotification(null), 3000);
+          } catch (error: any) {
+            console.error('Failed to update password:', error);
+            setNotification({
+              message: `Failed to update password: ${error?.message || 'Unknown error'}`,
+              type: 'error'
+            });
+            setTimeout(() => setNotification(null), 5000);
+            throw error;
+          }
+        }}
+      />
+
+      {/* Notification Toast */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className={`fixed top-4 right-4 z-[70] px-4 py-3 rounded-lg shadow-lg ${
+              notification.type === 'error' 
+                ? 'bg-red-500 text-white' 
+                : notification.type === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-blue-500 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span>{notification.message}</span>
+              <button
+                onClick={() => setNotification(null)}
+                className="font-bold hover:opacity-80 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 export default App;
  
-// Enhanced Entry Card Component
-interface EntryCardProps {
-  entry: VaultEntry;
-  index: number;
-  onCopyPassword: () => void;
-  onShare: () => void;
+// Entry Detail Modal Component
+interface EntryDetailModalProps {
+  entry: VaultEntry | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onCopyPassword: (password: string) => void;
   onEdit: () => void;
   onDelete: () => void;
-  isSaving: boolean;
-  variants?: any;
+  onShare: () => void;
 }
 
-const EntryCard: React.FC<EntryCardProps> = ({ 
+const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
   entry, 
-  index, 
+  isOpen,
+  onClose,
   onCopyPassword, 
-  onShare, 
   onEdit, 
   onDelete, 
-  isSaving, 
-  variants 
+  onShare
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [revealTimeout, setRevealTimeout] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const prefersReducedMotion = useReducedMotion();
+  const PASSWORD_REVEAL_TIMEOUT = 30; // 30 seconds
 
-  const base64ToBlobUrl = (attachment: VaultAttachment): string => {
-    const binary = window.atob(attachment.data);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
+  useEffect(() => {
+    if (!isOpen) {
+      setShowPassword(false);
+      setCopyFeedback(false);
+      if (revealTimeout) {
+        clearTimeout(revealTimeout);
+        setRevealTimeout(null);
+      }
+      setTimeRemaining(null);
     }
-    const blob = new Blob([bytes], { type: attachment.type || 'application/octet-stream' });
-    return URL.createObjectURL(blob);
-  };
+  }, [isOpen, revealTimeout]);
 
-  const handleDownloadAttachment = (attachment: VaultAttachment) => {
-    try {
-      const url = base64ToBlobUrl(attachment);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = attachment.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download attachment:', error);
-      alert('Unable to download attachment');
+  // Password reveal timeout countdown
+  useEffect(() => {
+    if (showPassword && isOpen) {
+      setTimeRemaining(PASSWORD_REVEAL_TIMEOUT);
+      
+      const interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(interval);
+            setShowPassword(false);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      const timeout = window.setTimeout(() => {
+        setShowPassword(false);
+        setTimeRemaining(null);
+        clearInterval(interval);
+      }, PASSWORD_REVEAL_TIMEOUT * 1000);
+
+      setRevealTimeout(timeout);
+
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
+    } else {
+      if (revealTimeout) {
+        clearTimeout(revealTimeout);
+        setRevealTimeout(null);
+      }
+      setTimeRemaining(null);
     }
-  };
+  }, [showPassword, isOpen]);
 
-  const handleCopyPassword = async () => {
-    onCopyPassword();
-    setCopyFeedback(true);
-    setTimeout(() => setCopyFeedback(false), 2000);
-  };
+  if (!entry) return null;
 
   const getCategoryIcon = (category?: string) => {
     switch (category?.toLowerCase()) {
@@ -1507,261 +2310,457 @@ const EntryCard: React.FC<EntryCardProps> = ({
     }
   };
 
+  const handleCopyPassword = () => {
+    onCopyPassword(entry.password);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
+
   return (
+    <AnimatePresence>
+      {isOpen && entry && (
+        <>
     <motion.div 
-      className={`group relative p-4 transition-all duration-300 ${
-        isHovered 
-          ? 'bg-gradient-to-r from-white to-secondary-50 dark:from-slate-800 dark:to-secondary-950/20 shadow-lg border-l-4 border-secondary-500 dark:border-secondary-400' 
-          : 'hover:bg-slate-50'
-      }`}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            transition={{ duration: 0.2 }}
+          />
+          <motion.div
+            className="fixed inset-0 z-[81] flex items-center justify-center p-3 sm:p-4"
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30, duration: 0.3 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="entry-detail-title"
+          >
+          <motion.div 
+              className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 max-w-lg w-full max-h-[85vh] shadow-xl overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+              layoutId={`entry-${entry.id}`}
+            >
+              {/* Compact Header */}
+              <div className={`relative px-4 py-3 bg-gradient-to-r ${getCategoryColor(entry.category)} text-white`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
+            {entry.category ? (
+              <div className="text-white">
+                {getCategoryIcon(entry.category)}
+              </div>
+            ) : (
+                        <span className="text-white font-semibold text-lg">
+                {entry.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id="entry-detail-title"
+                        className="text-lg font-semibold truncate"
+                      >
+                        {entry.name}
+                      </h2>
+              {entry.category && (
+                        <span className="text-xs text-white/80">
+                  {entry.category}
+                </span>
+              )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0 touch-manipulation min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    aria-label="Close"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+            </div>
+            
+              {/* Compact Content */}
+              <div className="p-4 space-y-3 overflow-y-auto flex-1">
+                {/* Username */}
+                {entry.username && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      Username / Email
+                    </label>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="text-sm text-slate-900 dark:text-slate-100 truncate">{entry.username}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Password */}
+                {entry.password && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      Password
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={entry.password}
+                  readOnly
+                          className="w-full px-3 py-2 pr-20 text-sm font-mono bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none"
+                        />
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5">
+                          {showPassword && timeRemaining !== null && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                              {timeRemaining}s
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                            className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors touch-manipulation"
+                            title={showPassword ? `Hide password (auto-hides in ${timeRemaining}s)` : 'Show password (auto-hides after 30s)'}
+                >
+                  {showPassword ? (
+                              <svg className="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                              <svg className="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                          </button>
+              </div>
+            </div>
+                      <button
+                        onClick={handleCopyPassword}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all touch-manipulation min-h-[36px] ${
+                          copyFeedback 
+                            ? 'bg-secondary-500 text-white' 
+                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {copyFeedback ? (
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Copied
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Copy
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* URL */}
+                {entry.url && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      Website URL
+                    </label>
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
+                    >
+                      <svg className="w-4 h-4 text-secondary-600 dark:text-secondary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      <span className="text-sm text-secondary-600 dark:text-secondary-400 group-hover:text-secondary-700 dark:group-hover:text-secondary-300 truncate flex-1">
+                        {entry.url}
+                      </span>
+                      <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-secondary-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+              </div>
+            )}
+
+            {/* Notes */}
+            {entry.notes && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      Secure Notes
+                    </label>
+                    <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                        {entry.notes}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {entry.tags && entry.tags.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      Tags
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {entry.tags.map((tag) => (
+                        <span 
+                          key={tag} 
+                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                </div>
+              </div>
+            )}
+        </div>
+
+              {/* Compact Footer Actions */}
+              <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onEdit}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors touch-manipulation flex items-center gap-1.5 min-h-[36px]"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                    Edit
+                  </button>
+                  <button
+            onClick={onShare}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors touch-manipulation flex items-center gap-1.5 min-h-[36px]"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Share
+                  </button>
+                </div>
+                <button
+            onClick={onDelete}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors touch-manipulation flex items-center gap-1.5 min-h-[36px]"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
+ 
+// Enhanced Entry Card Component with Beautiful Animations
+interface EntryCardProps {
+  entry: VaultEntry;
+  index: number;
+  onClick: () => void;
+  onCopyPassword: () => void;
+  onShare: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isSaving: boolean;
+  variants?: any;
+}
+
+const EntryCard = React.forwardRef<HTMLDivElement, EntryCardProps>(({ 
+  entry, 
+  index, 
+  onClick,
+  onCopyPassword, 
+  onShare, 
+  onEdit,
+  onDelete, 
+  isSaving, 
+  variants 
+}, ref) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+
+  const base64ToBlobUrl = (attachment: VaultAttachment): string => {
+    const binary = window.atob(attachment.data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: attachment.type || 'application/octet-stream' });
+    return URL.createObjectURL(blob);
+  };
+
+  const handleDownloadAttachment = (attachment: VaultAttachment) => {
+    try {
+      const url = base64ToBlobUrl(attachment);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download attachment:', error);
+      alert('Unable to download attachment');
+    }
+  };
+
+  const getCategoryIcon = (category?: string) => {
+    switch (category?.toLowerCase()) {
+      case 'credit card':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        );
+      case 'identity':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        );
+      case 'secure note':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        );
+    }
+  };
+
+  const getCategoryColor = (category?: string) => {
+    switch (category?.toLowerCase()) {
+      case 'credit card':
+        return 'from-blue-500 to-cyan-500';
+      case 'identity':
+        return 'from-green-500 to-emerald-500';
+      case 'secure note':
+        return 'from-orange-500 to-amber-500';
+      default:
+        return 'from-secondary-500 to-secondary-400';
+    }
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      className="group relative cursor-pointer"
       variants={variants}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+      exit={prefersReducedMotion ? {} : { opacity: 0 }}
+      transition={{ 
+        delay: prefersReducedMotion ? 0 : index * 0.02,
+        duration: 0.25,
+        ease: [0.4, 0, 0.2, 1]
+      }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      whileHover={prefersReducedMotion ? undefined : { 
-        scale: 1.005,
-        transition: { duration: 0.2, ease: "easeOut" }
-      }}
+      onClick={onClick}
+      layout
     >
-      <div className="flex items-start justify-between">
-        {/* Entry Info Section */}
-        <div className="flex items-start space-x-3 flex-1">
-          {/* Avatar/Icon */}
-          <motion.div 
-            className={`flex-shrink-0 w-10 h-10 bg-gradient-to-r ${getCategoryColor(entry.category)} rounded-lg flex items-center justify-center shadow-md`}
-            whileHover={prefersReducedMotion ? undefined : { 
-              scale: 1.05,
-              rotate: 3,
-              transition: { duration: 0.2 }
-            }}
+      <motion.div 
+        className="relative p-2.5 bg-white dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-150"
+        whileHover={prefersReducedMotion ? {} : { 
+          y: -1,
+          transition: { duration: 0.15 }
+        }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <div className="relative flex items-center gap-2.5">
+          {/* Minimal Icon */}
+          <div 
+            className={`flex-shrink-0 w-8 h-8 bg-gradient-to-br ${getCategoryColor(entry.category)} rounded-md flex items-center justify-center shadow-sm`}
           >
             {entry.category ? (
               <div className="text-white">
                 {getCategoryIcon(entry.category)}
               </div>
             ) : (
-              <span className="text-white font-bold text-sm">
+              <span className="text-white font-medium text-xs">
                 {entry.name.charAt(0).toUpperCase()}
               </span>
             )}
-          </motion.div>
+      </div>
 
-          {/* Entry Details */}
+          {/* Clean Entry Details */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-base font-semibold text-slate-900 truncate">{entry.name}</h3>
-              {entry.category && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                  {entry.category}
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate leading-tight">
+                {entry.name}
+              </h3>
+            </div>
+
+            {/* Minimal metadata */}
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              {entry.username && (
+                <span className="truncate max-w-[140px]">
+                  {entry.username}
+                </span>
+              )}
+              {entry.url && (
+                <span className="text-slate-400 dark:text-slate-500 truncate max-w-[120px] hidden sm:inline">
+                  {entry.url.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0].substring(0, 20)}
                 </span>
               )}
             </div>
-            
-            <p className="text-xs text-slate-600 mb-1.5 truncate">
-              {entry.username} {entry.url && `• ${entry.url}`}
-            </p>
 
-            {/* Password Field */}
-            <div className="flex items-center gap-2 mb-2">
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={entry.password}
-                  readOnly
-                  className="px-2.5 py-1 text-xs font-mono bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all duration-200"
-                  style={{ width: `${Math.max(entry.password.length * 7, 100)}px` }}
-                />
-                <motion.button
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-1.5 top-1/2 transform -translate-y-1/2 p-0.5 hover:bg-slate-200 rounded transition-colors"
-                  whileTap={{ scale: 0.95 }}
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Tags */}
+            {/* Minimal tags - only show if exists */}
             {entry.tags && entry.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1.5">
-                {entry.tags.map(tag => (
-                  <motion.span 
+              <div className="flex items-center gap-1 mt-1">
+                {entry.tags.slice(0, 1).map(tag => (
+                  <span 
                     key={tag} 
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary-100 dark:bg-secondary-900/30 text-secondary-700 dark:text-secondary-300 border border-secondary-200 dark:border-secondary-800"
-                    whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400"
                   >
                     {tag}
-                  </motion.span>
+                  </span>
                 ))}
-              </div>
-            )}
-
-            {/* Notes */}
-            {entry.notes && (
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.notes}</p>
-            )}
-
-            {entry.attachments && entry.attachments.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <p className="text-xs font-medium text-slate-600">Attachments</p>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {entry.attachments.slice(0, 3).map((attachment) => (
-                    <button
-                      key={attachment.id}
-                      type="button"
-                      onClick={() => handleDownloadAttachment(attachment)}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-100 transition"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12v9m0 0l-3-3m3 3l3-3M12 3v9m0 0l3-3m-3 3l-3-3" />
-                      </svg>
-                      {attachment.name}
-                    </button>
-                  ))}
-                  {entry.attachments.length > 3 && (
-                    <span className="text-slate-500">+{entry.attachments.length - 3} more</span>
-                  )}
-                </div>
+                {entry.tags.length > 1 && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                    +{entry.tags.length - 1}
+                  </span>
+                )}
               </div>
             )}
           </div>
-        </div>
 
-        {/* Action Buttons Section */}
-        <motion.div 
-          className="flex items-center gap-1.5 ml-3"
-          initial={{ opacity: 0.7 }}
-          animate={{ opacity: isHovered ? 1 : 0.7 }}
-          transition={{ duration: 0.2 }}
-        >
-          {/* Copy Button */}
-          <motion.button
-            onClick={handleCopyPassword}
-            className={`relative inline-flex items-center px-2.5 py-1.5 rounded-md font-medium text-xs transition-all duration-200 ${
-              copyFeedback
-                ? 'bg-green-100 text-green-700 border border-green-200'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400 shadow-sm'
-            }`}
-            whileHover={prefersReducedMotion ? undefined : { 
-              scale: 1.05,
-              y: -1
-            }}
-            whileTap={{ scale: 0.95 }}
-            title="Copy password"
-            aria-label={`Copy password for ${entry.name}`}
-          >
-            <motion.div
-              animate={copyFeedback ? { rotate: 360 } : { rotate: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {copyFeedback ? (
-                <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              )}
-            </motion.div>
-            {copyFeedback ? 'Copied!' : 'Copy'}
-          </motion.button>
-
-          {/* Share Button */}
-          <motion.button
-            onClick={onShare}
-            className="inline-flex items-center px-2.5 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 font-medium text-xs transition-all duration-200 shadow-sm"
-            whileHover={prefersReducedMotion ? undefined : { 
-              scale: 1.05,
-              y: -1
-            }}
-            whileTap={{ scale: 0.95 }}
-            title="Share entry"
-            aria-label={`Share ${entry.name}`}
-          >
-            <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-            </svg>
-            Share
-          </motion.button>
-
-          {/* Edit Button */}
-          <motion.button
-            onClick={onEdit}
-            disabled={isSaving}
-            className="inline-flex items-center px-2.5 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-900/20 hover:border-secondary-300 dark:hover:border-secondary-700 hover:text-secondary-700 dark:hover:text-secondary-300 font-medium text-xs transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={isSaving ? undefined : { 
-              scale: 1.05,
-              y: -1
-            }}
-            whileTap={{ scale: 0.95 }}
-            title="Edit entry"
-            aria-label={`Edit ${entry.name}`}
-          >
-            <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit
-          </motion.button>
-
-          {/* Delete Button */}
-          <motion.button
-            onClick={onDelete}
-            disabled={isSaving}
-            className="inline-flex items-center px-2.5 py-1.5 bg-white text-red-600 border border-red-300 rounded-md hover:bg-red-50 hover:border-red-400 hover:text-red-700 font-medium text-xs transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={isSaving ? undefined : { 
-              scale: 1.05,
-              y: -1
-            }}
-            whileTap={{ scale: 0.95 }}
-            title="Delete entry"
-            aria-label={`Delete ${entry.name}`}
-          >
-            <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete
-          </motion.button>
-
-          {/* TOTP Badge */}
-          {entry.totpSecret && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <TotpBadge secret={entry.totpSecret} />
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
-
-      {/* Copy Success Toast */}
-      {copyFeedback && (
+          {/* Minimal chevron - only on hover */}
         <motion.div
-          initial={{ opacity: 0, y: 10, scale: 0.8 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 0.8 }}
-          className="absolute top-3 right-3 bg-green-500 text-white px-2.5 py-1 rounded-md text-xs font-medium shadow-lg z-10"
-        >
-          Copied!
+            className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity"
+            animate={{ x: isHovered ? 1 : 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <svg className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
         </motion.div>
-      )}
+        </div>
+      </motion.div>
     </motion.div>
   );
-};
+});
 
 function TotpBadge({ secret }: { secret: string }) {
   const [code, setCode] = React.useState<string>('------')

@@ -133,21 +133,46 @@ export async function decrypt(
     throw new Error('WebCrypto API not supported');
   }
 
+  // Validate inputs
+  if (!password || password.length === 0) {
+    throw new Error('Password cannot be empty');
+  }
+  
+  if (!params.salt || params.salt.byteLength < 8) {
+    throw new Error('Invalid salt: salt must be at least 8 bytes');
+  }
+  
+  if (!params.iv || params.iv.byteLength < 12) {
+    throw new Error('Invalid IV: IV must be at least 12 bytes for AES-GCM');
+  }
+  
+  if (!params.encrypted || params.encrypted.byteLength === 0) {
+    throw new Error('Invalid encrypted data: data cannot be empty');
+  }
+
   // Derive key from password using the same salt
   const key = await deriveKey(password, params.salt);
   
   // Decrypt the data
-  const decrypted = await window.crypto.subtle.decrypt(
-    {
-      name: 'AES-GCM',
-      iv: params.iv
-    },
-    key,
-    params.encrypted
-  );
+  try {
+    const decrypted = await window.crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: params.iv
+      },
+      key,
+      params.encrypted
+    );
 
-  // Convert back to string
-  return new TextDecoder().decode(decrypted);
+    // Convert back to string
+    return new TextDecoder().decode(decrypted);
+  } catch (error: any) {
+    // OperationError typically means wrong password, corrupted data, or wrong IV
+    if (error.name === 'OperationError') {
+      throw new Error('Decryption failed. This usually means the master password is incorrect, or the vault data is corrupted. Please check your password or reinitialize your vault.');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -182,11 +207,11 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   
   try {
     const binary = window.atob(cleaned);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
   } catch (error: any) {
     throw new Error(`Failed to decode base64: ${error.message}. String: ${cleaned.substring(0, 20)}...`)
   }

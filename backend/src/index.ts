@@ -4,170 +4,8 @@ import { webcrypto, randomBytes } from 'crypto'
 import argon2 from 'argon2'
 import { TextEncoder } from 'util'
 import fetch from 'node-fetch'
-import { initSentry } from './services/sentryService'
-import { initLogger } from './utils/logger'
-import { registerAuthRoutes } from './routes/auth'
-import { registerBillingRoutes } from './routes/billing'
-import { seedDatabase } from './db/seed'
-import { registerDeviceRoutes } from './routes/devices'
-import { registerAuditRoutes } from './routes/audit'
-import { registerTeamRoutes } from './routes/teams'
-import { registerSSORoutes } from './routes/sso'
-import { registerSyncRoutes } from './routes/sync'
-import { registerDownloadRoutes } from './routes/downloads'
-import { registerLogRoutes } from './routes/logs'
-import { registerContactRoutes } from './routes/contact'
-import { registerHealthRoutes } from './routes/health'
-import { createAuditLog } from './services/auditLogService'
-import { registerRateLimit } from './middleware/rateLimit'
-import { registerSecurityHeaders, addCustomSecurityHeaders } from './middleware/security'
-import { registerSentryMiddleware } from './middleware/sentry'
-import { registerStructuredLogging } from './middleware/logger'
-import { registerSwagger } from './plugins/swagger'
-import { db } from './services/database'
-import { config } from './config'
-import { disconnectPrisma } from './db/prisma'
-import cookie from '@fastify/cookie'
 
-const server = Fastify({ 
-  logger: true,
-  bodyLimit: 10485760, // 10MB
-  requestIdLogLabel: 'reqId',
-  requestIdHeader: 'x-request-id'
-})
-
-// REMOVED: Custom JSON parser was blocking Fastify's request lifecycle
-// Fastify v4 has built-in JSON parsing that works automatically
-// No custom parser needed - Fastify handles application/json natively
-
-// DEBUG: Add hook to track request lifecycle
-server.addHook('preHandler', async (request, reply) => {
-  if (request.method === 'POST' && request.url === '/api/auth/login') {
-    request.log.info({ 
-      body: request.body,
-      hasBody: !!request.body,
-      bodyType: typeof request.body
-    }, '🔵 [DEBUG] preHandler hook - Request reached preHandler')
-  }
-})
-
-// TEMPORARILY DISABLED ALL HOOKS TO FIND DEADLOCK
-// Re-enable one by one after login works to identify the blocker
-
-// server.addHook('onRequest', async (request, reply) => {
-//   // Log all incoming requests for debugging
-//   request.log.info({ 
-//     method: request.method, 
-//     url: request.url,
-//     headers: {
-//       origin: request.headers.origin,
-//       'content-type': request.headers['content-type'],
-//       'content-length': request.headers['content-length']
-//     }
-//   }, 'Incoming request')
-//   
-//   // CRITICAL: Log POST requests to /api/auth/login EARLY to see if request arrives
-//   if (request.method === 'POST' && request.url === '/api/auth/login') {
-//     console.log('🔵 [DEBUG] POST /api/auth/login - Request received in onRequest hook')
-//     console.log('🔵 [DEBUG] Content-Type:', request.headers['content-type'])
-//     console.log('🔵 [DEBUG] Content-Length:', request.headers['content-length'])
-//     console.log('🔵 [DEBUG] Origin:', request.headers.origin)
-//     request.log.info({
-//       method: request.method,
-//       url: request.url,
-//       contentType: request.headers['content-type'],
-//       contentLength: request.headers['content-length'],
-//       origin: request.headers.origin,
-//       rawBody: 'not parsed yet'
-//     }, 'POST /api/auth/login - Request received (onRequest - body not parsed yet)')
-//   }
-//   
-//   // Handle aborted requests gracefully
-//   request.raw.on('aborted', () => {
-//     request.log.warn({ url: request.url }, 'Request aborted by client')
-//     // Don't send response if already aborted
-//     if (!reply.sent) {
-//       reply.code(499).send({ error: 'request_aborted', message: 'Request was aborted' })
-//     }
-//   })
-// })
-
-// server.addHook('onRequest', async (request, reply) => {
-//   if (request.method === 'POST' && request.url === '/api/auth/login') {
-//     request.log.info({ 
-//       method: request.method,
-//       url: request.url,
-//       contentType: request.headers['content-type'],
-//       contentLength: request.headers['content-length'],
-//       origin: request.headers.origin
-//     }, 'POST /api/auth/login - Request received (onRequest hook)')
-//   }
-// })
-
-// server.addHook('preHandler', async (request, reply) => {
-//   if (request.method === 'POST' && request.url === '/api/auth/login') {
-//     console.log('🟢 [DEBUG] POST /api/auth/login - Body parsed in preHandler hook')
-//     console.log('🟢 [DEBUG] Body type:', typeof request.body)
-//     console.log('🟢 [DEBUG] Body is undefined:', request.body === undefined)
-//     console.log('🟢 [DEBUG] Body keys:', request.body && typeof request.body === 'object' ? Object.keys(request.body as any) : 'N/A')
-//     request.log.info({ 
-//       method: request.method,
-//       url: request.url,
-//       hasBody: !!request.body,
-//       bodyType: typeof request.body,
-//       bodyIsUndefined: request.body === undefined,
-//       bodyIsNull: request.body === null,
-//       bodyKeys: request.body && typeof request.body === 'object' ? Object.keys(request.body as any) : 'N/A',
-//       bodyValue: request.body
-//     }, 'POST /api/auth/login - Body parsed (preHandler hook)')
-//   }
-// })
-
-// Handle JSON parsing errors
-server.setErrorHandler((error, request, reply) => {
-  // Don't send response if already sent or aborted
-  if (reply.sent || request.raw.aborted) {
-    return
-  }
-  
-  // Get requestId once for all error handlers
-  const requestId = request.id || (request as any).correlationId || 'unknown'
-  
-  // Handle JSON parsing errors
-  if (error instanceof SyntaxError && 'body' in error) {
-    request.log.warn({ error: error.message, url: request.url, requestId }, 'JSON parsing error')
-    return reply.code(400).send({
-      error: 'invalid_json',
-      message: 'Invalid JSON in request body',
-      requestId
-    })
-  }
-  
-  // Handle aborted requests
-  if (error.code === 'ECONNABORTED' || error.message?.includes('aborted') || request.raw.aborted) {
-    request.log.warn({ error: error.message, url: request.url, requestId }, 'Request aborted')
-    return reply.code(499).send({
-      error: 'request_aborted',
-      message: 'Request was aborted',
-      requestId
-    })
-  }
-  
-  // Default error handler with requestId
-  request.log.error({ 
-    error: error.message, 
-    stack: error.stack, 
-    url: request.url,
-    requestId,
-    statusCode: error.statusCode || 500
-  }, 'Unhandled error')
-  
-  return reply.code(error.statusCode || 500).send({
-    error: error.name || 'InternalServerError',
-    message: error.message || 'An unexpected error occurred',
-    requestId
-  })
-})
+const server = Fastify({ logger: true })
 
 // Will be generated at startup to allow immediate unlock with password "demo-password"
 let demoSaltB64 = ''
@@ -199,7 +37,7 @@ function arrayBufferToBase64 (buffer: ArrayBuffer): string {
   return Buffer.from(new Uint8Array(buffer)).toString('base64')
 }
 
-export async function generateDemoVault (): Promise<void> {
+async function generateDemoVault (): Promise<void> {
   const password = 'demo-password'
   const encoder = new TextEncoder()
 
@@ -249,13 +87,11 @@ export async function generateDemoVault (): Promise<void> {
   // Derive key via PBKDF2 SHA-256 100k iterations, AES-GCM-256
   try {
     // Derive a 32-byte key using Argon2id compatible with frontend
-    // Use faster hashing in development, secure hashing in production
-    const isDevelopment = process.env.NODE_ENV === 'development'
     const rawKey: Buffer = await argon2.hash(password, {
       type: argon2.argon2id,
       salt: Buffer.from(salt),
-      timeCost: isDevelopment ? 2 : 4, // 2 is minimum allowed, 4 in prod
-      memoryCost: isDevelopment ? 65536 : 19456, // 64MB in dev, 19MB in prod (KiB)
+      timeCost: 3,
+      memoryCost: 64 * 1024, // KiB
       parallelism: 1,
       hashLength: 32,
       raw: true
@@ -287,8 +123,6 @@ export async function generateDemoVault (): Promise<void> {
     throw err
   }
 }
-
-// Health check routes will be registered via registerHealthRoutes
 
 server.get('/api/user/salt', async (req, reply) => {
   try {
@@ -1130,13 +964,11 @@ server.post('/api/passkeys/authenticate/verify', async (req, reply) => {
       const newSaltB64 = Buffer.from(newSalt).toString('base64')
 
       // Derive new key with new password and salt
-      // Use faster hashing in development, secure hashing in production
-      const isDev = process.env.NODE_ENV === 'development'
       const newKeyRaw: Buffer = await argon2.hash(newPassword, {
         type: argon2.argon2id,
         salt: Buffer.from(newSalt),
-        timeCost: isDev ? 2 : 4, // 2 is minimum allowed, 4 in prod
-        memoryCost: isDev ? 65536 : 19456, // 64MB in dev, 19MB in prod (KiB)
+        timeCost: 3,
+        memoryCost: 64 * 1024,
         parallelism: 1,
         hashLength: 32,
         raw: true
@@ -1219,284 +1051,27 @@ server.post('/api/passkeys/authenticate/verify', async (req, reply) => {
 
 const start = async () => {
   try{
-    // Initialize logger first (uses Fastify's pino logger)
-    initLogger(server)
+    // CORS for local dev; restrict in production
+    await server.register(cors, {
+      origin: [/^http:\/\/localhost:\d+$/],
+      methods: ['GET','POST','PUT','DELETE','OPTIONS']
+    })
 
-    // Initialize Sentry (must be early, wrapped in try/catch)
-    try {
-      initSentry()
-    } catch (error) {
-      server.log.warn({ error }, 'Failed to initialize Sentry, continuing without error tracking')
-    }
+    // Basic security headers
+    server.addHook('onSend', async (req, reply, payload) => {
+      reply.header('X-Content-Type-Options', 'nosniff')
+      reply.header('Referrer-Policy', 'no-referrer')
+      reply.header('X-Frame-Options', 'DENY')
+      reply.header('Permissions-Policy', 'camera=(), microphone=()')
+      return payload
+    })
 
-    // Initialize database BEFORE registering routes
-    await db.init()
-
-    // CORS configuration - MUST be before routes
-    // In development, use simple permissive CORS to avoid issues
-    // In production, use strict origin checking
-    if (config.nodeEnv === 'development') {
-      // CRITICAL FIX: CORS configuration for development
-      // When credentials: true, browser requires:
-      // 1. Access-Control-Allow-Origin must be specific origin (not *)
-      // 2. All client headers must be in allowedHeaders
-      // 3. OPTIONS response must match actual request headers
-      await server.register(cors, {
-        origin: (origin, cb) => {
-          // Allow all localhost origins in development
-          if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-            return cb(null, true)
-          }
-          return cb(new Error('Not allowed by CORS'), false)
-        },
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        // CRITICAL: Include ALL headers the client might send
-        // Browser compares OPTIONS response with actual request - must match exactly
-        allowedHeaders: [
-          'Content-Type',
-          'Authorization',
-          'X-Requested-With',
-          'Accept',
-          'Origin',
-          'X-Correlation-ID',
-          'Access-Control-Request-Method',
-          'Access-Control-Request-Headers'
-        ],
-        exposedHeaders: ['Authorization', 'X-Correlation-ID'],
-        credentials: true,
-        preflight: true,
-        strictPreflight: false, // Don't fail if headers don't match exactly
-        maxAge: 86400 // 24 hours cache
-      })
-      server.log.info('✅ CORS configured for development (allows localhost origins with credentials)')
-    } else {
-      // Production: Use strict origin checking
-      await server.register(cors, {
-        origin: (origin, cb) => {
-          // Allow requests with no origin (mobile apps, Postman, etc.)
-          if (!origin) {
-            return cb(null, true)
-          }
-          
-          // If FRONTEND_URL is set, use it (supports multiple URLs separated by commas)
-          if (process.env.FRONTEND_URL && process.env.FRONTEND_URL.trim()) {
-            const allowedUrls = process.env.FRONTEND_URL.split(',').map(url => url.trim()).filter(url => url)
-            if (allowedUrls.includes(origin)) {
-              return cb(null, true)
-            }
-          }
-          
-          // Allow Vercel preview and production domains
-          // SECURITY: Use endsWith() to prevent subdomain hijacking attacks
-          // Valid: *.vercel.app, *.vercel.sh
-          // Invalid: evil.vercel.app.attacker.com (would match with includes() but not with endsWith())
-          const isVercelDomain = origin.endsWith('.vercel.app') || origin.endsWith('.vercel.sh')
-          if (isVercelDomain) {
-            return cb(null, true)
-          }
-          
-          // Use config.corsOrigin (defaults to ['https://safenode.app'])
-          const allowedOrigins = config.corsOrigin as unknown as string[]
-          if (Array.isArray(allowedOrigins) && allowedOrigins.length > 0) {
-            if (allowedOrigins.includes(origin)) {
-              return cb(null, true)
-            }
-          }
-          
-          return cb(new Error('Not allowed by CORS'), false)
-        },
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: [
-          'Authorization',
-          'Content-Type',
-          'X-Requested-With',
-          'Accept',
-          'Origin',
-          'Access-Control-Request-Method',
-          'Access-Control-Request-Headers',
-          'X-Correlation-ID'
-        ],
-        exposedHeaders: ['Authorization', 'X-Correlation-ID'],
-        credentials: true,
-        preflight: true,
-        strictPreflight: false,
-        maxAge: 86400 // 24 hours
-      })
-      server.log.info('✅ CORS configured for production (strict origin checking)')
-    }
-
-    // All middleware hooks enabled and working!
-    // ✅ Structured logging: Fixed with async hook
-    registerStructuredLogging(server)
-
-    // TEMPORARILY DISABLED: Sentry middleware (testing if onResponse hook blocks)
-    // await registerSentryMiddleware(server)
-
-    // ✅ Security headers: Safe (onSend hook)
-    addCustomSecurityHeaders(server)
-
-    // API Documentation (Swagger/OpenAPI)
-    await registerSwagger(server)
-
-    // TEMPORARILY DISABLED: Rate limiting (testing if it's blocking requests)
-    // await registerRateLimit(server, {
-    //   max: 100,
-    //   timeWindow: 60 * 1000, // 1 minute
-    //   cache: 10000
-    // })
-
-    // Per-user rate limiting (applied after authentication)
-    // This will be applied via middleware hooks in routes that require auth
-
-    // Register authentication routes
-    await registerAuthRoutes(server)
-
-    // Register billing routes
-    await registerBillingRoutes(server)
-
-    // Register device routes
-    await registerDeviceRoutes(server)
-
-    // Register audit log routes
-    await registerAuditRoutes(server)
-
-    // Register team routes
-    await registerTeamRoutes(server)
-
-    // Register SSO routes
-    await registerSSORoutes(server)
-
-    // Register sync routes
-    await registerSyncRoutes(server)
-
-    // Register download routes
-    await registerDownloadRoutes(server)
-
-    // Register log aggregation routes
-    await registerLogRoutes(server)
-
-    // Register contact routes
-    await registerContactRoutes(server)
-
-    // Register health check routes
-    await registerHealthRoutes(server)
-
-    // Generate demo vault (for backward compatibility)
     await generateDemoVault()
-
-    // Seed database with demo account
-    // CRITICAL PRODUCTION SAFETY:
-    // - In production: Only runs if FORCE_SEED=true is explicitly set
-    // - In development: Runs automatically
-    // - NEVER deletes users in production unless FORCE_RESET_DB=true
-    // This prevents data loss on server restarts and cold starts
-    
-    // Structured logging for seeding
-    const dbUrl = process.env.DATABASE_URL || 'not_set'
-    const dbUrlHash = dbUrl !== 'not_set' ? require('crypto').createHash('sha256').update(dbUrl).digest('hex').substring(0, 8) : 'unknown'
-    const seedMode = process.env.SEED_ON_BOOT === 'true' ? 'SEED_ON_BOOT' : 
-                     process.env.FORCE_SEED === 'true' ? 'FORCE_SEED' : 
-                     process.env.FORCE_RESET_DB === 'true' ? 'FORCE_RESET_DB' : 'auto'
-    
-    server.log.info({
-      seedMode,
-      dbUrlHash,
-      schema: 'public',
-      nodeEnv: config.nodeEnv
-    }, 'Starting database seeding')
-    
-    await seedDatabase()
-    
-    // Log JWT secret hash (for debugging token issues, not the actual secret)
-    const jwtSecretHash = require('crypto').createHash('sha256').update(config.jwtSecret).digest('hex').substring(0, 16)
-    server.log.info({
-      jwtSecretHash,
-      jwtSecretLength: config.jwtSecret.length
-    }, 'JWT secret initialized')
-    
-    // Start server - always listen on 127.0.0.1 for development, 0.0.0.0 for production
-    // Using 127.0.0.1 ensures consistent binding to IPv4 localhost
-    const host = config.nodeEnv === 'production' ? '0.0.0.0' : '127.0.0.1'
-    
-    // Handle EADDRINUSE by attempting to close existing server
-    const handlePortInUse = async () => {
-      try {
-        // Try to find and close any existing server on this port
-        const net = await import('net')
-        return new Promise<void>((resolve, reject) => {
-          const tester = net.createServer()
-          tester.once('error', (err: any) => {
-            if (err.code === 'EADDRINUSE') {
-              console.warn(`⚠️  Port ${config.port} is in use. Attempting to release...`)
-              // Port is in use, but we can't easily close it from here
-              // The user needs to stop the existing process
-              reject(err)
-            } else {
-              reject(err)
-            }
-          })
-          tester.once('listening', () => {
-            tester.close(() => resolve())
-          })
-          tester.listen(config.port, host)
-        })
-      } catch (err) {
-        throw err
-      }
-    }
-    
-    try {
-      // Check if port is available first
-      await handlePortInUse()
-    } catch (error: any) {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${config.port} is already in use.`)
-        console.error(`   Please stop the existing server or use a different port.`)
-        console.error(`   To find the process: lsof -i :${config.port}`)
-        await server.close().catch(() => {})
-        process.exit(1)
-      }
-    }
-    
-    try {
-      // In production (Railway), bind to 0.0.0.0 to accept external connections
-      const listenHost = config.nodeEnv === 'production' ? '0.0.0.0' : host
-      const port = process.env.PORT ? parseInt(process.env.PORT, 10) : config.port
-      await server.listen({ port, host: listenHost })
-      const serverUrl = config.nodeEnv === 'production' 
-        ? `http://0.0.0.0:${port}` 
-        : `http://localhost:${port}`
-      console.log(`✅ SafeNode backend server listening on ${serverUrl}`)
-      console.log(`📦 Database adapter: ${config.dbAdapter}`)
-      console.log(`🏥 Health check: ${serverUrl}/api/health`)
-      console.log(`📚 API docs: ${serverUrl}/docs`)
-    } catch (error: any) {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${config.port} is already in use. Please stop the existing server or use a different port.`)
-        await server.close().catch(() => {})
-        process.exit(1)
-      } else {
-        throw error
-      }
-    }
+    await server.listen({port:4000, host:'0.0.0.0'})
+    console.log('Server listening on 4000')
   }catch(e){
     server.log.error(e)
-    await disconnectPrisma().catch(() => {})
     process.exit(1)
   }
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n⚠️  Shutting down gracefully...')
-  await disconnectPrisma().catch(() => {})
-  process.exit(0)
-})
-
-process.on('SIGTERM', async () => {
-  console.log('\n⚠️  Shutting down gracefully...')
-  await disconnectPrisma().catch(() => {})
-  process.exit(0)
-})
-
 start()

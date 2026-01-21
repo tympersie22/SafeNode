@@ -70,10 +70,20 @@ export const prismaUserAdapter = {
   async create(user: User): Promise<User> {
     const prisma = getPrismaClient()
     
+    // Ensure email is normalized before creating
+    const normalizedEmail = user.email.toLowerCase().trim()
+    
+    console.log('[PrismaAdapter] Creating user:', {
+      userId: user.id,
+      email: normalizedEmail,
+      displayName: user.displayName
+    })
+    
+    try {
     const created = await prisma.user.create({
       data: {
         id: user.id,
-        email: user.email,
+          email: normalizedEmail, // Use normalized email
         passwordHash: user.passwordHash,
         displayName: user.displayName,
         emailVerified: user.emailVerified,
@@ -98,9 +108,67 @@ export const prismaUserAdapter = {
       }
     })
     
-    const result = prismaUserToDomain(created)
-    ;(result as any).tokenVersion = created.tokenVersion || 1
+      console.log('[PrismaAdapter] User created successfully:', {
+        userId: created.id,
+        email: created.email
+      })
+      
+      // Verify the user was actually created by fetching it back
+      // This ensures the transaction is committed and the user is available
+      const verified = await prisma.user.findUnique({ 
+        where: { id: created.id },
+        include: {
+          devices: {
+            where: { isActive: true },
+            orderBy: { lastSeen: 'desc' }
+          }
+        }
+      })
+      
+      if (!verified) {
+        console.error('[PrismaAdapter] User creation verification failed - user not found after create', {
+          userId: created.id,
+          email: normalizedEmail,
+          createdEmail: created.email
+        })
+        throw new Error('User creation verification failed - user not found in database after creation')
+      }
+      
+      console.log('[PrismaAdapter] User verification successful:', {
+        userId: verified.id,
+        email: verified.email
+      })
+      
+      const result = prismaUserToDomain(verified)
+      ;(result as any).tokenVersion = verified.tokenVersion || 1
     return result
+    } catch (error: any) {
+      console.error('[PrismaAdapter] Error creating user:', {
+        error: error.message,
+        errorStack: error.stack,
+        code: error.code,
+        email: normalizedEmail,
+        userId: user.id,
+        prismaError: error instanceof Prisma.PrismaClientKnownRequestError ? {
+          code: error.code,
+          meta: error.meta
+        } : null
+      })
+      
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          // Unique constraint violation - email already exists
+          const target = (error.meta as any)?.target
+          console.error('[PrismaAdapter] Unique constraint violation:', { target, email: normalizedEmail })
+          throw new Error('User with this email already exists')
+        }
+        if (error.code === 'P2003') {
+          // Foreign key constraint violation
+          throw new Error('Database constraint violation')
+        }
+      }
+      throw error
+    }
   },
 
   /**
@@ -234,11 +302,40 @@ export const prismaUserAdapter = {
   async emailExists(email: string): Promise<boolean> {
     const prisma = getPrismaClient()
     
-    const count = await prisma.user.count({
-      where: { email: email.toLowerCase().trim() }
-    })
+    // Ensure email is normalized
+    const normalizedEmail = email.toLowerCase().trim()
     
-    return count > 0
+    // Validate email format before querying
+    if (!normalizedEmail || normalizedEmail.length === 0) {
+      console.warn('[PrismaAdapter] Empty email provided to emailExists')
+      return false
+    }
+    
+    // Log for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[PrismaAdapter] Checking if email exists:', normalizedEmail)
+    }
+    
+    try {
+      // Use findUnique for better performance and to catch any unique constraint issues
+      const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true } // Only select id for performance
+      })
+      
+      const exists = user !== null
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[PrismaAdapter] Email exists check result:', { email: normalizedEmail, exists, userId: user?.id })
+      }
+      
+      return exists
+    } catch (error: any) {
+      console.error('[PrismaAdapter] Error checking email existence:', error)
+      // On error, assume email doesn't exist to allow registration
+      // This prevents blocking legitimate registrations due to database issues
+      return false
+    }
   }
 }
 

@@ -6,6 +6,7 @@
 import { createApp } from './app'
 import { adapter } from './adapters'
 import { config } from './config'
+import { seedDatabase } from './db/seed'
 
 // Graceful shutdown handler
 let server: any = null
@@ -54,6 +55,13 @@ async function start() {
     // Initialize database adapter
     console.log('🔌 Connecting to database...')
     await adapter.init()
+    
+    // Seed database if needed (development or if SEED_ON_BOOT=true)
+    if (config.nodeEnv === 'development' || process.env.SEED_ON_BOOT === 'true') {
+      console.log('🌱 Seeding database...')
+      await seedDatabase()
+      console.log('✅ Database seeding completed')
+    }
     
     // Create Fastify app
     const app = await createApp()

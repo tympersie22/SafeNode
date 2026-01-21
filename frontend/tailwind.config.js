@@ -8,6 +8,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        // SafeNode Semantic Colors
+        safenode: {
+          primary: '#26A387',      // Main brand color (secondary-500)
+          secondary: '#3EC6A8',   // Accent color (secondary-400)
+          bg: {
+            DEFAULT: '#ffffff',    // Light mode background
+            dark: '#0f172a',       // Dark mode background
+          },
+          text: {
+            DEFAULT: '#1e293b',    // Light mode text
+            dark: '#f1f5f9',       // Dark mode text
+          },
+        },
         // Primary: White-based palette
         primary: {
           50: '#ffffff',
@@ -104,17 +117,53 @@ export default {
         },
       },
       boxShadow: {
-        'safenode': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-        'safenode-md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
-        'safenode-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-        'safenode-xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+        'safenode': '0 1px 3px 0 rgba(38, 163, 135, 0.1)',
+        'safenode-md': '0 4px 6px -1px rgba(38, 163, 135, 0.15)',
+        'safenode-lg': '0 10px 15px -3px rgba(38, 163, 135, 0.2)',
+        'safenode-xl': '0 20px 25px -5px rgba(38, 163, 135, 0.25)',
         'safenode-2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         'safenode-inner': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)',
         'safenode-secondary': '0 4px 14px 0 rgba(38, 163, 135, 0.15)',
         'safenode-secondary-lg': '0 10px 30px 0 rgba(38, 163, 135, 0.2)',
+        // Design System Elevation
+        'elevation-1': '0 1px 3px rgba(0, 0, 0, 0.06)',
+        'elevation-2': '0 4px 12px rgba(0, 0, 0, 0.08)',
+        'elevation-3': '0 8px 24px rgba(0, 0, 0, 0.10)',
+        'elevation-4': '0 16px 48px rgba(0, 0, 0, 0.12)',
+      },
+      spacing: {
+        '4.5': '1.125rem',
+        '18': '4.5rem',
+        '88': '22rem',
+        '128': '32rem',
+      },
+      borderRadius: {
+        '4xl': '2rem',
+      },
+      backgroundImage: {
+        'gradient-safenode': 'linear-gradient(135deg, #26A387 0%, #3EC6A8 100%)',
+        'gradient-safenode-reverse': 'linear-gradient(135deg, #3EC6A8 0%, #26A387 100%)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'SF Pro Display',
+          'SF Pro Text',
+          'Helvetica Neue',
+          'Helvetica',
+          'Arial',
+          'sans-serif'
+        ],
+        mono: [
+          'SF Mono',
+          'Monaco',
+          'Menlo',
+          'Consolas',
+          'Liberation Mono',
+          'Courier New',
+          'monospace'
+        ],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],

@@ -71,8 +71,9 @@ function getConfig(): Config {
     encryptionKey,
     
     // Rate limiting (requests per window)
-    rateLimitWindowMinutes: parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || '15', 10),
-    rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    // Higher limits in development to prevent issues during testing
+    rateLimitWindowMinutes: parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || (nodeEnv === 'development' ? '1' : '15'), 10),
+    rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || (nodeEnv === 'development' ? '1000' : '100'), 10),
     
     // CORS - in production, restrict to your frontend domain
     corsOrigin: nodeEnv === 'production' 

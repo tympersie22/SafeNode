@@ -107,15 +107,28 @@ export async function requireAuth(
     
     // Verify user exists and check token version
     const { db } = await import('../services/database')
-    const user = await db.users.findById(payload.userId)
+    
+    // For new users, there might be a slight delay in database propagation
+    // Retry up to 3 times with exponential backoff
+    let user = await db.users.findById(payload.userId)
+    let retries = 0
+    const maxRetries = 3
+    
+    while (!user && retries < maxRetries) {
+      // Wait before retry (exponential backoff: 50ms, 100ms, 200ms)
+      await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, retries)))
+      user = await db.users.findById(payload.userId)
+      retries++
+    }
     
     if (!user) {
       // User not found - token is invalid (user deleted or reseeded)
       request.log.warn({ 
         userId: payload.userId, 
         tokenSub: payload.userId,
-        path: request.url 
-      }, 'User not found in database - token invalid')
+        path: request.url,
+        retries
+      }, 'User not found in database after retries - token invalid')
       
       return reply.code(401).send({
         error: 'unauthorized',

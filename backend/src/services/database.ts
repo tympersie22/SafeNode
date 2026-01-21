@@ -85,11 +85,24 @@ class DatabaseService {
      * Create a new user
      */
     async create(user: User): Promise<User> {
-      if (this.adapter === 'prisma') {
+      // Ensure adapter is set (same pattern as emailExists)
+      const adapter = this.adapter || (config.dbAdapter === 'mongo' ? 'mongo' : config.dbAdapter === 'prisma' ? 'prisma' : 'memory')
+      
+      console.log('[DatabaseService] users.create called:', {
+        adapter: this.adapter,
+        resolvedAdapter: adapter,
+        configAdapter: config.dbAdapter,
+        userId: user.id,
+        email: user.email
+      })
+      
+      if (adapter === 'prisma') {
+        console.log('[DatabaseService] Routing to Prisma adapter')
         return prismaUserAdapter.create(user)
       }
       
       // Fallback to memory adapter
+      console.log('[DatabaseService] Using memory adapter (WARNING: data will not persist)')
       inMemoryUsers.set(user.id, { ...user })
       inMemoryUsersByEmail.set(user.email.toLowerCase().trim(), user.id)
       return { ...user }
@@ -177,12 +190,39 @@ class DatabaseService {
      * Check if email exists
      */
     async emailExists(email: string): Promise<boolean> {
-      if (this.adapter === 'prisma') {
-        return prismaUserAdapter.emailExists(email)
+      // Ensure adapter is set
+      const adapter = this.adapter || (config.dbAdapter === 'mongo' ? 'mongo' : config.dbAdapter === 'prisma' ? 'prisma' : 'memory')
+      
+      const normalizedEmail = email.toLowerCase().trim()
+      
+      // Validate email before checking
+      if (!normalizedEmail || normalizedEmail.length === 0) {
+        console.warn('[DatabaseService] Empty email provided to emailExists')
+        return false
+      }
+      
+      // Log for debugging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DatabaseService] emailExists check:', {
+          email: normalizedEmail,
+          adapter,
+          configAdapter: config.dbAdapter,
+          memoryUsersCount: inMemoryUsersByEmail.size
+        })
+      }
+      
+      if (adapter === 'prisma') {
+        return prismaUserAdapter.emailExists(normalizedEmail)
       }
       
       // Fallback to memory adapter
-      return inMemoryUsersByEmail.has(email.toLowerCase().trim())
+      const exists = inMemoryUsersByEmail.has(normalizedEmail)
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DatabaseService] Memory adapter check result:', { email: normalizedEmail, exists })
+      }
+      
+      return exists
     }
   }
 }

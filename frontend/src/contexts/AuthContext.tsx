@@ -76,16 +76,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         initPromise = (async () => {
           try {
             // This is the ONLY call to getCurrentUser for hydration
-            const userData = await getCurrentUser()
+            // Add timeout to prevent hanging indefinitely
+            const timeoutPromise = new Promise<null>((_, reject) => {
+              setTimeout(() => reject(new Error('Authentication check timeout')), 10000) // 10 second timeout
+            })
+            
+            const userData = await Promise.race([
+              getCurrentUser(),
+              timeoutPromise
+            ]) as User | null
+            
             return userData
           } catch (error: any) {
-            // If error message indicates USER_NOT_FOUND, clear auth storage
+            // If error message indicates USER_NOT_FOUND, this might be a new user
+            // Don't immediately clear auth - the user might have just registered
+            // Only clear if we're sure it's not a timing issue
             if (error.message?.includes('User not found') || error.message?.includes('USER_NOT_FOUND')) {
-              console.warn('[AuthContext] User not found - clearing auth storage')
-              authLogout()
+              console.warn('[AuthContext] User not found - this might be a new user. Will retry on next request.')
+              // Don't clear auth immediately - let the user try to use the app
+              // If it's a real issue, subsequent requests will fail and we can handle it then
               return null
             }
-            // Token is invalid - clear it
+            
+            // For timeout or connection errors, don't clear auth - might be backend issue
+            if (error.message?.includes('timeout') || error.message?.includes('connect') || error.message?.includes('Failed to fetch')) {
+              console.warn('[AuthContext] Connection issue during auth check:', error.message)
+              // Keep token, user can try again
+              return null
+            }
+            
+            // For other errors, clear auth
+            console.warn('[AuthContext] Authentication error:', error.message)
             authLogout()
             return null
           }
@@ -106,7 +127,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
 
+    // Ensure initialization always completes, even if there's an error
+    // Add a safety timeout to force initialization after 15 seconds
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[AuthContext] Initialization timeout - forcing completion')
+        setUser(null)
+        setIsAuthInitialized(true)
+      }
+    }, 15000) // 15 second safety timeout
+
     initAuth()
+      .then(() => {
+        clearTimeout(safetyTimeout)
+      })
+      .catch((error) => {
+        clearTimeout(safetyTimeout)
+        console.error('[AuthContext] Fatal error during initialization:', error)
+        if (isMounted) {
+          setUser(null)
+          setIsAuthInitialized(true)
+        }
+      })
 
     return () => {
       isMounted = false

@@ -4,9 +4,18 @@
  */
 
 export const typography = {
-  // Font families
+  // Font families - macOS System Fonts
   fontFamily: {
-    sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+    sans: [
+      '-apple-system',
+      'BlinkMacSystemFont',
+      'SF Pro Display',
+      'SF Pro Text',
+      'Helvetica Neue',
+      'Helvetica',
+      'Arial',
+      'sans-serif'
+    ],
   },
   
   // Font sizes

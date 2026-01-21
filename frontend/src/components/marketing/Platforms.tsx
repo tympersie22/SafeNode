@@ -1,6 +1,6 @@
 /**
  * Platforms Section
- * Show available platforms and how it works
+ * Redesigned "How It Works" with visual progress indicators
  */
 
 import React from 'react'
@@ -9,18 +9,24 @@ import { motion, useReducedMotion } from 'framer-motion'
 const steps = [
   {
     number: '01',
-    title: 'Create Your Vault',
-    description: 'Sign up in seconds with your email. Create a master password that only you know—this is the only key to your encrypted vault.'
+    title: 'Set Your Master Password',
+    description: 'Create a master password that only you know—this is the only key to your encrypted vault.',
+    benefit: 'You control this. We can\'t see it.',
+    icon: '🔐'
   },
   {
     number: '02',
-    title: 'Add Your Passwords',
-    description: 'Import existing passwords or add them manually. SafeNode automatically encrypts everything before it\'s stored in your secure vault.'
+    title: 'Import Your Passwords',
+    description: 'Import existing passwords or add them manually. SafeNode automatically encrypts everything before it\'s stored.',
+    benefit: 'Encrypted before leaving your device.',
+    icon: '📥'
   },
   {
     number: '03',
-    title: 'Access Anywhere',
-    description: 'Unlock your vault on any device with your master password. Your data syncs securely across all platforms, keeping you protected everywhere.'
+    title: 'Access Anywhere Safely',
+    description: 'Unlock your vault on any device with your master password. Your data syncs securely across all platforms.',
+    benefit: 'Your vault syncs, always encrypted.',
+    icon: '🌐'
   }
 ]
 
@@ -35,7 +41,7 @@ export const Platforms: React.FC = () => {
   const prefersReducedMotion = useReducedMotion()
 
   return (
-    <section className="py-20 lg:py-32 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <section className="py-20 lg:py-32 bg-slate-50 dark:bg-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* How It Works */}
         <div className="mb-20">
@@ -46,7 +52,7 @@ export const Platforms: React.FC = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
               How SafeNode Works
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
@@ -54,37 +60,49 @@ export const Platforms: React.FC = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {steps.map((step, index) => (
-              <motion.div
-                key={index}
-                className="relative"
-                initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
-                whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-              >
-                {/* Step Number */}
-                <div className="text-6xl font-black text-secondary-200 dark:text-secondary-900/50 mb-4">
-                  {step.number}
-                </div>
+          <div className="relative">
+            {/* Progress Line */}
+            <div className="hidden md:block absolute top-12 left-0 right-0 h-0.5 bg-gradient-to-r from-safenode-primary via-safenode-secondary to-safenode-primary" style={{ margin: '0 10%' }} />
 
-                {/* Title */}
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
-                  {step.title}
-                </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {steps.map((step, index) => (
+                <motion.div
+                  key={index}
+                  className="relative"
+                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
+                  whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.2 }}
+                >
+                  {/* Step Number Circle */}
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-safenode-primary to-safenode-secondary flex items-center justify-center shadow-lg">
+                        <span className="text-4xl">{step.icon}</span>
+                      </div>
+                      <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold">
+                        {step.number}
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Description */}
-                <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {step.description}
-                </p>
+                  {/* Title */}
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
+                    {step.title}
+                  </h3>
 
-                {/* Connector line (not on last item) */}
-                {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-secondary-300 to-transparent dark:from-secondary-700" style={{ width: 'calc(100% - 2rem)' }} />
-                )}
-              </motion.div>
-            ))}
+                  {/* Description */}
+                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-3">
+                    {step.description}
+                  </p>
+
+                  {/* Benefit */}
+                  <p className="text-sm font-semibold text-safenode-primary dark:text-safenode-secondary">
+                    {step.benefit}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -96,7 +114,7 @@ export const Platforms: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
               Available on All Your Devices
             </h2>
             <p className="text-lg text-slate-600 dark:text-slate-400">
@@ -108,7 +126,7 @@ export const Platforms: React.FC = () => {
             {platforms.map((platform, index) => (
               <motion.div
                 key={index}
-                className="p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center hover:border-secondary-300 dark:hover:border-secondary-600 transition-all duration-300"
+                className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-center hover:border-safenode-primary/50 dark:hover:border-safenode-primary/50 transition-all duration-300 shadow-elevation-1 hover:shadow-elevation-2"
                 initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
                 whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
                 viewport={{ once: true }}

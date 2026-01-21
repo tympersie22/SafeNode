@@ -144,12 +144,24 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
       
       // Get or create salt
       try {
-        const saltResponse = await fetch('/api/user/salt');
+        const token = localStorage.getItem('safenode_token');
+        if (token) {
+          const saltResponse = await fetch('/api/auth/vault/salt', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
         if (saltResponse.ok) {
           const saltData: BackendSaltResponse = await saltResponse.json();
           saltBuffer = base64ToArrayBuffer(saltData.salt);
         } else {
           // Generate salt locally if server fails
+            saltBuffer = crypto.getRandomValues(new Uint8Array(32)).buffer;
+          }
+        } else {
+          // Generate salt locally if not authenticated
           saltBuffer = crypto.getRandomValues(new Uint8Array(32)).buffer;
         }
       } catch (error) {
@@ -182,7 +194,17 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
       if (storedVault.salt) {
         saltBuffer = base64ToArrayBuffer(storedVault.salt);
       } else {
-        const saltResponse = await fetch('/api/user/salt');
+        const token = localStorage.getItem('safenode_token');
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
+        const saltResponse = await fetch('/api/auth/vault/salt', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
         if (!saltResponse.ok) {
           throw new Error('Failed to fetch salt from server');
         }

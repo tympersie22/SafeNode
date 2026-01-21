@@ -1,22 +1,22 @@
-/* Custom font imports - using Inter for professional look */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Enhanced Typography System */
+/* Enhanced Typography System - macOS System Fonts */
 @layer base {
   html {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     font-variation-settings: normal;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    /* macOS System Font Stack - SF Pro Display/Text */
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 
+      'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   
   body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 
+      'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     text-rendering: optimizeLegibility;
     margin: 0;
@@ -52,6 +52,37 @@
 
   .dark *:focus-visible {
     outline-color: #3EC6A8; /* secondary-400 for dark mode */
+  }
+
+  /* Mobile touch improvements */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ensure minimum touch target size (44x44px for mobile) */
+  @media (max-width: 640px) {
+    button, a, input[type="button"], input[type="submit"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Allow exceptions for icons in headers */
+    header button, header a {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
+  /* Better mobile keyboard handling */
+  @media (max-width: 640px) {
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="url"],
+    textarea {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -161,11 +192,11 @@
   }
 
   .btn-outline:hover {
-    border-color: #3EC6A8; /* secondary-400 */
+    border-color: #3EC6A8; /* safenode.secondary */
   }
 
   .dark .btn-outline:hover {
-    border-color: #26A387; /* secondary-500 */
+    border-color: #26A387; /* safenode.primary */
   }
 
   .btn-outline:focus-visible {
@@ -389,9 +420,68 @@
   }
 }
 
+@keyframes slideUp {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes gradient {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  animation: gradient 3s ease infinite;
+  background-size: 200% auto;
+}
+
 /* Utility classes */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
 }
 
 .animate-slide-in {
