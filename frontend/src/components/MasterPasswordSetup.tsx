@@ -10,12 +10,13 @@ import { SaasButton, SaasInput, SaasCard } from '../ui'
 import { Shield } from '../icons/Shield'
 import { Lock } from '../icons/Lock'
 import { VaultDoor } from '../icons/VaultDoor'
-import { initializeVault } from '../services/vaultService'
+import { initializeVault, unlockVault, getVaultSalt } from '../services/vaultService'
+import { base64ToArrayBuffer } from '../crypto/crypto'
 import { generateSecurePassword } from '../crypto/crypto'
 import PasswordStrengthMeter from './PasswordStrengthMeter'
 
 interface MasterPasswordSetupProps {
-  onComplete: () => void
+  onComplete: (vault?: any, masterPassword?: string, salt?: ArrayBuffer) => void
   onSkip?: () => void
   email?: string
 }
@@ -98,13 +99,48 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
     setError(null)
 
     try {
+      // Add a small delay to ensure user is fully created in database
+      // This helps prevent race conditions for new users
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       await initializeVault(masterPassword)
+      
+      // After initialization, unlock the vault immediately
+      // Get salt for the callback
+      const saltBase64 = await getVaultSalt()
+      const salt = base64ToArrayBuffer(saltBase64)
+      
+      // Small delay to ensure vault is fully committed on server
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Unlock the vault we just created
+      let vault
+      try {
+        vault = await unlockVault(masterPassword)
+        console.log('[MasterPasswordSetup] Vault unlocked successfully:', { entryCount: vault.entries?.length || 0 })
+      } catch (unlockError: any) {
+        console.error('[MasterPasswordSetup] Failed to unlock vault after initialization:', unlockError)
+        // If unlock fails, try one more time after a short delay
+        await new Promise(resolve => setTimeout(resolve, 500))
+        vault = await unlockVault(masterPassword)
+        console.log('[MasterPasswordSetup] Vault unlocked on retry:', { entryCount: vault.entries?.length || 0 })
+      }
+      
       setStep('success')
       setTimeout(() => {
-        onComplete()
+        // Pass vault, password, and salt to onComplete so it can unlock immediately
+        onComplete(vault, masterPassword, salt)
       }, 1500)
     } catch (err: any) {
-      setError(err.message || 'Failed to initialize vault. Please try again.')
+      // Provide more helpful error messages
+      let errorMessage = err.message || 'Failed to initialize vault. Please try again.'
+      
+      // If it's an auth error, suggest logging out and back in
+      if (errorMessage.includes('authentication') || errorMessage.includes('User not found')) {
+        errorMessage = 'Authentication issue detected. Please try again, or log out and log back in if the problem persists.'
+      }
+      
+      setError(errorMessage)
       setStep('create')
     } finally {
       setIsLoading(false)

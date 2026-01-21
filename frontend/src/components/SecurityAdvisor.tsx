@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { getPasswordBreachCount } from '../crypto/crypto'
 import { aiService, type AIRecommendation } from '../services/aiService'
 
@@ -12,6 +13,12 @@ export interface AdvisorEntry {
 
 interface SecurityAdvisorProps {
   entries: AdvisorEntry[]
+  onStrengthenWeakPasswords?: () => void
+  onChangeBreachedPasswords?: () => void
+  onGenerateUniquePasswords?: () => void
+  onReviewSecurityRecommendations?: () => void
+  onEnable2FA?: () => void
+  onRotateOldPasswords?: () => void
 }
 
 type BreachMap = Record<string, number>
@@ -28,7 +35,15 @@ function scorePasswordStrength (password: string): { score: number; issues: stri
   return { score: Math.max(0, Math.min(5, score)), issues }
 }
 
-const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
+const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ 
+  entries,
+  onStrengthenWeakPasswords,
+  onChangeBreachedPasswords,
+  onGenerateUniquePasswords,
+  onReviewSecurityRecommendations,
+  onEnable2FA,
+  onRotateOldPasswords
+}) => {
   const [breaches, setBreaches] = React.useState<BreachMap>({})
   const [scanning, setScanning] = React.useState(false)
 
@@ -64,14 +79,18 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
 
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const hasLoadedRef = React.useRef(false);
 
-  // Load AI recommendations
+  // Load AI recommendations - debounced to prevent flickering
   useEffect(() => {
     if (entries.length === 0) {
       setAiRecommendations([]);
+      hasLoadedRef.current = false;
       return;
     }
 
+    // Debounce: only reload if entries actually changed significantly
+    const timeoutId = setTimeout(() => {
     setIsLoadingAI(true);
     const healthSummary = {
       weakCount,
@@ -83,13 +102,18 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
     aiService.generateSecurityRecommendations(entries, healthSummary)
       .then(recommendations => {
         setAiRecommendations(recommendations);
+          hasLoadedRef.current = true;
       })
       .catch(error => {
         console.error('Failed to generate AI recommendations:', error);
+          hasLoadedRef.current = true;
       })
       .finally(() => {
         setIsLoadingAI(false);
       });
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [entries, weakCount, breachedCount, reusedPasswords, total]);
 
   // AI-like intelligent recommendations (fallback to rule-based)
@@ -252,9 +276,6 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               Intelligent Recommendations
-              {isLoadingAI && (
-                <span className="text-xs text-slate-500 ml-2">(AI analyzing...)</span>
-              )}
               {aiRecommendations.length > 0 && !isLoadingAI && (
                 <span className="text-xs text-secondary-600 ml-2">✨ AI Enhanced</span>
               )}
@@ -292,9 +313,42 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({ entries }) => {
                         {rec.message}
                       </p>
                       {rec.action && (
-                        <button className="mt-2 text-xs font-medium underline">
-                          {rec.action} →
-                        </button>
+                        <motion.button
+                          type="button"
+                          onClick={() => {
+                            // Handle different action types
+                            if (rec.action === 'Strengthen weak passwords' && onStrengthenWeakPasswords) {
+                              onStrengthenWeakPasswords();
+                            } else if (rec.action === 'Change breached passwords' && onChangeBreachedPasswords) {
+                              onChangeBreachedPasswords();
+                            } else if (rec.action === 'Generate unique passwords' && onGenerateUniquePasswords) {
+                              onGenerateUniquePasswords();
+                            } else if (rec.action === 'Review security recommendations' && onReviewSecurityRecommendations) {
+                              onReviewSecurityRecommendations();
+                            } else if (rec.action === 'Enable 2FA where available' && onEnable2FA) {
+                              onEnable2FA();
+                            } else if (rec.action === 'Rotate old passwords' && onRotateOldPasswords) {
+                              onRotateOldPasswords();
+                            } else {
+                              // Fallback: show notification
+                              console.log('Action clicked:', rec.action);
+                            }
+                          }}
+                          className={`mt-2 inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                            rec.priority === 'high'
+                              ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300'
+                              : rec.priority === 'medium'
+                              ? 'bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300'
+                              : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300'
+                          }`}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          {rec.action}
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </motion.button>
                       )}
                     </div>
                   </div>

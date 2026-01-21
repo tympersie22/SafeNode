@@ -52,7 +52,7 @@ export const GettingStartedPage: React.FC = () => {
             <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Creating Your Account</h3>
             <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300">
               <li>Visit SafeNode at your deployment URL</li>
-              <li>Click "Sign Up" on the landing page</li>
+              <li>Click "Sign Up" on the home page</li>
               <li>Enter your email and create a strong password</li>
               <li>Verify your email (check your inbox for a verification link)</li>
               <li>Log in with your credentials</li>

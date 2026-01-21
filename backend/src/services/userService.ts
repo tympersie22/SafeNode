@@ -12,6 +12,8 @@ import { hashPassword, verifyPassword } from '../utils/password'
  * Create a new user account
  */
 export async function createUser(input: CreateUserInput): Promise<User> {
+  console.log('[userService] Creating user:', { email: input.email })
+  
   // Hash the account password (not master password)
   // Uses password utility with pepper support
   const passwordHash = await hashPassword(input.password)
@@ -55,9 +57,28 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     devices: []
   }
 
+  console.log('[userService] User object created, calling db.users.create:', {
+    userId: user.id,
+    email: user.email
+  })
+
+  try {
   const created = await db.users.create(user)
+    console.log('[userService] User created successfully:', {
+      userId: created.id,
+      email: created.email
+    })
   ;(created as any).tokenVersion = 1
   return created
+  } catch (error: any) {
+    console.error('[userService] Error in db.users.create:', {
+      error: error.message,
+      errorStack: error.stack,
+      userId: user.id,
+      email: user.email
+    })
+    throw error
+  }
 }
 
 /**
@@ -136,11 +157,14 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
  * Check if email is already registered
  */
 export async function emailExists(email: string): Promise<boolean> {
+  // Normalize email (should already be normalized, but be safe)
+  const normalizedEmail = email.toLowerCase().trim()
+  
   if (db.users.emailExists) {
-    return db.users.emailExists(email.toLowerCase().trim())
+    return db.users.emailExists(normalizedEmail)
   }
   // Fallback for older adapters
-  const user = await db.users.findByEmail(email.toLowerCase().trim())
+  const user = await db.users.findByEmail(normalizedEmail)
   return user !== null
 }
 

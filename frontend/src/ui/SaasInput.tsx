@@ -57,7 +57,7 @@ export const SaasInput = React.forwardRef<HTMLInputElement, SaasInputProps>(({
           {...(props as any)}
         />
         {rightIcon && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-10">
             {rightIcon}
           </div>
         )}

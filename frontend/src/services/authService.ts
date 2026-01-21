@@ -309,12 +309,13 @@ export async function getCurrentUser(): Promise<User> {
         if (response.status === 401) {
           const error = await response.json().catch(() => ({ message: 'Authentication expired' }))
           
-          // If error code is USER_NOT_FOUND, clear auth storage and force re-login
+          // If error code is USER_NOT_FOUND, this might be a new user (race condition)
+          // Don't immediately clear auth - let the caller decide
           if (error.code === 'USER_NOT_FOUND') {
-            console.warn('[authService] User not found - clearing auth storage')
-          removeToken()
+            console.warn('[authService] User not found - this might be a new user. Returning error without clearing auth.')
+            // Don't clear token immediately - might be a timing issue with new user creation
             clearGetCurrentUserCache()
-            throw new Error('User not found - please log in again')
+            throw new Error('User not found - authentication invalid')
           }
           
           // Token is invalid - DO NOT auto-logout, just throw error

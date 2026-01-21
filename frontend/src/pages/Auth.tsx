@@ -9,11 +9,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { login as authLogin, register as authRegister } from '../services/authService'
 
 interface AuthProps {
-  onBackToLanding?: () => void
+  onBackToHome?: () => void
   initialMode?: 'signup' | 'login'
 }
 
-const Auth: React.FC<AuthProps> = ({ onBackToLanding, initialMode = 'login' }) => {
+const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
   const { login: setAuthUser, isAuthenticated } = useAuth()
   const [isLogin, setIsLogin] = useState(initialMode === 'login')
   const [isLoading, setIsLoading] = useState(false)
@@ -146,11 +146,11 @@ const Auth: React.FC<AuthProps> = ({ onBackToLanding, initialMode = 'login' }) =
       <div className="w-full max-w-md">
         {/* Back Button */}
         <motion.button
-          onClick={onBackToLanding}
+          onClick={onBackToHome}
           className="mb-8 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-2 py-1"
           whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
           whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-          aria-label="Go back to landing page"
+          aria-label="Go back to home page"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

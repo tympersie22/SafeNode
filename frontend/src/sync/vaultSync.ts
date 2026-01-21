@@ -57,7 +57,18 @@ export class VaultSync {
         };
       }
 
-      const saltResponse = await fetch(`${this.baseUrl}/api/user/salt`);
+      const token = localStorage.getItem('safenode_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      const saltResponse = await fetch(`${this.baseUrl}/api/auth/vault/salt`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
 
       if (!saltResponse.ok) {
         throw new Error('Failed to fetch vault salt from server');

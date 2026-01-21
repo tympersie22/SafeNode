@@ -3,7 +3,7 @@
  * Uses the new vaultService instead of old vaultStorage
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { unlockVault, vaultExists } from '../services/vaultService'
 import { logout } from '../services/authService'
@@ -27,10 +27,22 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
   const { user } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const prefersReducedMotion = useReducedMotion()
+  const lastCheckedUserId = useRef<string | null>(null)
+  const checkInProgress = useRef(false)
+  
+  // Rate limiting state
+  const [unlockAttempts, setUnlockAttempts] = useState(0)
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
 
   useEffect(() => {
-    // Check if vault exists (user is already authenticated via ProtectedRoute)
-    if (user) {
+    // Check if vault exists only once per user
+    // Prevent multiple simultaneous checks
+    if (user?.id && user.id !== lastCheckedUserId.current && !checkInProgress.current) {
+      checkInProgress.current = true
+      lastCheckedUserId.current = user.id
+      
       vaultExists()
         .then((exists) => {
           setHasVault(exists)
@@ -39,12 +51,118 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
           console.error('Failed to check vault:', err)
           setError('Failed to check vault status')
         })
+        .finally(() => {
+          checkInProgress.current = false
+        })
+    } else if (!user?.id) {
+      // Reset when user is null
+      lastCheckedUserId.current = null
+      setHasVault(null)
     }
-  }, [user])
+  }, [user?.id]) // Only depend on user.id, not the entire user object
+
+  // Check biometric availability
+  useEffect(() => {
+      const checkBiometric = async () => {
+        try {
+        const { biometricAuthService } = await import('../utils/biometricAuth')
+        const { keychainService } = await import('../utils/keychain')
+        
+        const caps = await biometricAuthService.isAvailable()
+        setBiometricAvailable(caps.available)
+        
+        // Check if biometric is enabled
+        const enabled = localStorage.getItem('safenode_biometric_enabled') === 'true'
+        const hasStoredPassword = await keychainService.get('safenode', 'master_password')
+        setBiometricEnabled(enabled && caps.available && !!hasStoredPassword)
+      } catch (error) {
+        console.warn('Biometric check failed:', error)
+        setBiometricAvailable(false)
+        setBiometricEnabled(false)
+      }
+    }
+    
+    checkBiometric()
+  }, [])
+
+  // Check lockout status
+  useEffect(() => {
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000 / 60)
+      setError(`Too many failed attempts. Try again in ${remaining} minute${remaining !== 1 ? 's' : ''}.`)
+    } else if (lockoutUntil && Date.now() >= lockoutUntil) {
+      setLockoutUntil(null)
+      setUnlockAttempts(0)
+      setError(null)
+    }
+  }, [lockoutUntil])
+
+  const handleBiometricUnlock = async () => {
+    if (!biometricEnabled) return
+    
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { biometricAuthService } = await import('../utils/biometricAuth')
+      const { keychainService } = await import('../utils/keychain')
+      
+      // Authenticate with biometric
+      const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
+        enableML: true,
+        userId: user?.id || 'user',
+        collectBehavioral: true
+      })
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Biometric authentication failed')
+      }
+
+      // Get stored master password from keychain
+      const storedPassword = await keychainService.get('safenode', 'master_password')
+      if (!storedPassword) {
+        throw new Error('Master password not found. Please unlock with password first.')
+      }
+
+      // Unlock vault with stored password
+      const vault = await unlockVault(storedPassword)
+      
+      // Get salt from server
+      const saltResponse = await fetch('/api/auth/vault/salt', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
+        }
+      })
+      
+      if (!saltResponse.ok) {
+        throw new Error('Failed to get vault salt')
+      }
+      
+      const saltData = await saltResponse.json()
+      const salt = base64ToArrayBuffer(saltData.salt)
+
+      // Reset attempts on success
+      setUnlockAttempts(0)
+      setLockoutUntil(null)
+      setIsLoading(false)
+      onVaultUnlocked(vault, storedPassword, salt)
+    } catch (err: any) {
+      console.error('Biometric unlock failed:', err)
+      setError(err.message || 'Biometric authentication failed. Please use your master password.')
+      setIsLoading(false)
+    }
+  }
 
   const handleUnlock = async () => {
     if (!masterPassword) {
       setError('Please enter your master password')
+      return
+    }
+
+    // Check lockout
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000 / 60)
+      setError(`Too many failed attempts. Try again in ${remaining} minute${remaining !== 1 ? 's' : ''}.`)
       return
     }
 
@@ -82,18 +200,51 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       // Convert base64 salt string to ArrayBuffer (salt from server is base64 encoded)
       const salt = base64ToArrayBuffer(saltData.salt)
 
+      // Reset attempts on success
+      setUnlockAttempts(0)
+      setLockoutUntil(null)
+      
       // Immediately unlock vault and go straight to vault UI - no success screen
       setIsLoading(false)
       onVaultUnlocked(vault, masterPassword, salt)
     } catch (err: any) {
       console.error('Unlock failed:', err)
-      setError(err.message || 'Failed to unlock vault. Please check your master password.')
+      
+      // Rate limiting: 3 attempts, then 15 minute lockout
+      const newAttempts = unlockAttempts + 1
+      setUnlockAttempts(newAttempts)
+      
+      if (newAttempts >= 3) {
+        const lockoutTime = Date.now() + (15 * 60 * 1000) // 15 minutes
+        setLockoutUntil(lockoutTime)
+        setError(`❌ Incorrect master password. Too many failed attempts. Try again in 15 minutes.`)
+      } else {
+        const remaining = 3 - newAttempts
+        // Enhanced error messages with clear, user-friendly feedback
+        const errorMessage = err.message || err.toString() || 'Unknown error'
+        
+        if (errorMessage.includes('Incorrect master password') || 
+            errorMessage.includes('Decryption failed') || 
+            errorMessage.includes('wrong password') ||
+            errorMessage.includes('Invalid password')) {
+          setError(`❌ Incorrect master password. Remaining attempts: ${remaining}/3`)
+        } else if (errorMessage.includes('Not authenticated') || errorMessage.includes('401')) {
+          setError('❌ Session expired. Please log in again.')
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
+          setError('❌ Network error. Check your connection and try again.')
+        } else if (errorMessage.includes('Vault not initialized')) {
+          setError('❌ Vault not found. Please set up your master password first.')
+        } else {
+          setError(`❌ Failed to unlock vault: ${errorMessage}`)
+        }
+      }
+      
       setIsLoading(false)
     }
   }
 
 
-  const handleGoToLanding = async () => {
+  const handleGoToHome = async () => {
     setIsLoggingOut(true)
     try {
       // Securely logout first (clears token and session)
@@ -191,58 +342,107 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
 
           {error && (
             <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl"
+            >
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm text-red-800 dark:text-red-200 font-semibold">{error}</p>
+                  {unlockAttempts > 0 && unlockAttempts < 3 && (
+                    <p className="text-xs text-red-600 dark:text-red-300 mt-1">
+                      Attempt {unlockAttempts} of 3
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Biometric Unlock Button - Primary if enabled */}
+          {biometricEnabled && (
+            <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+              className="mb-6"
             >
-              <p className="text-sm text-red-800 dark:text-red-200 font-medium">{error}</p>
+              <SaasButton
+                type="button"
+                variant="gradient"
+                size="lg"
+                className="w-full min-h-[48px] touch-manipulation"
+                onClick={handleBiometricUnlock}
+                loading={isLoading}
+                disabled={isLoading || (lockoutUntil !== null && Date.now() < lockoutUntil)}
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.44l.054-.054A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {isLoading ? 'Authenticating...' : 'Unlock with Biometric'}
+              </SaasButton>
+              
+              <div className="mt-4 text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">or</p>
+              </div>
             </motion.div>
           )}
 
           {/* Password Input */}
           <div className="space-y-6">
-            <SaasInput
-              type={showPassword ? 'text' : 'password'}
-              label="Master Password"
-              value={masterPassword}
-              onChange={(e) => {
-                setMasterPassword(e.target.value)
-                setError(null)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !isLoading && masterPassword) {
-                  handleUnlock()
+            <div>
+              <SaasInput
+                type={showPassword ? 'text' : 'password'}
+                label="Master Password"
+                value={masterPassword}
+                onChange={(e) => {
+                  setMasterPassword(e.target.value)
+                  setError(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isLoading && masterPassword && !(lockoutUntil && Date.now() < lockoutUntil)) {
+                    handleUnlock()
+                  }
+                }}
+                placeholder="Enter your master password"
+                required
+                autoFocus={!biometricEnabled}
+                className={error && error.includes('Incorrect') ? 'border-red-500 focus:ring-red-500' : ''}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
                 }
-              }}
-              placeholder="Enter your master password"
-              required
-              autoFocus
-              rightIcon={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
-              }
-            />
+              />
+              {unlockAttempts > 0 && unlockAttempts < 3 && (
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ {3 - unlockAttempts} attempt{3 - unlockAttempts !== 1 ? 's' : ''} remaining before lockout
+                </p>
+              )}
+            </div>
 
             <SaasButton
-                  type="button"
-              variant="gradient"
+              type="button"
+              variant={biometricEnabled ? "outline" : "gradient"}
               size="lg"
-              className="w-full"
+              className="w-full min-h-[48px] touch-manipulation"
               onClick={handleUnlock}
               loading={isLoading}
-              disabled={!masterPassword || isLoading}
+              disabled={!masterPassword || isLoading || (lockoutUntil !== null && Date.now() < lockoutUntil)}
             >
-              {isLoading ? 'Unlocking...' : 'Unlock Vault'}
+              {isLoading ? 'Unlocking...' : 'Unlock with Password'}
             </SaasButton>
           </div>
 

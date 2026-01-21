@@ -27,7 +27,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   const hasValue = props.value !== undefined && props.value !== '' && props.value !== null
 
   const isPassword = type === 'password'
-  const inputType = isPassword && showPassword ? 'text' : type
+  // If rightIcon is provided for password, parent controls visibility via type prop
+  // Otherwise, use built-in toggle with showPassword state
+  const inputType = isPassword && rightIcon 
+    ? type  // Parent controls via type prop (e.g., type={showPassword ? 'text' : 'password'})
+    : (isPassword && showPassword ? 'text' : type)
 
   const baseClasses = 'w-full px-4 py-3 bg-white dark:bg-gray-800 border rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
 
@@ -87,11 +91,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
           }}
           {...(props as any)}
         />
-        {isPassword && (
+        {/* Built-in password toggle (only if rightIcon not provided) */}
+        {isPassword && !rightIcon && (
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded p-1"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded p-1 z-10"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
             tabIndex={-1}
           >
@@ -102,8 +107,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
             )}
           </button>
         )}
-        {rightIcon && !isPassword && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 z-10">
+        {/* Custom rightIcon (for password or non-password fields) */}
+        {rightIcon && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-10">
             {rightIcon}
           </div>
         )}

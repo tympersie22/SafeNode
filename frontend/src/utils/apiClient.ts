@@ -78,8 +78,17 @@ export async function apiRequest<T = any>(
         message: `Request failed with status ${response.status}`
       }))
 
+      // Handle rate limit errors with retry information
+      if (response.status === 429 || errorData.error === 'rate_limit_exceeded') {
+        const retryAfter = errorData.retryAfter || response.headers.get('Retry-After') || '15'
+        const error = new Error(errorData.message || 'Rate limit exceeded')
+        ;(error as any).retryAfter = parseInt(retryAfter, 10)
+        ;(error as any).isRateLimit = true
+        throw error
+      }
+
       // Log to Sentry (but not 401s for security)
-      if (response.status !== 401) {
+      if (response.status !== 401 && response.status !== 429) {
         captureException(new Error(errorData.message || errorData.error), {
           context: 'api_request',
           endpoint,

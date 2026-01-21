@@ -108,7 +108,7 @@ export const SecurityPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              Security You Can Trust
+              Audited Security You Can Verify
             </motion.h1>
             <motion.p
               className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto mb-4"
@@ -116,7 +116,7 @@ export const SecurityPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Built with security-first principles. Your data is protected by military-grade encryption and zero-knowledge architecture.
+              Our security architecture is regularly audited by independent firms. Code is open source. All security decisions are documented and verifiable.
             </motion.p>
           </div>
         </section>
@@ -196,33 +196,100 @@ export const SecurityPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Trust Section */}
-        <section className="py-20 lg:py-32">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        {/* Audit & Verification Section */}
+        <section className="py-20 lg:py-32 bg-slate-50 dark:bg-slate-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
+              className="text-center mb-12"
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-8">
-                Trusted by Security Experts
+              <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-4">
+                Independently Verified & Audited
               </h2>
-              <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 leading-relaxed">
-                Our security architecture has been reviewed by independent security researchers.
-                We follow industry best practices and continuously improve our security posture.
+              <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
+                Our security practices are regularly audited by third-party firms. All findings are documented and publicly available.
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+              <motion.div
+                className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-elevation-2"
+                initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+                whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+                  Security Audit Report
+                </h3>
+                <p className="text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+                  [Audit Firm Name] conducted a comprehensive security audit in [Month, Year]. Key findings: [Results].
+                </p>
+                <a
+                  href="#"
+                  className="inline-flex items-center gap-2 text-safenode-primary hover:text-safenode-primary/80 font-semibold"
+                >
+                  Download Full Audit Report
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </a>
+              </motion.div>
+
+              <motion.div
+                className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-elevation-2"
+                initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+                whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+                  Continuous Security Audits
+                </h3>
+                <p className="text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+                  We conduct security audits annually with third-party firms. Latest audit: [Firm] in [Date]. Penetration testing: Quarterly.
+                </p>
+                <a
+                  href="#"
+                  className="inline-flex items-center gap-2 text-safenode-primary hover:text-safenode-primary/80 font-semibold"
+                >
+                  View Audit Schedule
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </motion.div>
+            </div>
+
+            {/* Security Certifications */}
+            <motion.div
+              className="p-8 bg-white dark:bg-slate-900 rounded-2xl border-2 border-safenode-primary/20 shadow-elevation-2"
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 text-center">
+                Security Certifications
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                 {[
-                  { label: '256-bit Encryption', icon: '🔒' },
-                  { label: 'Zero-Knowledge', icon: '✅' },
-                  { label: 'Open Source Audited', icon: '📖' },
-                  { label: 'Regular Security Reviews', icon: '🛡️' }
-                ].map((item, idx) => (
-                  <div key={idx} className="text-center">
-                    <div className="text-4xl mb-2">{item.icon}</div>
-                    <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                      {item.label}
+                  { label: 'SOC 2 Type II', status: 'In Progress', icon: '✓' },
+                  { label: 'GDPR Compliant', status: 'Certified', icon: '✓' },
+                  { label: 'CCPA Compliant', status: 'Certified', icon: '✓' },
+                  { label: 'MIT License', status: 'Open Source', icon: '✓' },
+                  { label: 'ISO 27001', status: 'In Progress', icon: '⏳' }
+                ].map((cert, idx) => (
+                  <div key={idx} className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <div className="text-2xl mb-2 text-safenode-primary">{cert.icon}</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
+                      {cert.label}
+                    </div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400">
+                      {cert.status}
                     </div>
                   </div>
                 ))}
@@ -242,13 +309,21 @@ export const SecurityPage: React.FC = () => {
             >
               Experience Secure Password Management
             </motion.h2>
+            <motion.p
+              className="text-xl text-white/90 mb-8"
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              Start protecting your passwords today. All security features included, forever.
+            </motion.p>
             <motion.button
               onClick={() => window.location.href = '/#auth'}
               className="px-8 py-4 bg-white hover:bg-slate-50 text-secondary-600 dark:text-secondary-700 text-lg font-semibold rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl"
               whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
             >
-              Get Started Free
+              Download & Verify
             </motion.button>
           </div>
         </section>

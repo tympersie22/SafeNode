@@ -10,12 +10,20 @@ import { SaasTabs, Tab } from '../../ui/SaasTabs'
 import { SecuritySettings } from './Security'
 import { DevicesSettings } from './Devices'
 import { BillingSettings } from './Billing'
+import { PrivacySettings } from './Privacy'
+import { DataSettings } from './Data'
+import { AdvancedSettings } from './Advanced'
+import { AccountSettings } from './Account'
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate()
   const tabs: Tab[] = [
     { id: 'security', label: 'Security', icon: '🔒', content: <SecuritySettings /> },
+    { id: 'privacy', label: 'Privacy', icon: '🛡️', content: <PrivacySettings /> },
+    { id: 'data', label: 'Data', icon: '💾', content: <DataSettings /> },
     { id: 'devices', label: 'Devices', icon: '🖥️', content: <DevicesSettings /> },
+    { id: 'advanced', label: 'Advanced', icon: '⚙️', content: <AdvancedSettings /> },
+    { id: 'account', label: 'Account', icon: '👤', content: <AccountSettings /> },
     { id: 'billing', label: 'Billing', icon: '💳', content: <BillingSettings /> }
   ]
 

@@ -93,33 +93,111 @@ export async function registerAuthRoutes(server: FastifyInstance) {
 
       const { email, password, displayName } = validation.data
 
+      // Normalize email for checking
+      const normalizedEmail = email.toLowerCase().trim()
+      
       // Check if email already exists
-      const exists = await emailExists(email)
+      request.log.info({ 
+        email, 
+        normalizedEmail,
+        emailLength: normalizedEmail.length,
+        emailChars: normalizedEmail.split('').map(c => c.charCodeAt(0))
+      }, 'Checking if email exists')
+      
+      const exists = await emailExists(normalizedEmail)
+      
+      request.log.info({ 
+        email: normalizedEmail, 
+        exists,
+        dbAdapter: process.env.DATABASE_ADAPTER || 'not set'
+      }, 'Email existence check result')
+      
       if (exists) {
+        // Double-check by trying to find the user directly
+        const existingUser = await findUserByEmail(normalizedEmail)
+        request.log.warn({ 
+          email, 
+          normalizedEmail,
+          existingUserId: existingUser?.id,
+          existingUserEmail: existingUser?.email
+        }, 'Registration attempt with existing email - found user')
+        
         return reply.code(409).send({
           error: 'email_exists',
           message: 'An account with this email already exists'
         })
       }
+      
+      request.log.info({ email, normalizedEmail }, 'Email is available, proceeding with registration')
 
       // Create user
-      const user = await createUser({
+      let user: User
+      try {
+        request.log.info({ email: normalizedEmail }, 'Calling createUser service')
+        user = await createUser({
         email,
         password,
         displayName
       })
+        request.log.info({ userId: user.id, email: user.email }, 'User created successfully in service')
+      } catch (error: any) {
+        request.log.error({ 
+          error: error.message, 
+          errorStack: error.stack,
+          email: normalizedEmail 
+        }, 'User creation failed in service')
+        
+        // Check if it's a unique constraint error
+        if (error.message?.includes('already exists') || error.message?.includes('email')) {
+          return reply.code(409).send({
+            error: 'email_exists',
+            message: 'An account with this email already exists'
+          })
+        }
+        
+        return reply.code(500).send({
+          error: 'server_error',
+          message: error.message || 'Failed to create user account. Please try again.'
+        })
+      }
+
+      // The user creation already includes verification in the adapter
+      // But we do an additional check here with retry logic for database consistency
+      let verifiedUser = await findUserById(user.id)
+      let retries = 0
+      const maxRetries = 3
+      
+      while (!verifiedUser && retries < maxRetries) {
+        // Wait before retry (exponential backoff: 50ms, 100ms, 200ms)
+        await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, retries)))
+        verifiedUser = await findUserById(user.id)
+        retries++
+      }
+      
+      if (!verifiedUser) {
+        request.log.error({ 
+          userId: user.id, 
+          email: normalizedEmail,
+          userEmail: user.email,
+          retries
+        }, 'User creation verification failed - user not found after creation and retries')
+        return reply.code(500).send({
+          error: 'server_error',
+          message: 'Failed to create user account. Please try again.'
+        })
+      }
 
       // Create and send verification email (fire-and-forget)
-      createVerificationToken(user.id, user.email, user.displayName).catch(error => {
-        request.log.error({ error, userId: user.id }, 'Failed to send verification email')
+      createVerificationToken(verifiedUser.id, verifiedUser.email, verifiedUser.displayName).catch(error => {
+        request.log.error({ error, userId: verifiedUser.id }, 'Failed to send verification email')
         // Don't fail registration if email sending fails
       })
 
               // Generate JWT token with tokenVersion
               const token = issueToken({
-                id: user.id,
-                email: user.email,
-                tokenVersion: (user as any).tokenVersion || 1
+                id: verifiedUser.id,
+                email: verifiedUser.email,
+                tokenVersion: (verifiedUser as any).tokenVersion || 1
               })
 
               // Set HTTP-only cookie (optional, controlled by USE_COOKIE_AUTH env var)
@@ -127,38 +205,42 @@ export async function registerAuthRoutes(server: FastifyInstance) {
               const useCookieAuth = process.env.USE_COOKIE_AUTH === 'true'
               if (useCookieAuth) {
                 const isProduction = nodeEnv === 'production'
-                reply.setCookie('safenode_token', token, {
+                // Type assertion for cookie support (requires @fastify/cookie plugin)
+                const replyWithCookies = reply as any
+                if (replyWithCookies.setCookie) {
+                  replyWithCookies.setCookie('safenode_token', token, {
                   httpOnly: true,
                   secure: isProduction, // true in prod, false on localhost
                   sameSite: isProduction ? 'none' : 'lax', // none in prod (for cross-origin), lax in dev
                   maxAge: 24 * 60 * 60, // 24 hours
                   path: '/'
                 })
+                }
               }
 
               // Set user context in Sentry
               setUser({
-                id: user.id,
-                email: user.email,
-                username: user.displayName
+                id: verifiedUser.id,
+                email: verifiedUser.email,
+                username: verifiedUser.displayName
               })
 
               // Return user data (exclude sensitive fields) - format: { token, userId, user }
               return reply.code(200).send({
                 success: true,
                 token,
-                userId: user.id,
+                userId: verifiedUser.id,
                 user: {
-                  id: user.id,
-                  email: user.email,
-                  displayName: user.displayName,
-                  emailVerified: user.emailVerified,
-                  subscriptionTier: user.subscriptionTier,
-                  subscriptionStatus: user.subscriptionStatus,
-                  twoFactorEnabled: user.twoFactorEnabled,
-                  biometricEnabled: user.biometricEnabled,
-                  createdAt: user.createdAt,
-                  lastLoginAt: user.lastLoginAt
+                  id: verifiedUser.id,
+                  email: verifiedUser.email,
+                  displayName: verifiedUser.displayName,
+                  emailVerified: verifiedUser.emailVerified,
+                  subscriptionTier: verifiedUser.subscriptionTier,
+                  subscriptionStatus: verifiedUser.subscriptionStatus,
+                  twoFactorEnabled: verifiedUser.twoFactorEnabled,
+                  biometricEnabled: verifiedUser.biometricEnabled,
+                  createdAt: verifiedUser.createdAt,
+                  lastLoginAt: verifiedUser.lastLoginAt
                 }
               })
             } catch (error: any) {
@@ -354,13 +436,13 @@ export async function registerAuthRoutes(server: FastifyInstance) {
             message: 'Login verification failed. Please try again.'
           })
         }
-        
+
         // Log successful login with structured logging
         await createAuditLog({
-          userId: user.id,
-          action: 'login',
-          ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
-          userAgent: request.headers['user-agent'] || undefined
+        userId: user.id,
+        action: 'login',
+        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+        userAgent: request.headers['user-agent'] || undefined
         })
       } catch (err: any) {
         request.log.error({ 
@@ -382,13 +464,17 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const useCookieAuth = process.env.USE_COOKIE_AUTH === 'true'
       if (useCookieAuth) {
         const isProduction = nodeEnv === 'production'
-        reply.setCookie('safenode_token', token, {
+        // Type assertion for cookie support (requires @fastify/cookie plugin)
+        const replyWithCookies = reply as any
+        if (replyWithCookies.setCookie) {
+          replyWithCookies.setCookie('safenode_token', token, {
           httpOnly: true,
           secure: isProduction, // true in prod, false on localhost
           sameSite: isProduction ? 'none' : 'lax', // none in prod (for cross-origin), lax in dev
           maxAge: 24 * 60 * 60, // 24 hours
           path: '/'
         })
+        }
       }
 
       // Return user data (exclude sensitive fields) - format: { token, userId, user }
@@ -625,8 +711,39 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
 
-      // Check if vault exists
-      if (!userData.vaultEncrypted || !userData.vaultIV) {
+      // Check if vault exists - must have encrypted data, IV, and salt
+      if (!userData.vaultEncrypted || !userData.vaultIV || !userData.vaultSalt || userData.vaultSalt.length === 0) {
+        return {
+          exists: false
+        }
+      }
+
+      // Validate vault data format (must be valid base64 strings)
+      try {
+        // Validate that encrypted data, IV, and salt are valid base64 strings
+        if (typeof userData.vaultEncrypted !== 'string' || userData.vaultEncrypted.trim().length === 0) {
+          return {
+            exists: false
+          }
+        }
+        if (typeof userData.vaultIV !== 'string' || userData.vaultIV.trim().length === 0) {
+          return {
+            exists: false
+          }
+        }
+        if (typeof userData.vaultSalt !== 'string' || userData.vaultSalt.trim().length === 0) {
+          return {
+            exists: false
+          }
+        }
+        
+        // Try to decode to validate base64 format (but don't use the result)
+        Buffer.from(userData.vaultEncrypted, 'base64')
+        Buffer.from(userData.vaultIV, 'base64')
+        Buffer.from(userData.vaultSalt, 'base64')
+      } catch (error) {
+        // Invalid base64 data - vault is corrupted or not initialized
+        request.log.warn({ userId: user.id }, 'Vault data has invalid base64 format')
         return {
           exists: false
         }
@@ -1064,14 +1181,17 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       // Authenticate user
-      const user = await authenticateUser(body.email, body.password)
+      const authResult = await authenticateUser(body.email, body.password)
       
-      if (!user) {
+      if (authResult.reason !== 'SUCCESS' || !authResult.user) {
         return reply.code(401).send({
           error: 'invalid_credentials',
           message: 'Invalid email or password'
         })
       }
+
+      // Type guard: at this point, authResult.user is guaranteed to be non-null
+      const user: User = authResult.user
 
       if (!user.twoFactorEnabled) {
         return reply.code(400).send({
@@ -1113,7 +1233,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const token = issueToken({
         id: user.id,
         email: user.email,
-        tokenVersion: (user as any).tokenVersion || 1
+        tokenVersion: user.tokenVersion || 1
       })
 
       // Return user data

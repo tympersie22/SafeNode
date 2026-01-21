@@ -4,7 +4,13 @@
   "private": true,
   "scripts": {
     "start": "node ./dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "predev": "node scripts/check-port.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.new.ts",
+    "dev:clean": "pkill -f 'ts-node-dev' || true && npm run dev",
+    "kill": "pkill -f 'ts-node-dev' || true",
+    "kill:force": "pkill -9 -f 'ts-node-dev' || true",
+    "status": "ps aux | grep -E 'ts-node|node.*index' | grep -v grep || echo 'No backend processes running'",
+    "restart": "npm run kill && sleep 2 && npm run dev",
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
@@ -18,7 +24,8 @@
     "db:push": "prisma db push",
     "db:seed": "ts-node src/db/seed.ts",
     "seed": "ts-node src/db/seed-cli.ts",
-    "reset": "ts-node src/db/seed-cli.ts --reset"
+    "reset": "ts-node src/db/seed-cli.ts --reset",
+    "reset-vault": "ts-node scripts/reset-demo-vault.ts"
   },
   "dependencies": {
     "@fastify/compress": "^6.4.0",

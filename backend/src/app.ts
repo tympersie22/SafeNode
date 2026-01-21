@@ -10,9 +10,15 @@ import rateLimit from '@fastify/rate-limit'
 import compress from '@fastify/compress'
 import { config } from './config'
 import { registerAuthRoutes } from './routes/auth'
+import { registerBillingRoutes } from './routes/billing'
+import { registerSyncRoutes } from './routes/sync'
+import { registerSSORoutes } from './routes/sso'
+import { registerHealthRoutes } from './routes/health'
+import { registerDownloadRoutes } from './routes/downloads'
 import { requireAuth } from './middleware/auth'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
 import { getBreachRange, getCacheStats } from './controllers/breachController'
+import { updateVault } from './services/userService'
 
 /**
  * Creates and configures the Fastify server instance
@@ -64,13 +70,23 @@ export async function createApp() {
     return payload
   })
 
-  // Health check endpoint
-  server.get('/health', async () => {
-    return { status: 'ok', timestamp: Date.now() }
-  })
-
   // Register authentication routes (public)
   await registerAuthRoutes(server)
+
+  // Register billing routes
+  await registerBillingRoutes(server)
+
+  // Register sync routes
+  await registerSyncRoutes(server)
+
+  // Register SSO routes
+  await registerSSORoutes(server)
+
+  // Register health check routes
+  await registerHealthRoutes(server)
+
+  // Register download routes
+  await registerDownloadRoutes(server)
 
   // Vault routes
   // NOTE: For backward compatibility, these are NOT protected by default
@@ -90,13 +106,125 @@ export async function createApp() {
     saveVaultAlias
   )
 
+  // Vault entry CRUD routes (required by frontend)
+  // These work with the full encrypted vault blob
+  // The frontend handles encryption/decryption locally
+  server.post('/api/vault/entry', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const body = request.body as any
+      const { encryptedVault, iv, version } = body || {}
+      
+      if (typeof encryptedVault !== 'string' || typeof iv !== 'string') {
+        return reply.code(400).send({ 
+          error: 'invalid_payload', 
+          message: 'encryptedVault and iv are required and must be strings' 
+        })
+      }
+      
+      // Update vault
+      const updated = await updateVault(user.id, encryptedVault, iv, typeof version === 'number' ? version : Date.now())
+      
+      if (!updated) {
+        return reply.code(404).send({
+          error: 'user_not_found',
+          message: 'User not found'
+        })
+      }
+      
+      return { 
+        ok: true, 
+        version: updated.vaultVersion,
+        message: 'Entry created successfully' 
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({ 
+        error: error?.message || 'server_error', 
+        message: 'Failed to create vault entry' 
+      })
+    }
+  })
+
+  server.put('/api/vault/entry/:id', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const { id } = request.params as { id: string }
+      const body = request.body as any
+      const { encryptedVault, iv, version } = body || {}
+      
+      if (!id || typeof encryptedVault !== 'string' || typeof iv !== 'string') {
+        return reply.code(400).send({ 
+          error: 'invalid_payload', 
+          message: 'ID, encryptedVault, and iv are required' 
+        })
+      }
+      
+      // Update vault
+      const updated = await updateVault(user.id, encryptedVault, iv, typeof version === 'number' ? version : Date.now())
+      
+      if (!updated) {
+        return reply.code(404).send({
+          error: 'user_not_found',
+          message: 'User not found'
+        })
+      }
+      
+      return { 
+        ok: true, 
+        version: updated.vaultVersion,
+        message: `Entry ${id} updated successfully` 
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({ 
+        error: error?.message || 'server_error', 
+        message: 'Failed to update vault entry' 
+      })
+    }
+  })
+
+  server.delete('/api/vault/entry/:id', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const { id } = request.params as { id: string }
+      const body = request.body as any
+      const { encryptedVault, iv, version } = body || {}
+      
+      if (!id || typeof encryptedVault !== 'string' || typeof iv !== 'string') {
+        return reply.code(400).send({ 
+          error: 'invalid_payload', 
+          message: 'ID, encryptedVault, and iv are required' 
+        })
+      }
+      
+      // Update vault
+      const updated = await updateVault(user.id, encryptedVault, iv, typeof version === 'number' ? version : Date.now())
+      
+      if (!updated) {
+        return reply.code(404).send({
+          error: 'user_not_found',
+          message: 'User not found'
+        })
+      }
+      
+      return { 
+        ok: true, 
+        version: updated.vaultVersion,
+        message: `Entry ${id} deleted successfully` 
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({ 
+        error: error?.message || 'server_error', 
+        message: 'Failed to delete vault entry' 
+      })
+    }
+  })
+
   // Breach check routes (public, but rate limited)
   server.get('/api/breach/range/:prefix', getBreachRange)
   server.get('/api/breach/cache/stats', getCacheStats)
-
-  // Legacy routes (for backward compatibility, will be deprecated)
-  // These are kept for now but should use the new controller pattern
-  // TODO: Migrate all routes to use controllers and remove legacy code
 
   return server
 }
