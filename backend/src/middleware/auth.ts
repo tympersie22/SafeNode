@@ -81,8 +81,9 @@ export async function requireAuth(
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7) // Remove 'Bearer ' prefix
     } else {
-      // Try cookie
-      token = (request.cookies as any)?.safenode_token
+      // Try cookie - use type assertion since @fastify/cookie extends FastifyRequest
+      const cookies = (request as any).cookies
+      token = cookies?.safenode_token
     }
     
     if (!token) {
