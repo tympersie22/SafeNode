@@ -1,0 +1,14 @@
+# Nixpacks configuration for Railway
+# This ensures proper build and start commands
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"

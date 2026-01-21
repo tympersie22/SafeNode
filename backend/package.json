@@ -2,8 +2,15 @@
   "name": "safenode-backend",
   "version": "0.1.0",
   "private": true,
+  "main": "dist/index.new.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
-    "start": "node ./dist/index.js",
+    "start": "node ./dist/index.new.js",
+    "postinstall": "npm run db:generate",
+    "postbuild": "npm run db:generate",
     "predev": "node scripts/check-port.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.new.ts",
     "dev:clean": "pkill -f 'ts-node-dev' || true && npm run dev",
