@@ -1,5 +1,6 @@
 # Nixpacks configuration for Railway
 # This ensures proper build and start commands
+# Note: Railway should be configured with Root Directory = "backend"
 
 [phases.setup]
 nixPkgs = ["nodejs-18_x", "npm"]
