@@ -1,11 +1,5 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "cd backend && node ./dist/index.new.js",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
+  "$comment": "Root config - Backend service uses backend/railway.toml for config-as-code",
+  "$comment2": "When Railway finds backend/railway.toml, it automatically uses backend/ as root directory"
 }
