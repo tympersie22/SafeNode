@@ -40,54 +40,118 @@ async function getApp() {
 }
 
 export default async function handler(req: any, res: any) {
+  // Ensure we always send a response
+  let responseSent = false
+  
+  const sendError = (status: number, error: any) => {
+    if (responseSent) return
+    responseSent = true
+    
+    console.error('❌ Sending error response:', status, error.message)
+    return res.status(status).json({
+      error: error.error || 'Internal server error',
+      message: error.message || 'An unexpected error occurred',
+      ...(process.env.NODE_ENV === 'development' && error.stack ? { stack: error.stack } : {})
+    })
+  }
+  
   try {
     console.log(`📥 Request: ${req.method} ${req.url}`)
+    console.log('📋 Headers:', JSON.stringify(req.headers, null, 2))
     
-    const fastifyApp = await getApp()
-    
-    // Convert Vercel request to Fastify-compatible format
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
-    
-    // Handle the request with Fastify
-    const response = await fastifyApp.inject({
-      method: req.method || 'GET',
-      url: url.pathname + url.search,
-      headers: req.headers || {},
-      payload: req.body,
-      query: Object.fromEntries(url.searchParams)
-    })
-    
-    // Set headers
-    Object.keys(response.headers).forEach(key => {
-      res.setHeader(key, response.headers[key])
-    })
-    
-    // Set status
-    res.status(response.statusCode)
-    
-    // Send response
-    return res.send(response.payload)
-  } catch (error: any) {
-    console.error('❌ Vercel handler error:', error)
-    console.error('Error name:', error.name)
-    console.error('Error message:', error.message)
-    console.error('Error code:', error.code)
-    console.error('Error stack:', error.stack)
-    
-    // Check if it's a database connection error
-    if (error.message?.includes('DATABASE_URL') || error.message?.includes('database')) {
-      console.error('🔴 Database connection error detected')
-      return res.status(500).json({ 
-        error: 'Database connection failed', 
-        message: 'Unable to connect to database. Please check DATABASE_URL environment variable.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    let fastifyApp
+    try {
+      fastifyApp = await getApp()
+    } catch (initError: any) {
+      console.error('❌ Failed to get app:', initError)
+      return sendError(500, {
+        error: 'Initialization failed',
+        message: initError.message || 'Failed to initialize application',
+        stack: initError.stack
       })
     }
     
-    return res.status(500).json({ 
-      error: 'Internal server error', 
-      message: error.message || 'An unexpected error occurred',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    })
+    if (!fastifyApp) {
+      return sendError(500, {
+        error: 'App not available',
+        message: 'Fastify app was not initialized'
+      })
+    }
+    
+    // Convert Vercel request to Fastify-compatible format
+    let url: URL
+    try {
+      url = new URL(req.url || '/', `http://${req.headers?.host || 'localhost'}`)
+    } catch (urlError: any) {
+      console.error('❌ Invalid URL:', req.url)
+      return sendError(400, {
+        error: 'Invalid request URL',
+        message: urlError.message
+      })
+    }
+    
+    // Handle the request with Fastify
+    let response
+    try {
+      response = await fastifyApp.inject({
+        method: req.method || 'GET',
+        url: url.pathname + url.search,
+        headers: req.headers || {},
+        payload: req.body,
+        query: Object.fromEntries(url.searchParams)
+      })
+    } catch (injectError: any) {
+      console.error('❌ Fastify inject error:', injectError)
+      return sendError(500, {
+        error: 'Request processing failed',
+        message: injectError.message || 'Failed to process request',
+        stack: injectError.stack
+      })
+    }
+    
+    if (responseSent) return
+    
+    // Set headers
+    if (response.headers) {
+      Object.keys(response.headers).forEach(key => {
+        try {
+          res.setHeader(key, response.headers[key])
+        } catch (headerError) {
+          console.warn('⚠️ Failed to set header:', key, headerError)
+        }
+      })
+    }
+    
+    // Set status
+    res.status(response.statusCode || 200)
+    
+    // Send response
+    responseSent = true
+    return res.send(response.payload)
+    
+  } catch (error: any) {
+    console.error('❌ Unhandled error in handler:', error)
+    console.error('Error name:', error?.name)
+    console.error('Error message:', error?.message)
+    console.error('Error code:', error?.code)
+    console.error('Error stack:', error?.stack)
+    
+    if (!responseSent) {
+      // Check if it's a database connection error
+      if (error?.message?.includes('DATABASE_URL') || error?.message?.includes('database') || error?.code === 'P1001') {
+        console.error('🔴 Database connection error detected')
+        return sendError(500, {
+          error: 'Database connection failed',
+          message: 'Unable to connect to database. Please check DATABASE_URL environment variable.',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        })
+      }
+      
+      return sendError(500, {
+        error: 'Internal server error',
+        message: error?.message || 'An unexpected error occurred',
+        stack: error?.stack
+      })
+    }
   }
 }
