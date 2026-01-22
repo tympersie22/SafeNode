@@ -23,6 +23,34 @@ export default defineConfig({
         }
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Vendor chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor'
+            }
+            if (id.includes('framer-motion')) {
+              return 'framer-motion'
+            }
+            if (id.includes('hash-wasm') || id.includes('crypto')) {
+              return 'crypto-vendor'
+            }
+            // Other node_modules go into vendor chunk
+            return 'vendor'
+          }
+          // Large feature chunks
+          if (id.includes('/src/crypto/')) {
+            return 'crypto'
+          }
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000, // Increase limit to 1MB for large dependencies
+    sourcemap: false // Disable sourcemaps in production for smaller builds
   }
 })
 

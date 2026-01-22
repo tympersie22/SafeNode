@@ -41,7 +41,7 @@ import { accountStorage, type Account } from './storage/accountStorage';
 import { auditLogStorage } from './storage/auditLogs';
 import { teamVaultStorage } from './storage/teamVaults';
 import { pinManager } from './utils/pinManager';
-import { keychainService } from './utils/keychain';
+// keychainService is dynamically imported where needed to reduce bundle size
 import { apiPost, apiPut, apiDelete } from './utils/apiClient';
 import PasswordGeneratorModal from './components/PasswordGeneratorModal';
 import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
@@ -536,9 +536,9 @@ const App: React.FC = () => {
             breachCount = passwordCache.get(entry.password)!;
           } else {
             try {
-              const count = await getPasswordBreachCount(entry.password);
-              passwordCache.set(entry.password, count);
-              breachCount = count;
+            const count = await getPasswordBreachCount(entry.password);
+            passwordCache.set(entry.password, count);
+            breachCount = count;
             } catch (error) {
               // If individual password check fails, continue with others
               console.warn(`Failed to check breach for entry ${entry.id}:`, error);
@@ -562,9 +562,9 @@ const App: React.FC = () => {
       
       // Save to server (non-blocking - don't wait if it fails)
       try {
-        await saveVaultToServer(updatedVault, 'UPDATE');
-        setVault(updatedVault);
-        setLastBreachScanAt(Date.now());
+      await saveVaultToServer(updatedVault, 'UPDATE');
+      setVault(updatedVault);
+      setLastBreachScanAt(Date.now());
       } catch (saveError) {
         // If save fails, still update local state so user sees results
         console.warn('Failed to save breach scan results to server:', saveError);
@@ -2663,7 +2663,7 @@ const EntryCard = React.forwardRef<HTMLDivElement, EntryCardProps>(({
   };
 
   return (
-    <motion.div
+            <motion.div
       ref={ref}
       className="group relative cursor-pointer"
       variants={variants}
