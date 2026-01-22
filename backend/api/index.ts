@@ -12,18 +12,37 @@ let isInitialized = false
 
 async function getApp() {
   if (!isInitialized) {
-    // Initialize database adapter
-    await adapter.init()
-    
-    // Create Fastify app
-    app = await createApp()
-    isInitialized = true
+    try {
+      console.log('🚀 Initializing SafeNode backend...')
+      console.log('📦 Environment:', process.env.NODE_ENV || 'development')
+      console.log('💾 Database adapter:', process.env.DB_ADAPTER || 'file')
+      
+      // Initialize database adapter
+      console.log('🔌 Connecting to database...')
+      await adapter.init()
+      console.log('✅ Database connected')
+      
+      // Create Fastify app
+      console.log('🔧 Creating Fastify app...')
+      app = await createApp()
+      console.log('✅ Fastify app created')
+      
+      isInitialized = true
+      console.log('✅ Backend initialized successfully')
+    } catch (error: any) {
+      console.error('❌ Failed to initialize backend:', error)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      throw error
+    }
   }
   return app
 }
 
 export default async function handler(req: any, res: any) {
   try {
+    console.log(`📥 Request: ${req.method} ${req.url}`)
+    
     const fastifyApp = await getApp()
     
     // Convert Vercel request to Fastify-compatible format
@@ -49,12 +68,26 @@ export default async function handler(req: any, res: any) {
     // Send response
     return res.send(response.payload)
   } catch (error: any) {
-    console.error('Vercel handler error:', error)
+    console.error('❌ Vercel handler error:', error)
+    console.error('Error name:', error.name)
+    console.error('Error message:', error.message)
+    console.error('Error code:', error.code)
     console.error('Error stack:', error.stack)
+    
+    // Check if it's a database connection error
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('database')) {
+      console.error('🔴 Database connection error detected')
+      return res.status(500).json({ 
+        error: 'Database connection failed', 
+        message: 'Unable to connect to database. Please check DATABASE_URL environment variable.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      })
+    }
+    
     return res.status(500).json({ 
       error: 'Internal server error', 
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message || 'An unexpected error occurred',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 }
