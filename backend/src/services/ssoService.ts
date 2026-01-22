@@ -216,7 +216,6 @@ async function exchangeCodeForToken(
     userInfoUrl = providerConfig.userInfoUrl
   }
 
-  const fetchFn = await getFetch()
   const userInfoResponse = await fetchFn(userInfoUrl, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -247,7 +246,6 @@ async function exchangeCodeForToken(
     }
   } else if (provider === 'github') {
     // GitHub requires separate email endpoint
-    const fetchFn = await getFetch()
     const emailResponse = await fetchFn('https://api.github.com/user/emails', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
