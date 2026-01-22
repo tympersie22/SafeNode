@@ -390,6 +390,7 @@ const App: React.FC = () => {
     // Use dynamic import - Vite will handle it correctly
     (async () => {
       try {
+        // @ts-expect-error - TypeScript can't resolve dynamic imports, but Vite handles it at build time
         const { keychainService } = await import('../utils/keychain');
         keychainService.save({
           service: 'safenode',
