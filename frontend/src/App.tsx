@@ -387,24 +387,26 @@ const App: React.FC = () => {
     });
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
-    // Use static import - Vite will tree-shake if unused
-    try {
-      const { keychainService } = await import('../utils/keychain');
-      keychainService.save({
-        service: 'safenode',
-        account: 'master_password',
-        password: password
-      }).catch((error: any) => {
-        console.warn('Failed to store password in keychain:', error);
-        setNotification({
-          message: 'Could not enable biometric unlock. You can set this up later in settings.',
-          type: 'info'
+    // Use dynamic import - Vite will handle it correctly
+    (async () => {
+      try {
+        const { keychainService } = await import('../utils/keychain');
+        keychainService.save({
+          service: 'safenode',
+          account: 'master_password',
+          password: password
+        }).catch((error: any) => {
+          console.warn('Failed to store password in keychain:', error);
+          setNotification({
+            message: 'Could not enable biometric unlock. You can set this up later in settings.',
+            type: 'info'
+          });
+          setTimeout(() => setNotification(null), 5000);
         });
-        setTimeout(() => setNotification(null), 5000);
-      });
-    } catch (error) {
-      // Silently fail if keychain is not available
-    }
+      } catch (error) {
+        // Silently fail if keychain is not available
+      }
+    })();
     
     // Store encrypted vault in IndexedDB for future saves (fire-and-forget)
     // This ensures saveVaultToServer can access the salt
