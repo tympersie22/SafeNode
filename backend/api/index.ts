@@ -6,6 +6,7 @@
 import { createApp } from '../src/app'
 import { adapter } from '../src/adapters'
 import { config } from '../src/config'
+import { seedDatabase } from '../src/db/seed'
 
 let app: any = null
 let isInitialized = false
@@ -21,6 +22,20 @@ async function getApp() {
       console.log('🔌 Connecting to database...')
       await adapter.init()
       console.log('✅ Database connected')
+      
+      // Seed database if needed (development or if FORCE_SEED=true)
+      const forceSeed = process.env.FORCE_SEED === 'true'
+      const seedOnBoot = process.env.SEED_ON_BOOT === 'true'
+      if (config.nodeEnv === 'development' || seedOnBoot || forceSeed) {
+        console.log('🌱 Seeding database...')
+        try {
+          await seedDatabase()
+          console.log('✅ Database seeding completed')
+        } catch (seedError: any) {
+          console.error('⚠️  Database seeding failed (non-fatal):', seedError.message)
+          // Don't throw - allow app to start even if seeding fails
+        }
+      }
       
       // Create Fastify app
       console.log('🔧 Creating Fastify app...')
