@@ -1,0 +1,32 @@
+# SafeNode Frontend - Vercel Environment Variables
+# Upload this file to Vercel Dashboard → Settings → Environment Variables → Import
+# Format: KEY=VALUE (one per line, no quotes needed)
+
+# ============================================
+# PRODUCTION ENVIRONMENT
+# ============================================
+# Replace with your actual Railway backend URL
+VITE_API_URL=https://your-backend-service.railway.app
+
+# ============================================
+# OPTIONAL - UNCOMMENT AND FILL IF NEEDED
+# ============================================
+
+# Sentry Error Tracking
+# VITE_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+
+# Stripe Publishable Key
+# VITE_STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key
+
+# ============================================
+# INSTRUCTIONS
+# ============================================
+# 1. Replace "your-backend-service.railway.app" with your actual Railway backend URL
+# 2. Uncomment and fill optional variables if needed
+# 3. In Vercel Dashboard:
+#    - Go to Settings → Environment Variables
+#    - Click "Import" or "Add" button
+#    - Copy and paste the KEY=VALUE lines (without comments)
+#    - Or use Vercel CLI: vercel env add VITE_API_URL production
+# 4. Select environment: Production, Preview, or Development
+# 5. Redeploy after adding variables
