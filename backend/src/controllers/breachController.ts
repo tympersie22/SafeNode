@@ -4,7 +4,12 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify'
-import fetch from 'node-fetch'
+
+// Dynamic import for node-fetch (ESM-only, can't use static import with CommonJS)
+const getFetch = async () => {
+  const module = await import('node-fetch')
+  return module.default
+}
 
 // Simple in-memory LRU cache with TTL
 interface CacheEntry {
@@ -76,6 +81,7 @@ export async function getBreachRange(
     
     let response
     try {
+      const fetch = await getFetch()
       response = await fetch(url, {
         headers: {
           // Per HIBP guidelines
