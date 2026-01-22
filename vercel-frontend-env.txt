@@ -1,0 +1,30 @@
+# SafeNode Frontend - Vercel Environment Variables
+# Copy and paste these into Vercel Dashboard → Settings → Environment Variables
+
+# ============================================
+# CRITICAL - REQUIRED
+# ============================================
+
+# API URL - Point to your Railway backend service URL
+# Replace with your actual Railway backend URL
+VITE_API_URL=https://your-backend-service.railway.app
+
+# ============================================
+# OPTIONAL - RECOMMENDED FOR PRODUCTION
+# ============================================
+
+# Sentry Error Tracking (Frontend)
+# Get from: https://sentry.io/settings/projects/
+# VITE_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+
+# Stripe Publishable Key (for checkout)
+# Get from: https://dashboard.stripe.com/apikeys
+# VITE_STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key_here
+
+# ============================================
+# NOTES
+# ============================================
+# - All Vite environment variables MUST start with "VITE_"
+# - Variables are embedded at build time
+# - Redeploy after adding/updating variables
+# - Use different values for Production, Preview, and Development environments
