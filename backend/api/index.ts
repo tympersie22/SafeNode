@@ -27,29 +27,34 @@ export default async function handler(req: any, res: any) {
     const fastifyApp = await getApp()
     
     // Convert Vercel request to Fastify-compatible format
-    const url = new URL(req.url, `http://${req.headers.host}`)
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
     
     // Handle the request with Fastify
-    await fastifyApp.inject({
-      method: req.method,
+    const response = await fastifyApp.inject({
+      method: req.method || 'GET',
       url: url.pathname + url.search,
-      headers: req.headers,
+      headers: req.headers || {},
       payload: req.body,
       query: Object.fromEntries(url.searchParams)
-    }).then((response: any) => {
-      // Set headers
-      Object.keys(response.headers).forEach(key => {
-        res.setHeader(key, response.headers[key])
-      })
-      
-      // Set status
-      res.status(response.statusCode)
-      
-      // Send response
-      res.send(response.payload)
     })
+    
+    // Set headers
+    Object.keys(response.headers).forEach(key => {
+      res.setHeader(key, response.headers[key])
+    })
+    
+    // Set status
+    res.status(response.statusCode)
+    
+    // Send response
+    return res.send(response.payload)
   } catch (error: any) {
     console.error('Vercel handler error:', error)
-    res.status(500).json({ error: 'Internal server error', message: error.message })
+    console.error('Error stack:', error.stack)
+    return res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
   }
 }
