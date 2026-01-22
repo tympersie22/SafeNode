@@ -388,6 +388,7 @@ const App: React.FC = () => {
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
     // Dynamically import to avoid static import warning
+    // @ts-expect-error - Dynamic import path resolution works at runtime
     import('../utils/keychain').then((module: any) => {
       const { keychainService } = module;
       keychainService.save({
