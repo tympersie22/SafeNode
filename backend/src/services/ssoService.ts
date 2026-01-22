@@ -5,11 +5,20 @@
  */
 
 import { randomBytes, createHash } from 'crypto'
-import fetch from 'node-fetch'
 import { db } from './database'
 import { createUser } from './userService'
 import { issueToken } from '../middleware/auth'
 import type { User } from '../models/User'
+
+// Dynamic import for node-fetch (ESM-only, can't use static import with CommonJS)
+let fetch: typeof import('node-fetch').default
+const getFetch = async () => {
+  if (!fetch) {
+    const module = await import('node-fetch')
+    fetch = module.default
+  }
+  return fetch
+}
 
 export interface SSOProvider {
   id: string
@@ -179,7 +188,8 @@ async function exchangeCodeForToken(
     tokenParams.client_secret = providerConfigObj.clientSecret
   }
 
-  const tokenResponse = await fetch(tokenUrl, {
+  const fetchFn = await getFetch()
+  const tokenResponse = await fetchFn(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -206,7 +216,8 @@ async function exchangeCodeForToken(
     userInfoUrl = providerConfig.userInfoUrl
   }
 
-  const userInfoResponse = await fetch(userInfoUrl, {
+  const fetchFn = await getFetch()
+  const userInfoResponse = await fetchFn(userInfoUrl, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Accept': 'application/json'
@@ -236,7 +247,8 @@ async function exchangeCodeForToken(
     }
   } else if (provider === 'github') {
     // GitHub requires separate email endpoint
-    const emailResponse = await fetch('https://api.github.com/user/emails', {
+    const fetchFn = await getFetch()
+    const emailResponse = await fetchFn('https://api.github.com/user/emails', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json'
