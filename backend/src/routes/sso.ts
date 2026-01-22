@@ -108,9 +108,33 @@ export async function registerSSORoutes(server: FastifyInstance) {
         })
       }
 
+      // Construct backend callback URL for OAuth provider
+      // OAuth providers need the backend callback URL, not the frontend URL
+      // In Vercel/production, use environment variable or detect from headers
+      let backendCallbackUrl: string
+      
+      // Try to use explicit BACKEND_URL env var first (most reliable)
+      if (process.env.BACKEND_URL) {
+        backendCallbackUrl = `${process.env.BACKEND_URL}/api/sso/callback/${provider}`
+      } else {
+        // Fallback to constructing from request (works in Vercel)
+        const protocol = request.headers['x-forwarded-proto'] || request.protocol || 'https'
+        const host = request.headers['host'] || request.hostname || process.env.VERCEL_URL || 'localhost:4000'
+        backendCallbackUrl = `${protocol}://${host}/api/sso/callback/${provider}`
+      }
+      
+      // Log the redirect URI for debugging (remove in production if sensitive)
+      request.log.info({ 
+        provider, 
+        backendCallbackUrl, 
+        frontendRedirectUri: redirect_uri 
+      }, 'SSO login initiated')
+
+      // Pass both: backend callback URL for OAuth, frontend redirect URI for final redirect
       const loginUrl = await getSSOLoginUrl(
         provider as 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
-        redirect_uri,
+        backendCallbackUrl, // OAuth redirect URI (backend callback)
+        redirect_uri, // Frontend redirect URI (stored in state for later)
         ssoConfig
       )
 
@@ -162,12 +186,6 @@ export async function registerSSORoutes(server: FastifyInstance) {
         })
       }
 
-      // Get redirect URI from state (stored during login initiation)
-      // For now, use a default redirect URI - in production, retrieve from state storage
-      const defaultRedirectUri = `${config.nodeEnv === 'production' 
-        ? process.env.FRONTEND_URL || 'https://safenode.app'
-        : 'http://localhost:5173'}/auth/sso/callback`
-
       const ssoConfig = getSSOConfig()
       const result = await handleSSOCallback(
         provider as 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
@@ -176,14 +194,15 @@ export async function registerSSORoutes(server: FastifyInstance) {
         ssoConfig
       )
 
-      // In production, redirect to frontend with token in URL hash or use postMessage
-      // For now, return JSON response
-      const frontendUrl = config.nodeEnv === 'production'
-        ? process.env.FRONTEND_URL || 'https://safenode.app'
-        : 'http://localhost:5173'
+      // Get frontend redirect URI from state (stored during login initiation)
+      const { getStoredFrontendRedirectUri } = await import('../services/ssoService')
+      const frontendRedirectUri = getStoredFrontendRedirectUri(state) || 
+        (config.nodeEnv === 'production' 
+          ? process.env.FRONTEND_URL || 'https://safe-node.vercel.app'
+          : 'http://localhost:5173') + '/auth/sso/callback'
 
       // Redirect to frontend with token
-      const redirectUrl = new URL(`${frontendUrl}/auth/sso/callback`)
+      const redirectUrl = new URL(frontendRedirectUri)
       redirectUrl.searchParams.set('token', result.token)
       redirectUrl.searchParams.set('user_id', result.user.id)
 
