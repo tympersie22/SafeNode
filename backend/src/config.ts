@@ -76,8 +76,15 @@ function getConfig(): Config {
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || (nodeEnv === 'development' ? '1000' : '100'), 10),
     
     // CORS - in production, restrict to your frontend domain
+    // Supports comma-separated URLs and automatically includes Vercel preview URLs
     corsOrigin: nodeEnv === 'production' 
-      ? (process.env.CORS_ORIGIN?.split(',') || ['https://safenode.app']) as unknown as string | RegExp[]
+      ? (() => {
+          const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || ['https://safenode.app']
+          // Add Vercel preview URL pattern: https://*-*-mbwana-allys-projects.vercel.app
+          // This allows all preview deployments for this team
+          const vercelPreviewPattern = /^https:\/\/safe-node-[a-z0-9]+-mbwana-allys-projects\.vercel\.app$/
+          return [...explicitOrigins, vercelPreviewPattern] as unknown as string | RegExp[]
+        })()
       : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/]
   }
 }
