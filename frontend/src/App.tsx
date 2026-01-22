@@ -388,8 +388,8 @@ const App: React.FC = () => {
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
     // Dynamically import to avoid static import warning
-    // @ts-expect-error - Dynamic import path resolution works at runtime
-    import('../utils/keychain').then((module: any) => {
+    // Note: Using .js extension for Vite to resolve the TypeScript file
+    import('../utils/keychain.js').then((module: any) => {
       const { keychainService } = module;
       keychainService.save({
         service: 'safenode',
