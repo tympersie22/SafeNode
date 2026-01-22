@@ -387,16 +387,22 @@ const App: React.FC = () => {
     });
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
-    keychainService.save({
-      service: 'safenode',
-      account: 'master_password',
-      password: password
-    }).catch(error => {
-      console.warn('Failed to store password in keychain:', error);
-      setNotification({
-        message: 'Could not enable biometric unlock. You can set this up later in settings.',
-        type: 'info'
+    // Dynamically import to avoid static import warning
+    import('../utils/keychain').then(({ keychainService }) => {
+      keychainService.save({
+        service: 'safenode',
+        account: 'master_password',
+        password: password
+      }).catch(error => {
+        console.warn('Failed to store password in keychain:', error);
+        setNotification({
+          message: 'Could not enable biometric unlock. You can set this up later in settings.',
+          type: 'info'
+        });
       });
+    }).catch(() => {
+      // Silently fail if keychain is not available
+    });
       setTimeout(() => setNotification(null), 5000);
     });
     
