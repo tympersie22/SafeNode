@@ -388,7 +388,7 @@ const App: React.FC = () => {
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
     // Dynamically import to avoid static import warning
-    import('../utils/keychain' as string).then((module: any) => {
+    import('../utils/keychain').then((module: any) => {
       const { keychainService } = module;
       keychainService.save({
         service: 'safenode',
