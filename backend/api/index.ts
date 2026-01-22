@@ -3,9 +3,9 @@
  * Wraps the Fastify app for Vercel deployment
  */
 
-import { createApp } from '../app'
-import { adapter } from '../adapters'
-import { config } from '../config'
+import { createApp } from '../src/app'
+import { adapter } from '../src/adapters'
+import { config } from '../src/config'
 
 let app: any = null
 let isInitialized = false
