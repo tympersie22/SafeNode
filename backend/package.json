@@ -19,6 +19,7 @@
     "status": "ps aux | grep -E 'ts-node|node.*index' | grep -v grep || echo 'No backend processes running'",
     "restart": "npm run kill && sleep 2 && npm run dev",
     "build": "npm run db:generate && tsc",
+    "postbuild": "",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "jest",
