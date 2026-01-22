@@ -389,6 +389,7 @@ const App: React.FC = () => {
     // Store master password in keychain for biometric unlock (fire-and-forget)
     // Dynamically import to avoid static import warning
     // Note: Using .js extension for Vite to resolve the TypeScript file
+    // @ts-expect-error - Vite resolves .js to .ts at build time, TypeScript doesn't understand this
     import('../utils/keychain.js').then((module: any) => {
       const { keychainService } = module;
       keychainService.save({
