@@ -56,7 +56,7 @@ export interface SSOConfig {
 }
 
 // In-memory state storage for OAuth flows (use Redis in production)
-const oauthStates = new Map<string, { provider: string; redirectUri: string; createdAt: number }>()
+const oauthStates = new Map<string, { provider: string; redirectUri: string; frontendRedirectUri?: string; createdAt: number }>()
 
 // Provider configurations
 const PROVIDER_CONFIGS = {
@@ -98,19 +98,26 @@ function generatePKCE(): { codeVerifier: string; codeChallenge: string } {
 
 /**
  * Get SSO login URL for OAuth2 providers
+ * @param provider - OAuth provider name
+ * @param oauthRedirectUri - Backend callback URL (what OAuth provider needs)
+ * @param frontendRedirectUri - Frontend redirect URI (stored in state for final redirect)
+ * @param config - SSO configuration
  */
 export async function getSSOLoginUrl(
   provider: 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
-  redirectUri: string,
+  oauthRedirectUri: string,
+  frontendRedirectUri: string | undefined,
   config: SSOConfig
 ): Promise<string> {
   const state = generateState()
   const { codeVerifier, codeChallenge } = generatePKCE()
   
   // Store state with verifier (use Redis in production)
+  // OAuth redirect URI is what the provider needs, frontend redirect URI is for final redirect
   oauthStates.set(state, {
     provider,
-    redirectUri,
+    redirectUri: oauthRedirectUri, // Backend callback URL for OAuth
+    frontendRedirectUri, // Frontend URL for final redirect
     createdAt: Date.now()
   })
   ;(oauthStates as any).verifiers = (oauthStates as any).verifiers || new Map()
@@ -129,7 +136,7 @@ export async function getSSOLoginUrl(
   const clientId = (providerConfigObj as { clientId: string }).clientId
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: redirectUri,
+    redirect_uri: oauthRedirectUri, // Use backend callback URL for OAuth
     response_type: 'code',
     scope: providerConfig.scopes.join(' '),
     state,
@@ -408,6 +415,14 @@ export function cleanupExpiredStates(): void {
       }
     }
   }
+}
+
+/**
+ * Get frontend redirect URI from stored state
+ */
+export function getStoredFrontendRedirectUri(state: string): string | null {
+  const storedState = oauthStates.get(state)
+  return storedState?.frontendRedirectUri || null
 }
 
 // Clean up expired states every 5 minutes
