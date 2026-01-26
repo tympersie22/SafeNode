@@ -1,5 +1,4 @@
-/currentOrigin**
- * SSO Service
+/** * SSO Service
  * Handles OAuth2 SSO login flows (Google, Microsoft, GitHub)
  */
 
