@@ -1,4 +1,4 @@
-/**
+/currentOrigin**
  * SSO Service
  * Handles OAuth2 SSO login flows (Google, Microsoft, GitHub)
  */
@@ -46,8 +46,7 @@ export async function getSSOProviders(): Promise<SSOProvider[]> {
 export function initiateSSOLogin(provider: 'google' | 'microsoft' | 'github'): void {
   try {
     // Build redirect URI for callback
-    const currentOrigin = window.location.origin
-    const redirectUri = `${currentOrigin}/auth/sso/callback`
+const redirectUri = `${API_BASE}/api/sso/callback/${provider}`
     
     // Redirect to backend SSO login endpoint
     const loginUrl = `${API_BASE}/api/sso/login/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`
