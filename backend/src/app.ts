@@ -9,6 +9,7 @@ import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import compress from '@fastify/compress'
 import { config } from './config'
+
 import { registerAuthRoutes } from './routes/auth'
 import { registerBillingRoutes } from './routes/billing'
 import { registerSyncRoutes } from './routes/sync'
@@ -225,6 +226,11 @@ export async function createApp() {
   // Breach check routes (public, but rate limited)
   server.get('/api/breach/range/:prefix', getBreachRange)
   server.get('/api/breach/cache/stats', getCacheStats)
+
+    // Root health check route
+    server.get('/', async (request, reply) => {
+          return { status: 'ok', message: 'SafeNode API is running' }
+    })
 
   return server
 }
