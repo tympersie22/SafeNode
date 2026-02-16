@@ -143,8 +143,8 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
   // The parent (App.tsx) will unmount this component when user is set
 
   return (
-    <div 
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center p-4"
+    <div
+      className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center p-4"
       role="main"
       aria-label="Authentication page"
     >
@@ -152,7 +152,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
         {/* Back Button */}
         <motion.button
           onClick={onBackToHome}
-          className="mb-8 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-2 py-1"
+          className="mb-8 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-2 py-1"
           whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
           whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
           aria-label="Go back to home page"

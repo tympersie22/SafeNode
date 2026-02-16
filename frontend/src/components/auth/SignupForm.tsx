@@ -97,13 +97,13 @@ const SignupForm: React.FC<SignupFormProps> = ({
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-8 shadow-lg"
+      className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg"
       role="main"
       aria-labelledby="signup-heading"
     >
       <div className="text-center mb-8">
         <div 
-          className="w-14 h-14 bg-gradient-to-br from-secondary-500 to-secondary-400 dark:from-secondary-600 dark:to-secondary-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-safenode-secondary"
+          className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-safenode-secondary"
           aria-hidden="true"
         >
           <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -112,11 +112,11 @@ const SignupForm: React.FC<SignupFormProps> = ({
         </div>
         <h2 
           id="signup-heading"
-            className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2"
+            className="text-3xl font-bold text-gray-900 mb-2"
         >
           Create your account
         </h2>
-        <p className="text-slate-600">
+        <p className="text-gray-600">
           Start securing your digital life with AI-powered protection
         </p>
       </div>
@@ -210,13 +210,13 @@ const SignupForm: React.FC<SignupFormProps> = ({
         </Button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+      <div className="mt-8 pt-6 border-t border-gray-200
         <div className="text-center space-y-4">
-          <p className="text-slate-600 dark:text-slate-400">
+          <p className="text-gray-600
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              className="text-secondary-600 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-1"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1"
               aria-label="Switch to sign in form"
               data-testid="switch-to-login"
             >
@@ -224,7 +224,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
             </button>
           </p>
           
-          <div className="flex flex-col items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex flex-col items-center gap-3 text-xs text-gray-500
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
