@@ -8,7 +8,7 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "start": "node ./dist/index.new.js",
+    "start": "node ./dist/src/index.new.js",
     "postinstall": "prisma generate",
     "postbuild": "npm run db:generate",
     "predev": "node scripts/check-port.js",

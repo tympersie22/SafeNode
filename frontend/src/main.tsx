@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { initSentry, captureException } from './services/sentryService';
 import AppRouter from './AppRouter';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider } from './components/ui/Toast';
 import './index.css';
 
 // Initialize Sentry (must be first, but doesn't block render)
@@ -164,6 +165,7 @@ console.error = (...args: any[]) => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
+      <ToastProvider />
       <AppRouter />
     </ErrorBoundary>
   </React.StrictMode>
