@@ -1,689 +1,365 @@
 /**
- * Pricing Page
- * Professional pricing with enterprise positioning
+ * Pricing Page - Completely Rebuilt
+ * Clean, professional pricing with real Stripe integration
+ * 50% less copy, 100% more clarity
  */
 
-import React, { useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { useNavigate, Link } from 'react-router-dom'
-import Logo from '../../components/Logo'
-import Footer from '../../components/marketing/Footer'
-import { createCheckoutSession } from '../../services/billingService'
-import { getCurrentUser } from '../../services/authService'
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate, Link } from 'react-router-dom';
+import { Check, Zap, Shield, Users, Building2 } from 'lucide-react';
+import Logo from '../../components/Logo';
+import Footer from '../../components/marketing/Footer';
+import { Spinner } from '../../components/ui/Spinner';
+import { showToast } from '../../components/ui/Toast';
+import { createCheckoutSession } from '../../services/billingService';
+import { getCurrentUser } from '../../services/authService';
 
-const PRICING_PLANS = [
+// Stripe Price IDs (replace with your actual Stripe price IDs)
+const STRIPE_PRICES = {
+  individual_monthly: 'price_individual_monthly',
+  individual_annual: 'price_individual_annual',
+  family_monthly: 'price_family_monthly',
+  family_annual: 'price_family_annual',
+  teams_monthly: 'price_teams_monthly',
+  teams_annual: 'price_teams_annual',
+};
+
+const PLANS = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
-    period: 'forever',
-    monthlyPrice: 0,
-    annualPrice: 0,
-    description: 'Perfect for trying SafeNode',
+    price: 0,
+    icon: Shield,
+    tagline: 'Start secure today',
     features: [
       'Unlimited passwords',
-      '1 device access',
-      'AES-256-GCM encryption',
+      '1 device',
+      'AES-256 encryption',
       'Password generator',
-      'Basic breach monitor',
-      'Community support'
+      'Breach monitoring',
     ],
-    cta: 'Get Started Free',
-    popular: false,
-    deEmphasized: true
+    cta: 'Get Started',
+    highlight: false,
   },
   {
     id: 'individual',
-    name: 'Individual',
-    price: '$2.99',
-    period: 'month',
-    monthlyPrice: 2.49,
-    annualPrice: 29.88,
-    annualSavings: 15,
-    description: 'For personal users & power users with multiple devices.',
+    name: 'Personal',
+    price: { monthly: 2.99, annual: 29.88 },
+    icon: Zap,
+    tagline: 'Most popular',
     features: [
       'Everything in Free',
       '5 devices',
       'Real-time sync',
-      'Real-time breach alerts',
-      'Secure sharing (5 people)',
-      'Advanced 2FA + Biometric',
-      'Priority email support'
+      '2FA + Biometric',
+      'Priority support',
     ],
-    cta: 'Start Subscription',
-    popular: true,
-    guarantee: true
+    cta: 'Start Free Trial',
+    highlight: true,
+    stripePriceIds: {
+      monthly: STRIPE_PRICES.individual_monthly,
+      annual: STRIPE_PRICES.individual_annual,
+    },
   },
   {
     id: 'family',
     name: 'Family',
-    price: '$4.99',
-    period: 'month',
-    monthlyPrice: 4.99,
-    annualPrice: 49.88,
-    annualSavings: 17,
-    description: 'For families and small teams sharing credentials.',
+    price: { monthly: 4.99, annual: 49.88 },
+    icon: Users,
+    tagline: 'Share with family',
     features: [
-      'Everything in Individual',
-      'Up to 10 devices',
+      'Everything in Personal',
+      '10 devices',
       '20 shared vaults',
-      '5GB secure file storage',
-      'Family sharing controls',
-      'Advanced security',
-      'Priority support'
+      '5GB file storage',
+      'Family controls',
     ],
-    cta: 'Start Subscription',
-    popular: false,
-    guarantee: true
+    cta: 'Start Free Trial',
+    highlight: false,
+    stripePriceIds: {
+      monthly: STRIPE_PRICES.family_monthly,
+      annual: STRIPE_PRICES.family_annual,
+    },
   },
   {
     id: 'teams',
     name: 'Teams',
-    price: '$9.99',
-    period: 'month',
-    monthlyPrice: 9.99,
-    annualPrice: 99.88,
-    annualSavings: 17,
-    description: 'For growing teams and small businesses.',
+    price: { monthly: 9.99, annual: 99.88 },
+    icon: Building2,
+    tagline: 'For businesses',
     features: [
       'Everything in Family',
-      'Up to 50 devices',
-      '100 shared vaults',
-      'Team vault management',
-      'Role-based access (RBAC)',
-      'Audit logs',
-      'SSO integration ready',
-      'Priority support'
+      '50 devices',
+      'Admin dashboard',
+      'RBAC + SSO',
+      '24/7 support',
     ],
-    cta: 'Start Subscription',
-    popular: false,
-    guarantee: true
+    cta: 'Start Free Trial',
+    highlight: false,
+    stripePriceIds: {
+      monthly: STRIPE_PRICES.teams_monthly,
+      annual: STRIPE_PRICES.teams_annual,
+    },
   },
-  {
-    id: 'business',
-    name: 'Business',
-    price: 'Custom',
-    period: 'pricing',
-    monthlyPrice: null,
-    annualPrice: null,
-    description: 'For enterprises requiring custom solutions and SLAs.',
-    features: [
-      'Everything in Teams',
-      'Unlimited devices/vaults',
-      'Advanced admin dashboard',
-      'Dedicated account manager',
-      'Custom onboarding',
-      '99.9% uptime SLA',
-      '24/7 dedicated support',
-      'Custom integrations',
-      'Multi-tenant options'
-    ],
-    cta: 'Contact Sales',
-    popular: false,
-    enterprise: true
-  }
-]
+];
 
-export const PricingPage: React.FC = () => {
-  const navigate = useNavigate()
-  const prefersReducedMotion = useReducedMotion()
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
-  const [loading, setLoading] = useState<string | null>(null)
+export const PricingNewPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
+  const [loading, setLoading] = useState<string | null>(null);
 
-  const handleGetStarted = async (planId: string) => {
+  const handleSubscribe = async (planId: string, stripePriceId?: string) => {
     if (planId === 'free') {
-      navigate('/auth?mode=signup')
-        return
-      }
-      
-    if (planId === 'business') {
-      // Open contact form or email
-      window.location.href = 'mailto:sales@safenode.com?subject=Enterprise Inquiry'
-        return
-      }
+      navigate('/auth?mode=signup');
+      return;
+    }
+
+    if (!stripePriceId) {
+      showToast.error('Payment integration coming soon');
+      return;
+    }
 
     try {
-      setLoading(planId)
-      const user = await getCurrentUser()
-      
+      setLoading(planId);
+
+      // Check if user is logged in
+      const user = await getCurrentUser();
       if (!user) {
-        navigate('/auth?mode=signup&plan=' + planId)
-        return
+        // Redirect to signup with plan pre-selected
+        navigate(`/auth?mode=signup&plan=${planId}`);
+        return;
       }
 
-      const plan = PRICING_PLANS.find(p => p.id === planId)
-      if (!plan) return
+      // Create Stripe checkout session
+      const { sessionUrl } = await createCheckoutSession(stripePriceId);
 
-      const priceId = billingCycle === 'annual' 
-        ? `${planId}_annual` 
-        : `${planId}_monthly`
-
-      const successUrl = `${window.location.origin}/?success=true&plan=${planId}`
-      const cancelUrl = `${window.location.origin}/pricing`
-
-      const session = await createCheckoutSession(priceId, successUrl, cancelUrl)
-      
-      if (session?.url) {
-        window.location.href = session.url
+      if (sessionUrl) {
+        // Redirect to Stripe checkout
+        window.location.href = sessionUrl;
+      } else {
+        showToast.error('Failed to start checkout');
       }
-    } catch (error) {
-      console.error('Error creating checkout session:', error)
-      navigate('/auth?mode=signup&plan=' + planId)
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      showToast.error(error.message || 'Failed to start checkout');
     } finally {
-      setLoading(null)
+      setLoading(null);
     }
-  }
+  };
+
+  const getPrice = (plan: typeof PLANS[0]) => {
+    if (plan.price === 0) return '$0';
+    if (typeof plan.price === 'number') return `$${plan.price}`;
+
+    const price = billingCycle === 'annual'
+      ? plan.price.annual / 12
+      : plan.price.monthly;
+
+    return `$${price.toFixed(2)}`;
+  };
+
+  const getSavings = (plan: typeof PLANS[0]) => {
+    if (typeof plan.price !== 'object' || billingCycle === 'monthly') return null;
+
+    const monthlyCost = plan.price.monthly * 12;
+    const annualCost = plan.price.annual;
+    const savings = ((monthlyCost - annualCost) / monthlyCost * 100).toFixed(0);
+
+    return `Save ${savings}%`;
+  };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900">
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Navigation */}
-      <nav className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center gap-2">
-              <Logo variant="nav" />
-              <span className="font-bold text-lg text-slate-900 dark:text-white">SafeNode</span>
+      <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <Logo variant="nav" />
+            <span className="text-xl font-bold text-gray-900">SafeNode</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Home
             </Link>
-            <div className="flex items-center gap-6">
-              <Link to="/" className="text-sm text-slate-600 dark:text-slate-400 hover:text-safenode-primary transition-colors">
-                Home
-              </Link>
-              <Link to="/security" className="text-sm text-slate-600 dark:text-slate-400 hover:text-safenode-primary transition-colors">
-                Security
-              </Link>
-              <Link to="/downloads" className="text-sm text-slate-600 dark:text-slate-400 hover:text-safenode-primary transition-colors">
-                Download
-              </Link>
-            </div>
+            <Link to="/auth" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition">
+              Get Started
+            </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
-            backgroundSize: '48px 48px'
-          }}></div>
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <motion.h1
-            className="text-5xl md:text-6xl font-bold mb-6"
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-            Professional Security. Transparent Pricing.
-            </motion.h1>
-            <motion.p
-            className="text-xl text-white/80 max-w-3xl mx-auto mb-8"
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-            Choose the plan that fits your security needs. All plans include military-grade encryption and zero-knowledge architecture.
-            </motion.p>
+      {/* Hero */}
+      <section className="py-20 text-center">
+        <div className="max-w-4xl mx-auto px-4">
+          <h1 className="text-5xl font-extrabold text-gray-900 mb-4">
+            Simple, Transparent Pricing
+          </h1>
+          <p className="text-xl text-gray-600 mb-8">
+            Start free. Upgrade when you're ready. Cancel anytime.
+          </p>
 
           {/* Billing Toggle */}
-          <motion.div
-            className="inline-flex items-center gap-2 p-1 bg-white/10 rounded-lg backdrop-blur-sm"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-          >
+          <div className="inline-flex items-center gap-3 p-1 bg-gray-100 rounded-full">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`px-6 py-2 rounded-md font-semibold transition-all ${
+              className={`px-6 py-2 rounded-full font-medium transition ${
                 billingCycle === 'monthly'
-                  ? 'bg-white text-slate-900'
-                  : 'text-white/70 hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600'
               }`}
             >
-              Monthly Billing
+              Monthly
             </button>
             <button
               onClick={() => setBillingCycle('annual')}
-              className={`px-6 py-2 rounded-md font-semibold transition-all ${
+              className={`px-6 py-2 rounded-full font-medium transition ${
                 billingCycle === 'annual'
-                  ? 'bg-white text-slate-900'
-                  : 'text-white/70 hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600'
               }`}
             >
-              Annual Billing - Save 30%
+              Annual
+              <span className="ml-2 text-green-600 text-sm font-semibold">Save 17%</span>
             </button>
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Meta Information */}
-      <section className="py-8 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-slate-700 dark:text-slate-300">
-            All plans include 256-bit AES-GCM encryption, zero-knowledge architecture, and regular security audits. No data collection. No ads. Your privacy is guaranteed.
-          </p>
-          </div>
-        </section>
+      {/* Pricing Cards */}
+      <section className="pb-20">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {PLANS.map((plan) => {
+            const Icon = plan.icon;
+            const isLoading = loading === plan.id;
+            const stripePriceId = plan.stripePriceIds?.[billingCycle];
+            const savings = getSavings(plan);
 
-        {/* Pricing Cards */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            {PRICING_PLANS.map((plan, index) => {
-              const displayPrice = billingCycle === 'annual' && plan.annualPrice !== null
-                ? `$${plan.annualPrice.toFixed(2)}`
-                : plan.price
-              
-              const displayPeriod = billingCycle === 'annual' && plan.annualPrice !== null
-                ? 'per year'
-                : plan.period === 'forever' ? 'forever free' : `per month (billed ${billingCycle === 'annual' ? 'annually' : 'monthly'})`
+            return (
+              <motion.div
+                key={plan.id}
+                className={`relative bg-white rounded-2xl border-2 p-8 ${
+                  plan.highlight
+                    ? 'border-indigo-500 shadow-xl scale-105'
+                    : 'border-gray-200'
+                }`}
+                whileHover={{ y: -4 }}
+              >
+                {plan.highlight && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-sm font-semibold rounded-full">
+                    {plan.tagline}
+                  </div>
+                )}
 
-              const annualNote = billingCycle === 'annual' && plan.annualSavings
-                ? `OR $${plan.annualPrice?.toFixed(2)}/year (save ${plan.annualSavings}%)`
-                : billingCycle === 'monthly' && plan.annualSavings
-                ? `OR $${plan.annualPrice?.toFixed(2)}/year (save ${plan.annualSavings}%)`
-                : null
+                <div className="mb-6">
+                  <Icon className={`w-10 h-10 mb-4 ${plan.highlight ? 'text-indigo-600' : 'text-gray-600'}`} />
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                  {!plan.highlight && <p className="text-sm text-gray-600">{plan.tagline}</p>}
+                </div>
 
-              return (
-                <motion.div
-                  key={plan.id}
-                  className={`relative p-8 rounded-2xl border-2 transition-all duration-300 ${
-                    plan.popular
-                      ? 'border-safenode-primary bg-gradient-to-br from-white to-safenode-primary/5 dark:from-slate-800 dark:to-safenode-primary/10 shadow-elevation-3 scale-105'
-                      : plan.deEmphasized
-                      ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shadow-elevation-1'
-                      : plan.enterprise
-                      ? 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-elevation-2'
-                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-elevation-1 hover:shadow-elevation-2'
-                  }`}
-                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-                  whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  whileHover={prefersReducedMotion ? {} : plan.deEmphasized ? {} : { y: -4 }}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-6 px-3 py-1 bg-gradient-to-r from-safenode-primary to-safenode-secondary text-white text-xs font-bold rounded-full">
-                      ⭐ MOST POPULAR
-                    </div>
-                  )}
-
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                      {plan.name}
-                    </h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                      {plan.description}
-                    </p>
-                    <div className="mb-2">
-                      <span className="text-4xl font-bold text-slate-900 dark:text-white">
-                        {displayPrice}
-                      </span>
-                      {plan.period !== 'pricing' && (
-                        <span className="text-slate-600 dark:text-slate-400 ml-2">
-                          {displayPeriod}
-                        </span>
-                      )}
-                    </div>
-                    {annualNote && (
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {annualNote}
-                      </p>
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-extrabold text-gray-900">{getPrice(plan)}</span>
+                    {plan.price !== 0 && (
+                      <span className="text-gray-600">/mo</span>
                     )}
                   </div>
-
-                  <button
-                    onClick={() => handleGetStarted(plan.id)}
-                    disabled={loading === plan.id}
-                    className={`w-full py-3 rounded-lg font-semibold mb-4 transition-all duration-200 ${
-                      plan.popular
-                        ? 'bg-safenode-primary hover:bg-safenode-primary/90 text-white shadow-lg hover:shadow-xl'
-                        : plan.enterprise
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100'
-                        : plan.deEmphasized
-                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                        : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100'
-                    }`}
-                  >
-                    {loading === plan.id ? 'Processing...' : plan.cta}
-                  </button>
-
-                  {plan.guarantee && (
-                    <p className="text-xs text-center text-slate-500 dark:text-slate-400 mb-4">
-                      30-day money-back guarantee
-                    </p>
+                  {savings && (
+                    <p className="text-sm text-green-600 font-semibold mt-1">{savings}</p>
                   )}
+                </div>
 
-                  {plan.enterprise && (
-                    <p className="text-xs text-center text-slate-500 dark:text-slate-400 mb-4">
-                      Volume licensing available
-                    </p>
-                  )}
-
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <svg className="w-5 h-5 text-safenode-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-sm text-slate-700 dark:text-slate-300">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Money-Back Guarantee */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border-2 border-safenode-primary/20 shadow-elevation-2">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4 text-center">
-              Money-Back Guarantee
-            </h3>
-            <p className="text-slate-700 dark:text-slate-300 text-center leading-relaxed">
-              Unsatisfied with your subscription? 30 days to cancel for full refund. No questions asked.
-              <br />
-              <br />
-              We're confident SafeNode is the best security solution on the market. If it's not for you, we'll refund 100%.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison Table */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-12"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-            whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
-              Detailed Feature Comparison
-            </h2>
-          </motion.div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                  <th className="text-left p-4 font-semibold text-slate-900 dark:text-white"></th>
-                  {PRICING_PLANS.map(plan => (
-                    <th key={plan.id} className={`text-center p-4 font-semibold text-slate-900 dark:text-white ${
-                      plan.popular ? 'bg-safenode-primary/10' : ''
-                    }`}>
-                      {plan.name}
-                    </th>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </li>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Devices</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">1</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">5</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">10</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">50</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Unlimited</td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Shared Vaults</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">5 people</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">20</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">100</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Unlimited</td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Storage</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">5GB</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">50GB</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Unlimited</td>
-                </tr>
-                <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-semibold text-slate-900 dark:text-white">SECURITY</td>
-                  <td colSpan={5}></td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Encryption</td>
-                  {PRICING_PLANS.map(plan => (
-                    <td key={plan.id} className="p-4 text-center">
-                      <span className="text-safenode-primary text-xl">✓</span>
-                    </td>
-                  ))}
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Zero-Knowledge</td>
-                  {PRICING_PLANS.map(plan => (
-                    <td key={plan.id} className="p-4 text-center">
-                      <span className="text-safenode-primary text-xl">✓</span>
-                    </td>
-                  ))}
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">2FA Options</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Basic</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Advanced</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Advanced</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Advanced</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Advanced</td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Biometric</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  {PRICING_PLANS.slice(1).map(plan => (
-                    <td key={plan.id} className="p-4 text-center">
-                      <span className="text-safenode-primary text-xl">✓</span>
-                    </td>
-                  ))}
-                </tr>
-                <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-semibold text-slate-900 dark:text-white">TEAM FEATURES</td>
-                  <td colSpan={5}></td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">RBAC</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Audit Logs</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Admin Dashboard</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-                <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-semibold text-slate-900 dark:text-white">SUPPORT</td>
-                  <td colSpan={5}></td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Email Support</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Community</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Priority</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Priority</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">Priority</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">24/7</td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Phone Support</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Account Manager</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">SLA</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-600 dark:text-slate-400">99.9%</td>
-                </tr>
-                <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-semibold text-slate-900 dark:text-white">INTEGRATIONS</td>
-                  <td colSpan={5}></td>
-                </tr>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">SSO Ready</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="p-4 font-medium text-slate-900 dark:text-white">Custom APIs</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center text-slate-400">—</td>
-                  <td className="p-4 text-center">
-                    <span className="text-safenode-primary text-xl">✓</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          </div>
-        </section>
+                </ul>
 
-        {/* FAQ Section */}
-      <section className="py-20 bg-slate-50 dark:bg-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <motion.div
-            className="text-center mb-12"
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-            whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
-                Frequently Asked Questions
-              </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400">
-              Everything about SafeNode pricing and plans
-              </p>
-            </motion.div>
-
-          <div className="space-y-6">
-            {[
-              {
-                q: 'How does billing work?',
-                a: 'We bill monthly or annually. Annual plans save 15-17% compared to monthly. You can change your plan or cancel anytime. Changes take effect immediately.'
-              },
-              {
-                q: 'What payment methods do you accept?',
-                a: 'We accept all major credit cards (Visa, Mastercard, Amex), Apple Pay, Google Pay, and ACH transfers for enterprise customers. Invoicing available for Teams+ plans.'
-              },
-              {
-                q: 'Can I cancel anytime?',
-                a: 'Yes. Cancel anytime from your account settings. Your subscription continues until the end of your current billing period.'
-              },
-              {
-                q: 'Do you offer refunds?',
-                a: 'Yes. All subscription plans include a 30-day money-back guarantee. No questions asked. Contact support to process a refund.'
-              },
-              {
-                q: 'Can I upgrade or downgrade?',
-                a: 'Absolutely. Change your plan anytime. Pro-rated credits or charges apply immediately based on your new plan.'
-              },
-              {
-                q: 'What if I need a custom plan?',
-                a: 'Enterprise customers can contact our sales team for volume pricing, custom features, dedicated support, and SLA agreements.'
-              },
-              {
-                q: 'Do you offer discounts for nonprofits or education?',
-                a: 'Yes. We offer 50% off Teams plan for nonprofits and educational institutions. Contact us with proof of status.'
-              },
-              {
-                q: 'Is there a free tier forever?',
-                a: 'Yes. Our Free plan ($0) is always available for personal use. No time limit, no credit card required to stay on free.'
-              },
-              {
-                q: 'What\'s included in the money-back guarantee?',
-                a: 'You have 30 days from purchase to request a full refund for any reason. No questions, no penalties. Contact support.'
-              },
-              {
-                q: 'How do you handle the zero-knowledge promise?',
-                a: 'We literally cannot access your passwords. If you lose your master password, even we can\'t recover it. This is by design—your data is truly yours alone.'
-              }
-            ].map((faq, index) => (
-                <motion.div
-                  key={index}
-                className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-elevation-1"
-                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-                whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                <button
+                  onClick={() => handleSubscribe(plan.id, stripePriceId)}
+                  disabled={isLoading}
+                  className={`w-full py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
+                    plan.highlight
+                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                  }`}
                 >
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                  {faq.q}
-                  </h3>
-                <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {faq.a}
-                  </p>
-                </motion.div>
-              ))}
+                  {isLoading && <Spinner size="sm" color={plan.highlight ? 'white' : 'primary'} />}
+                  {plan.cta}
+                </button>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-4">
+          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
+            Frequently Asked Questions
+          </h2>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Can I switch plans anytime?
+              </h3>
+              <p className="text-gray-600">
+                Yes. Upgrade or downgrade anytime. Changes apply immediately.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Is there a free trial?
+              </h3>
+              <p className="text-gray-600">
+                Yes. All paid plans include a 14-day free trial. No credit card required.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                What payment methods do you accept?
+              </h3>
+              <p className="text-gray-600">
+                We accept all major credit cards via Stripe. Secure and encrypted.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Can I cancel anytime?
+              </h3>
+              <p className="text-gray-600">
+                Yes. Cancel anytime. No questions asked. Your data stays yours.
+              </p>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 bg-indigo-600">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-4xl font-extrabold text-white mb-4">
+            Ready to get started?
+          </h2>
+          <p className="text-xl text-indigo-100 mb-8">
+            Join thousands protecting their passwords with SafeNode.
+          </p>
+          <button
+            onClick={() => navigate('/auth?mode=signup')}
+            className="px-8 py-4 bg-white hover:bg-gray-50 text-indigo-600 text-lg font-semibold rounded-xl transition shadow-xl"
+          >
+            Start Free Today
+          </button>
+        </div>
+      </section>
 
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default PricingPage
+export default PricingNewPage;

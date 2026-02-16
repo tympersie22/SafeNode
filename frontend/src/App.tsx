@@ -16,6 +16,8 @@ import SharingKeys from './components/SharingKeys';
 import ShareEntryModal from './components/ShareEntryModal';
 import ImportSharedModal from './components/ImportSharedModal';
 import Button from './components/ui/Button';
+import { showToast } from './components/ui/Toast';
+import { Spinner } from './components/ui/Spinner';
 import { LockIcon, SearchIcon } from './components/icons';
 import { Logout } from './icons/Logout';
 import Logo from './components/Logo';
@@ -68,7 +70,6 @@ const App: React.FC = () => {
   const [shareEntry, setShareEntry] = useState<VaultEntry | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const { user, isAuthenticated, isAuthInitialized, logout: authLogout } = useAuth();
-  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [syncState, setSyncState] = useState<{ status: SyncStatus; lastSyncedAt: number | null }>({
     status: 'idle',
@@ -168,22 +169,14 @@ const App: React.FC = () => {
         const warningKey = `warning-${sessionStartTime}`;
         if (!sessionStorage.getItem(warningKey)) {
           sessionStorage.setItem(warningKey, 'true');
-          setNotification({
-            message: 'Your session will expire in 2 minutes. Click anywhere to extend.',
-            type: 'info'
-          });
-          setTimeout(() => setNotification(null), 10000);
+          showToast.info('Your session will expire in 2 minutes. Click anywhere to extend.');
         }
       }
 
       // Auto-lock when session expires
       if (remainingSeconds <= 0) {
         handleLock();
-        setNotification({
-          message: 'Session expired for security. Please unlock again.',
-          type: 'info'
-        });
-        setTimeout(() => setNotification(null), 5000);
+        showToast.info('Session expired for security. Please unlock again.');
       }
     };
 
@@ -371,19 +364,11 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to initialize account storage:', error);
-        setNotification({
-          message: 'Failed to load account settings. Using defaults.',
-          type: 'error'
-        });
-        setTimeout(() => setNotification(null), 5000);
+        showToast.error('Failed to load account settings. Using defaults.');
       }
     }).catch(error => {
       console.error('Failed to init account storage:', error);
-      setNotification({
-        message: 'Failed to load account settings. Using defaults.',
-        type: 'error'
-      });
-      setTimeout(() => setNotification(null), 5000);
+      showToast.error('Failed to load account settings. Using defaults.');
     });
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
@@ -397,11 +382,7 @@ const App: React.FC = () => {
           password: password
         }).catch((error: any) => {
           console.warn('Failed to store password in keychain:', error);
-          setNotification({
-            message: 'Could not enable biometric unlock. You can set this up later in settings.',
-            type: 'info'
-          });
-          setTimeout(() => setNotification(null), 5000);
+          showToast.info('Could not enable biometric unlock. You can set this up later in settings.');
         });
       } catch (error) {
         // Silently fail if keychain is not available
@@ -488,21 +469,13 @@ const App: React.FC = () => {
       navigate('/');
       
       // Show success notification
-      setNotification({
-        message: 'Logged out successfully',
-        type: 'success'
-      });
-      setTimeout(() => setNotification(null), 3000);
+      showToast.success('Logged out successfully');
     } catch (error: any) {
       console.error('Error during logout:', error);
       // Still try to logout even if there's an error
       authLogout();
       navigate('/');
-      setNotification({
-        message: 'Logged out (some data may not have been cleared)',
-        type: 'info'
-      });
-      setTimeout(() => setNotification(null), 3000);
+      showToast.info('Logged out (some data may not have been cleared)');
     } finally {
       setShowLogoutConfirm(false);
     }
@@ -821,11 +794,7 @@ const App: React.FC = () => {
       // Handle rate limit errors with user-friendly message
       if (error?.isRateLimit || errorMessage.includes('rate limit')) {
         const retryAfter = error?.retryAfter || 15;
-        setNotification({
-          message: `Rate limit exceeded. Please wait ${retryAfter} seconds before trying again.`,
-          type: 'error'
-        });
-        setTimeout(() => setNotification(null), 5000);
+        showToast.error(`Rate limit exceeded. Please wait ${retryAfter} seconds before trying again.`);
         return;
       }
       
@@ -835,11 +804,7 @@ const App: React.FC = () => {
         hasMasterPassword: !!masterPassword,
         vaultStatus
       });
-      setNotification({
-        message: `Failed to save entry: ${errorMessage}`,
-        type: 'error'
-      });
-      setTimeout(() => setNotification(null), 5000);
+      showToast.error(`Failed to save entry: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
@@ -1123,11 +1088,9 @@ const App: React.FC = () => {
                           onClick={async () => {
                             try {
                               await syncManager.syncOnce();
-                              setNotification({ message: 'Sync retried successfully', type: 'success' });
-                              setTimeout(() => setNotification(null), 3000);
+                              showToast.success('Sync retried successfully');
                             } catch (error) {
-                              setNotification({ message: 'Sync retry failed. Check your connection.', type: 'error' });
-                              setTimeout(() => setNotification(null), 5000);
+                              showToast.error('Sync retry failed. Check your connection.');
                             }
                           }}
                           className="ml-1 text-xs underline hover:no-underline"
@@ -1467,19 +1430,11 @@ const App: React.FC = () => {
                 setSecurityFilter('breached')
                 setQuery('')
                 setActiveTag(null)
-                setNotification({
-                  message: 'Showing breached passwords. Please change these immediately.',
-                  type: 'error'
-                })
-                setTimeout(() => setNotification(null), 5000)
+                showToast.error('Showing breached passwords. Please change these immediately.');
               }}
               onGenerateUniquePasswords={() => {
                 setIsPasswordGeneratorOpen(true)
-                setNotification({
-                  message: 'Generate a strong password and update your entries.',
-                  type: 'info'
-                })
-                setTimeout(() => setNotification(null), 5000)
+                showToast.info('Generate a strong password and update your entries.');
               }}
               onReviewSecurityRecommendations={() => {
                 setSecurityFilter(null)
@@ -1488,28 +1443,16 @@ const App: React.FC = () => {
                 if (element) {
                   element.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 }
-                setNotification({
-                  message: 'Review the security recommendations above.',
-                  type: 'info'
-                })
-                setTimeout(() => setNotification(null), 5000)
+                showToast.info('Review the security recommendations above.');
               }}
               onEnable2FA={() => {
                 navigate('/settings/security')
-                setNotification({
-                  message: 'Navigate to Security settings to enable 2FA.',
-                  type: 'info'
-                })
-                setTimeout(() => setNotification(null), 5000)
+                showToast.info('Navigate to Security settings to enable 2FA.');
               }}
               onRotateOldPasswords={() => {
                 setSecurityFilter(null)
                 setIsPasswordGeneratorOpen(true)
-                setNotification({
-                  message: 'Generate new passwords for entries that haven\'t been updated recently.',
-                  type: 'info'
-                })
-                setTimeout(() => setNotification(null), 5000)
+                showToast.info('Generate new passwords for entries that haven\'t been updated recently.');
               }}
             />
             </div>
@@ -1525,11 +1468,7 @@ const App: React.FC = () => {
                     <button
                       onClick={() => {
                         setSecurityFilter(null)
-                        setNotification({
-                          message: 'Filter cleared',
-                          type: 'info'
-                        })
-                        setTimeout(() => setNotification(null), 2000)
+                        showToast.info('Filter cleared');
                       }}
                       className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
                       title="Clear filter"
@@ -1941,8 +1880,7 @@ const App: React.FC = () => {
         onClose={() => setSelectedEntryDetail(null)}
         onCopyPassword={(password) => {
           enhancedCopyToClipboard(password);
-          setNotification({ message: 'Password copied to clipboard', type: 'success' });
-          setTimeout(() => setNotification(null), 3000);
+          showToast.success('Password copied to clipboard');
         }}
         onEdit={() => {
           if (selectedEntryDetail) {
@@ -2108,11 +2046,7 @@ const App: React.FC = () => {
         onGenerate={(password) => {
           // Copy password to clipboard
           enhancedCopyToClipboard(password);
-          setNotification({
-            message: 'Password generated and copied to clipboard!',
-            type: 'success'
-          });
-          setTimeout(() => setNotification(null), 3000);
+          showToast.success('Password generated and copied to clipboard!');
         }}
       />
 
@@ -2148,50 +2082,16 @@ const App: React.FC = () => {
             // Update local state
             setVault(updatedVault);
             
-            setNotification({
-              message: `Password updated for ${entry.name}`,
-              type: 'success'
-            });
-            setTimeout(() => setNotification(null), 3000);
+            showToast.success(`Password updated for ${entry.name}`);
           } catch (error: any) {
             console.error('Failed to update password:', error);
-            setNotification({
-              message: `Failed to update password: ${error?.message || 'Unknown error'}`,
-              type: 'error'
-            });
-            setTimeout(() => setNotification(null), 5000);
+            showToast.error(`Failed to update password: ${error?.message || 'Unknown error'}`);
             throw error;
           }
         }}
       />
 
-      {/* Notification Toast */}
-      <AnimatePresence>
-        {notification && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className={`fixed top-4 right-4 z-[70] px-4 py-3 rounded-lg shadow-lg ${
-              notification.type === 'error' 
-                ? 'bg-red-500 text-white' 
-                : notification.type === 'success'
-                ? 'bg-green-500 text-white'
-                : 'bg-blue-500 text-white'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span>{notification.message}</span>
-              <button
-                onClick={() => setNotification(null)}
-                className="font-bold hover:opacity-80 transition-opacity"
-              >
-                ×
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Toast notifications are now handled globally by ToastProvider in main.tsx */}
     </div>
   );
 };

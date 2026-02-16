@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Button from '../../ui/Button'
 import Input from '../../ui/Input'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 
 interface SignupFormProps {
   onSignup: (userData: SignupData) => void
@@ -29,8 +30,6 @@ const SignupForm: React.FC<SignupFormProps> = ({
     confirmPassword: '',
     displayName: ''
   })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState(0)
   const [focusedField, setFocusedField] = useState<string | null>(null)
   const displayNameRef = useRef<HTMLInputElement>(null)
@@ -173,101 +172,29 @@ const SignupForm: React.FC<SignupFormProps> = ({
         />
 
         <div>
-          <Input
+          <PasswordInput
             id="signup-password"
-            type={showPassword ? 'text' : 'password'}
             label="Master Password"
             value={formData.password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('password', e.target.value)}
+            onChange={(e) => handleInputChange('password', e.target.value)}
             onFocus={() => setFocusedField('password')}
             onBlur={() => setFocusedField(null)}
             placeholder="Create a strong master password"
             required
-            autoComplete="new-password"
-            aria-describedby="password-strength"
-            rightIcon={
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-              >
-                {showPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
-            }
+            showStrength={true}
           />
-          
-          {/* Password Strength Indicator */}
-          {formData.password && (
-            <div id="password-strength" className="mt-3" role="status" aria-live="polite">
-              <div className="flex gap-1 mb-2">
-                {[1, 2, 3, 4, 5, 6].map((level) => (
-                  <div
-                    key={level}
-                    className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-                      level <= passwordStrength
-                        ? passwordStrengthColors[passwordStrength - 1] || 'bg-slate-300'
-                        : 'bg-slate-200'
-                    }`}
-                    aria-hidden="true"
-                  />
-                ))}
-              </div>
-              <p className={`text-xs font-medium ${
-                passwordStrength <= 2 ? 'text-red-600' : 
-                passwordStrength <= 4 ? 'text-yellow-600' : 
-                'text-green-600'
-              }`}>
-                {passwordStrengthLabels[passwordStrength] || 'Very Weak'} password
-                {passwordStrength < 3 && ' - Use at least 8 characters with mixed case, numbers, and symbols'}
-              </p>
-            </div>
-          )}
         </div>
 
-        <Input
+        <PasswordInput
           id="signup-confirm-password"
-          type={showConfirmPassword ? 'text' : 'password'}
           label="Confirm Password"
           value={formData.confirmPassword}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('confirmPassword', e.target.value)}
+          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
           onFocus={() => setFocusedField('confirmPassword')}
           onBlur={() => setFocusedField(null)}
           placeholder="Confirm your password"
           required
-          autoComplete="new-password"
           error={formData.confirmPassword && formData.password !== formData.confirmPassword ? "Passwords do not match" : undefined}
-          aria-invalid={formData.confirmPassword ? formData.password !== formData.confirmPassword : false}
-          rightIcon={
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-              aria-label={showConfirmPassword ? "Hide password confirmation" : "Show password confirmation"}
-              aria-pressed={showConfirmPassword}
-            >
-              {showConfirmPassword ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
-            </button>
-          }
         />
 
         <Button
