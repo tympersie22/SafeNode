@@ -69,7 +69,7 @@ export const Platforms: React.FC = () => {
             >
               {/* Icon */}
               <div className="w-16 h-16 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <platform.icon className="w-8 h-8 text-indigo-600 />
+                <platform.icon className="w-8 h-8 text-indigo-600" />
               </div>
 
               {/* Name */}
@@ -83,7 +83,7 @@ export const Platforms: React.FC = () => {
               </p>
 
               {/* Description */}
-              <p className="text-sm text-gray-500
+              <p className="text-sm text-gray-500">
                 {platform.description}
               </p>
             </motion.div>

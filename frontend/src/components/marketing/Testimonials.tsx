@@ -78,10 +78,10 @@ export const Testimonials: React.FC = () => {
 
               {/* Author */}
               <div>
-                <p className="font-semibold text-gray-900
+                <p className="font-semibold text-gray-900">
                   {testimonial.author}
                 </p>
-                <p className="text-sm text-gray-600
+                <p className="text-sm text-gray-600">
                   {testimonial.role}
                 </p>
               </div>
@@ -97,7 +97,7 @@ export const Testimonials: React.FC = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <p className="text-gray-600
+          <p className="text-gray-600">
             ⭐️ ⭐️ ⭐️ ⭐️ ⭐️ Rated 4.9/5 by thousands of users
           </p>
         </motion.div>
