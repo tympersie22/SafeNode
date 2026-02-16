@@ -79,3 +79,4 @@ frontend/.eslintcache
 
 # Misc
 *.local
+PRODUCTION_SECRETS.md

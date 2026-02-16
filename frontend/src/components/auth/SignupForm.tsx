@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Button from '../../ui/Button'
 import Input from '../../ui/Input'
-import { PasswordInput } from '../../components/ui/PasswordInput'
+import PasswordInput from '../ui/PasswordInput'
 
 interface SignupFormProps {
   onSignup: (userData: SignupData) => void
