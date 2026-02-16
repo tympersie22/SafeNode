@@ -7,6 +7,7 @@ import SignupForm from '../components/auth/SignupForm'
 import { handleSSOCallback, isSSOCallback } from '../services/ssoService'
 import { useAuth } from '../contexts/AuthContext'
 import { login as authLogin, register as authRegister } from '../services/authService'
+import { showToast } from '../components/ui/Toast'
 
 interface AuthProps {
   onBackToHome?: () => void
@@ -54,7 +55,9 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
             isProcessingRef.current = false
           }
         } catch (err: any) {
-          setError(err.message || 'SSO authentication failed. Please try again.')
+          const errorMsg = err.message || 'SSO authentication failed. Please try again.';
+          setError(errorMsg);
+          showToast.error(errorMsg);
           setIsLoading(false)
           isProcessingRef.current = false
           // NO NAVIGATION - User stays on /auth on error
@@ -92,7 +95,9 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       // NO NAVIGATION - PublicRoute will redirect authenticated users to /vault
       // This ensures route guards own all navigation decisions
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password. Please try again.')
+      const errorMsg = err.message || 'Invalid email or password. Please try again.';
+      setError(errorMsg);
+      showToast.error(errorMsg);
       setIsLoading(false)
       isProcessingRef.current = false
     }
