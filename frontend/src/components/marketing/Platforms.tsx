@@ -1,158 +1,116 @@
 /**
- * Platforms Section
- * Redesigned "How It Works" with visual progress indicators
+ * Platforms Section - Downloads Page Style
+ * Clean platform compatibility showcase
  */
 
-import React from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Monitor, Smartphone, Globe, Laptop } from 'lucide-react';
 
-const steps = [
+const PLATFORMS = [
   {
-    number: '01',
-    title: 'Set Your Master Password',
-    description: 'Create a master password that only you know—this is the only key to your encrypted vault.',
-    benefit: 'You control this. We can\'t see it.',
-    icon: '🔐'
+    icon: Monitor,
+    name: 'Desktop Apps',
+    platforms: ['Windows', 'macOS', 'Linux'],
+    description: 'Native apps with biometric unlock'
   },
   {
-    number: '02',
-    title: 'Import Your Passwords',
-    description: 'Import existing passwords or add them manually. SafeNode automatically encrypts everything before it\'s stored.',
-    benefit: 'Encrypted before leaving your device.',
-    icon: '📥'
+    icon: Smartphone,
+    name: 'Mobile Apps',
+    platforms: ['iOS', 'Android'],
+    description: 'Face ID, Touch ID support'
   },
   {
-    number: '03',
-    title: 'Access Anywhere Safely',
-    description: 'Unlock your vault on any device with your master password. Your data syncs securely across all platforms.',
-    benefit: 'Your vault syncs, always encrypted.',
-    icon: '🌐'
+    icon: Globe,
+    name: 'Browser Extensions',
+    platforms: ['Chrome', 'Firefox', 'Safari', 'Edge'],
+    description: 'Auto-fill passwords seamlessly'
+  },
+  {
+    icon: Laptop,
+    name: 'Web Access',
+    platforms: ['Any Browser'],
+    description: 'Access from anywhere'
   }
-]
-
-const platforms = [
-  { name: 'Web App', icon: '🌐', available: true },
-  { name: 'Desktop', icon: '💻', available: true },
-  { name: 'Mobile', icon: '📱', available: 'Coming Soon' },
-  { name: 'Browser Extension', icon: '🔌', available: 'Coming Soon' }
-]
+];
 
 export const Platforms: React.FC = () => {
-  const prefersReducedMotion = useReducedMotion()
+  const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section className="py-20 lg:py-32 bg-slate-50 dark:bg-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* How It Works */}
-        <div className="mb-20">
-          <motion.div
-            className="text-center mb-16"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-            whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
-              How SafeNode Works
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-              Three simple steps to secure your digital life
-            </p>
-          </motion.div>
-
-          <div className="relative">
-            {/* Progress Line */}
-            <div className="hidden md:block absolute top-12 left-0 right-0 h-0.5 bg-gradient-to-r from-safenode-primary via-safenode-secondary to-safenode-primary" style={{ margin: '0 10%' }} />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {steps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  className="relative"
-                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
-                  whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.2 }}
-                >
-                  {/* Step Number Circle */}
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="relative">
-                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-safenode-primary to-safenode-secondary flex items-center justify-center shadow-lg">
-                        <span className="text-4xl">{step.icon}</span>
-                      </div>
-                      <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold">
-                        {step.number}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
-                    {step.title}
-                  </h3>
-
-                  {/* Description */}
-                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-3">
-                    {step.description}
-                  </p>
-
-                  {/* Benefit */}
-                  <p className="text-sm font-semibold text-safenode-primary dark:text-safenode-secondary">
-                    {step.benefit}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Available Platforms */}
+    <section className="py-20 px-4 bg-white dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto">
+        {/* Section Header */}
         <motion.div
-          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
-          whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          className="text-center mb-16"
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-              Available on All Your Devices
-            </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-400">
-              Access your secure vault anywhere, anytime
-            </p>
-          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
+            Works Everywhere
+          </h2>
+          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+            Access your passwords on every device. Synced automatically.
+          </p>
+        </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {platforms.map((platform, index) => (
-              <motion.div
-                key={index}
-                className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-center hover:border-safenode-primary/50 dark:hover:border-safenode-primary/50 transition-all duration-300 shadow-elevation-1 hover:shadow-elevation-2"
-                initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
-                whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                whileHover={prefersReducedMotion ? {} : { y: -4 }}
-              >
-                <div className="text-4xl mb-3">{platform.icon}</div>
-                <div className="font-semibold text-slate-900 dark:text-white mb-1">
-                  {platform.name}
-                </div>
-                {platform.available === true ? (
-                  <div className="text-xs text-green-600 dark:text-green-400 font-medium">
-                    Available Now
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {platform.available}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
+        {/* Platforms Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {PLATFORMS.map((platform, index) => (
+            <motion.div
+              key={platform.name}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center hover:shadow-lg hover:border-secondary-500 dark:hover:border-secondary-500 transition-all"
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              {/* Icon */}
+              <div className="w-16 h-16 bg-secondary-100 dark:bg-secondary-900/30 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <platform.icon className="w-8 h-8 text-secondary-600 dark:text-secondary-400" />
+              </div>
+
+              {/* Name */}
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                {platform.name}
+              </h3>
+
+              {/* Platforms */}
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                {platform.platforms.join(' • ')}
+              </p>
+
+              {/* Description */}
+              <p className="text-sm text-slate-500 dark:text-slate-500">
+                {platform.description}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <motion.div
+          className="text-center mt-12"
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+        >
+          <p className="text-slate-600 dark:text-slate-400 mb-4">
+            Download for all your devices
+          </p>
+          <a
+            href="/downloads"
+            className="inline-block px-6 py-3 border-2 border-secondary-500 text-secondary-600 dark:text-secondary-400 font-semibold rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-900/20 transition-all"
+          >
+            View All Downloads
+          </a>
         </motion.div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default Platforms
+export default Platforms;

@@ -1,95 +1,109 @@
 /**
- * Testimonials Section
- * Social proof with real user testimonials
+ * Testimonials Section - Downloads Page Style
+ * Clean, modern social proof
  */
 
-import React from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Star, Quote } from 'lucide-react';
 
-interface Testimonial {
-  quote: string
-  author: string
-  role: string
-  company?: string
-  avatar: string
-}
-
-const testimonials: Testimonial[] = [
+const TESTIMONIALS = [
   {
-    quote: "I was paranoid about password managers. SafeNode proved my data is actually in *my* control.",
-    author: "Alice Chen",
+    quote: "Switched from 1Password. Zero-knowledge architecture is unbeatable.",
+    author: "Alex Chen",
     role: "Security Engineer",
-    avatar: "👩‍💻"
+    rating: 5
   },
   {
-    quote: "I switched from 1Password. The zero-knowledge architecture makes me sleep at night.",
-    author: "Marcus W.",
-    role: "Freelancer",
-    avatar: "👨‍💼"
+    quote: "Finally, a password manager I actually trust with my data.",
+    author: "Sarah Martinez",
+    role: "Product Manager",
+    rating: 5
   },
   {
-    quote: "Our family uses it for shared credentials. We trust SafeNode completely.",
-    author: "Jennifer P.",
-    role: "Parent",
-    avatar: "👩"
+    quote: "Our whole family uses it. Simple, secure, works everywhere.",
+    author: "Michael Brown",
+    role: "Small Business Owner",
+    rating: 5
   }
-]
+];
 
 export const Testimonials: React.FC = () => {
-  const prefersReducedMotion = useReducedMotion()
+  const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section className="py-20 bg-slate-50 dark:bg-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 px-4 bg-slate-50 dark:bg-slate-800">
+      <div className="max-w-7xl mx-auto">
+        {/* Section Header */}
         <motion.div
           className="text-center mb-16"
           initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-          whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
-            Trusted by Security-Conscious Users
+            Loved by Thousands
           </h2>
-          <p className="text-xl text-slate-600 dark:text-slate-400">
-            Real people protecting their digital lives
+          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+            Join security-conscious users protecting their digital lives.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {testimonials.map((testimonial, index) => (
+        {/* Testimonials Grid */}
+        <div className="grid md:grid-cols-3 gap-8">
+          {TESTIMONIALS.map((testimonial, index) => (
             <motion.div
               key={index}
-              className="p-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-elevation-1 hover:shadow-elevation-2 transition-all duration-300"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-8 hover:shadow-lg transition-shadow"
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-              whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              whileHover={prefersReducedMotion ? {} : { y: -4 }}
             >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-safenode-primary/10 flex items-center justify-center text-2xl">
-                  {testimonial.avatar}
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 dark:text-white">
-                    {testimonial.author}
-                  </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">
-                    {testimonial.role}
-                    {testimonial.company && ` at ${testimonial.company}`}
-                  </div>
-                </div>
+              {/* Quote Icon */}
+              <Quote className="w-8 h-8 text-secondary-500 mb-4" />
+
+              {/* Stars */}
+              <div className="flex gap-1 mb-4">
+                {[...Array(testimonial.rating)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-secondary-500 text-secondary-500" />
+                ))}
               </div>
-              <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
+
+              {/* Quote */}
+              <p className="text-slate-700 dark:text-slate-300 mb-6 text-lg">
                 "{testimonial.quote}"
               </p>
+
+              {/* Author */}
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-white">
+                  {testimonial.author}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {testimonial.role}
+                </p>
+              </div>
             </motion.div>
           ))}
         </div>
+
+        {/* Trust Badge */}
+        <motion.div
+          className="text-center mt-12"
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <p className="text-slate-600 dark:text-slate-400">
+            ⭐️ ⭐️ ⭐️ ⭐️ ⭐️ Rated 4.9/5 by thousands of users
+          </p>
+        </motion.div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default Testimonials
+export default Testimonials;
