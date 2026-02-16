@@ -1,0 +1,74 @@
+"use strict";
+/**
+ * Configuration Management
+ * Loads and validates environment variables with sensible defaults
+ */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.config = void 0;
+const dotenv_1 = __importDefault(require("dotenv"));
+// Load environment variables from .env file
+dotenv_1.default.config();
+/**
+ * Get configuration from environment variables
+ * Provides sensible defaults for development
+ */
+function getConfig() {
+    const nodeEnv = (process.env.NODE_ENV || 'development');
+    // JWT_SECRET is required for authentication
+    // In production, this MUST be a strong random string (32+ bytes)
+    // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret && nodeEnv === 'production') {
+        throw new Error('JWT_SECRET environment variable is required in production');
+    }
+    // ENCRYPTION_KEY is optional but recommended for production
+    // Should be a 32-byte base64-encoded key
+    // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+    const encryptionKey = process.env.ENCRYPTION_KEY || null;
+    if (encryptionKey && Buffer.from(encryptionKey, 'base64').length !== 32) {
+        console.warn('WARNING: ENCRYPTION_KEY should be a 32-byte base64-encoded key');
+    }
+    return {
+        // Server configuration
+        port: parseInt(process.env.PORT || '4000', 10),
+        nodeEnv,
+        // Database adapter selection
+        // Options: 'file' (default, in-memory), 'prisma' (PostgreSQL/MySQL), 'mongo' (MongoDB)
+        // To use Prisma: Set DB_ADAPTER=prisma and provide DATABASE_URL
+        // To use MongoDB: Set DB_ADAPTER=mongo and provide MONGO_URI
+        dbAdapter: (process.env.DB_ADAPTER || 'file'),
+        databaseUrl: process.env.DATABASE_URL || null,
+        mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/safenode',
+        // Security - CRITICAL: Rotate these keys regularly in production
+        jwtSecret: jwtSecret || 'dev-secret-change-in-production-' + Date.now(),
+        encryptionKey,
+        // Rate limiting (requests per window)
+        // Higher limits in development to prevent issues during testing
+        rateLimitWindowMinutes: parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || (nodeEnv === 'development' ? '1' : '15'), 10),
+        rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || (nodeEnv === 'development' ? '1000' : '100'), 10),
+        // CORS - in production, restrict to your frontend domain
+        // Supports comma-separated URLs and automatically includes Vercel preview URLs
+        corsOrigin: nodeEnv === 'production'
+            ? (() => {
+                const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || ['https://safenode.app'];
+                // Add Vercel preview URL pattern: https://*-*-mbwana-allys-projects.vercel.app
+                // This allows all preview deployments for this team
+                const vercelPreviewPattern = /^https:\/\/safe-node-[a-z0-9]+-mbwana-allys-projects\.vercel\.app$/;
+                return [...explicitOrigins, vercelPreviewPattern];
+            })()
+            : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/]
+    };
+}
+exports.config = getConfig();
+// Validate critical configuration
+if (exports.config.nodeEnv === 'production') {
+    if (exports.config.jwtSecret === 'dev-secret-change-in-production-' || exports.config.jwtSecret.length < 32) {
+        throw new Error('JWT_SECRET must be at least 32 characters in production');
+    }
+    if (!exports.config.encryptionKey) {
+        console.warn('WARNING: ENCRYPTION_KEY not set. Vault data will not be encrypted at rest.');
+    }
+}

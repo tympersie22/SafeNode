@@ -14,7 +14,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onEnterApp }) => {
   const prefersReducedMotion = useReducedMotion()
 
   return (
-    <section className="relative py-20 lg:py-32 bg-gradient-to-br from-secondary-600 via-secondary-500 to-secondary-600 dark:from-secondary-600 dark:via-secondary-500 dark:to-secondary-600 overflow-hidden">
+    <section className="relative py-20 lg:py-32 bg-gradient-to-br from-safenode-primary via-safenode-secondary to-safenode-primary dark:from-safenode-primary dark:via-safenode-secondary dark:to-safenode-primary overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl animate-pulse" />
@@ -30,19 +30,19 @@ export const CTASection: React.FC<CTASectionProps> = ({ onEnterApp }) => {
         >
           {/* Headline */}
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-            Ready to Secure Your Passwords?
+            Join 50,000+ Professionals Protecting Their Digital Life
           </h2>
 
           {/* Subheadline */}
           <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Start free. Upgrade anytime. No credit card required.
+            Get started today with our free tier or upgrade anytime. Enterprise-grade security, transparent pricing.
           </p>
 
           {/* Single Primary CTA */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <motion.button
               onClick={() => onEnterApp('signup')}
-              className="group relative px-8 py-4 bg-white hover:bg-slate-50 text-secondary-600 text-lg font-semibold rounded-lg transition-all duration-200 shadow-xl hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-secondary-600"
+              className="group relative px-8 py-4 bg-white hover:bg-slate-50 text-safenode-primary text-lg font-semibold rounded-lg transition-all duration-200 shadow-xl hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-safenode-primary"
               whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
               aria-label="Get Started Free - Create free account"
