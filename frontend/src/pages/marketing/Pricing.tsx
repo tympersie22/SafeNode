@@ -132,11 +132,11 @@ export const PricingNewPage: React.FC = () => {
       }
 
       // Create Stripe checkout session
-      const { sessionUrl } = await createCheckoutSession(stripePriceId);
+      const { url } = await createCheckoutSession(stripePriceId);
 
-      if (sessionUrl) {
+      if (url) {
         // Redirect to Stripe checkout
-        window.location.href = sessionUrl;
+        window.location.href = url;
       } else {
         showToast.error('Failed to start checkout');
       }

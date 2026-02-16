@@ -38,7 +38,7 @@ export const Platforms: React.FC = () => {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section className="py-20 px-4 bg-white dark:bg-slate-900">
+    <section className="py-20 px-4 bg-white bg-gray-900">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <motion.div
@@ -48,10 +48,10 @@ export const Platforms: React.FC = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Works Everywhere
           </h2>
-          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Access your passwords on every device. Synced automatically.
           </p>
         </motion.div>
@@ -61,29 +61,29 @@ export const Platforms: React.FC = () => {
           {PLATFORMS.map((platform, index) => (
             <motion.div
               key={platform.name}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center hover:shadow-lg hover:border-secondary-500 dark:hover:border-secondary-500 transition-all"
+              className="bg-gray-50 bg-gray-800 border border-gray-200 rounded-xl p-6 text-center hover:shadow-lg hover:border-indigo-500 transition-all"
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {/* Icon */}
-              <div className="w-16 h-16 bg-secondary-100 dark:bg-secondary-900/30 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <platform.icon className="w-8 h-8 text-secondary-600 dark:text-secondary-400" />
+              <div className="w-16 h-16 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <platform.icon className="w-8 h-8 text-indigo-600 />
               </div>
 
               {/* Name */}
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 {platform.name}
               </h3>
 
               {/* Platforms */}
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+              <p className="text-sm text-gray-600 mb-3">
                 {platform.platforms.join(' • ')}
               </p>
 
               {/* Description */}
-              <p className="text-sm text-slate-500 dark:text-slate-500">
+              <p className="text-sm text-gray-500
                 {platform.description}
               </p>
             </motion.div>
@@ -98,12 +98,12 @@ export const Platforms: React.FC = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.5 }}
         >
-          <p className="text-slate-600 dark:text-slate-400 mb-4">
+          <p className="text-gray-600 mb-4">
             Download for all your devices
           </p>
           <a
             href="/downloads"
-            className="inline-block px-6 py-3 border-2 border-secondary-500 text-secondary-600 dark:text-secondary-400 font-semibold rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-900/20 transition-all"
+            className="inline-block px-6 py-3 border-2 border-indigo-500 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 transition-all"
           >
             View All Downloads
           </a>

@@ -54,13 +54,13 @@ const LoginForm: React.FC<LoginFormProps> = ({
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-8 shadow-lg"
+      className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg"
       role="main"
       aria-labelledby="login-heading"
     >
       <div className="text-center mb-8">
         <div 
-          className="w-14 h-14 bg-gradient-to-br from-secondary-500 to-secondary-400 dark:from-secondary-600 dark:to-secondary-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-safenode-secondary"
+          className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-safenode-secondary"
           aria-hidden="true"
         >
           <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -69,11 +69,11 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
         <h2 
           id="login-heading"
-          className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2"
+          className="text-3xl font-bold text-gray-900 mb-2"
         >
           Welcome back
         </h2>
-        <p className="text-slate-600">
+        <p className="text-gray-600">
           Sign in to access your secure vault
         </p>
       </div>
@@ -82,21 +82,21 @@ const LoginForm: React.FC<LoginFormProps> = ({
         <motion.div
           initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg"
+          className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg"
           role="alert"
           aria-live="assertive"
         >
           <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
             <div className="flex-1">
-              <p className="text-red-700 dark:text-red-300 text-sm font-medium mb-1">{error}</p>
-              <p className="text-red-600 dark:text-red-400 text-xs">
+              <p className="text-red-700 text-sm font-medium mb-1">{error}</p>
+              <p className="text-red-600 text-xs">
                 Don't have an account?{' '}
                 <button
                   onClick={onSwitchToSignup}
-                  className="underline font-semibold hover:text-red-800 dark:hover:text-red-200"
+                  className="underline font-semibold hover:text-red-800
                 >
                   Create one here
                 </button>
@@ -156,10 +156,10 @@ const LoginForm: React.FC<LoginFormProps> = ({
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+              <div className="w-full border-t border-gray-200
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+              <span className="px-2 bg-white text-gray-500
                 Or continue with
               </span>
             </div>
@@ -179,7 +179,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
                   }
                 }}
                 disabled={isLoading || isLoadingSSO}
-                className="flex items-center justify-center px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                 aria-label={`Sign in with ${provider.name}`}
@@ -211,13 +211,13 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
       )}
 
-      <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+      <div className="mt-8 pt-6 border-t border-gray-200
         <div className="text-center space-y-4">
-          <p className="text-slate-600 dark:text-slate-400">
+          <p className="text-gray-600
             Don&apos;t have an account?{' '}
             <button
               onClick={onSwitchToSignup}
-              className="text-secondary-600 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-1"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1"
               aria-label="Switch to sign up form"
               data-testid="switch-to-signup"
             >
@@ -225,7 +225,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             </button>
           </p>
           
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-500
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
