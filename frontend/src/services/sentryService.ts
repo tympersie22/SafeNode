@@ -28,13 +28,9 @@ export function initSentry(): void {
   const dsn = import.meta.env.VITE_SENTRY_DSN || import.meta.env.VITE_SENTRY_DSN_FRONTEND
   const environment = import.meta.env.VITE_SENTRY_ENV || import.meta.env.MODE || 'development'
 
-  if (!dsn && environment === 'production') {
-    console.warn('⚠️  Sentry DSN not configured. Error tracking will not work in production.')
-    return
-  }
-
   if (!dsn) {
-    // Skip initialization in development if DSN not provided
+    // Sentry is optional - app works fine without it
+    // To enable: set VITE_SENTRY_DSN in Vercel environment variables
     return
   }
 

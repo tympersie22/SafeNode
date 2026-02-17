@@ -26,9 +26,14 @@ const LoginForm: React.FC<LoginFormProps> = ({
   const emailInputRef = useRef<HTMLInputElement>(null)
   const prefersReducedMotion = useReducedMotion()
 
-  // Load SSO providers on mount
+  // Load SSO providers on mount (silently ignore CORS/network errors)
   useEffect(() => {
-    getSSOProviders().then(setSsoProviders)
+    getSSOProviders()
+      .then(setSsoProviders)
+      .catch(() => {
+        // SSO providers unavailable - continue without them
+        setSsoProviders([])
+      })
   }, [])
 
   // Focus email input on mount for accessibility
