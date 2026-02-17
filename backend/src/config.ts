@@ -77,13 +77,19 @@ function getConfig(): Config {
     
     // CORS - in production, restrict to your frontend domain
     // Supports comma-separated URLs and automatically includes Vercel preview URLs
-    corsOrigin: nodeEnv === 'production' 
+    corsOrigin: nodeEnv === 'production'
       ? (() => {
-          const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || ['https://safenode.app']
-          // Add Vercel preview URL pattern: https://*-*-mbwana-allys-projects.vercel.app
-          // This allows all preview deployments for this team
-          const vercelPreviewPattern = /^https:\/\/safe-node-[a-z0-9]+-mbwana-allys-projects\.vercel\.app$/
-          return [...explicitOrigins, vercelPreviewPattern] as unknown as string | RegExp[]
+          const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || []
+          // Always allow the known production frontend
+          const knownOrigins = [
+            'https://frontend-pi-nine-39.vercel.app',
+            'https://safenode.app',
+            'https://www.safenode.app',
+          ]
+          // Allow all Vercel preview deployments for this project
+          const vercelPreviewPattern = /^https:\/\/frontend-[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/
+          const allOrigins = [...new Set([...knownOrigins, ...explicitOrigins])]
+          return [...allOrigins, vercelPreviewPattern] as unknown as string | RegExp[]
         })()
       : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/]
   }

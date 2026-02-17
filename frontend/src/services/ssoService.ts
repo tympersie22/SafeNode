@@ -25,15 +25,14 @@ export interface SSOProvidersResponse {
 export async function getSSOProviders(): Promise<SSOProvider[]> {
   try {
     const response = await fetch(`${API_BASE}/api/sso/providers`)
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch SSO providers')
-    }
+
+    if (!response.ok) return []
 
     const data: SSOProvidersResponse = await response.json()
     return data.providers || []
-  } catch (error: any) {
-    captureException(error, { context: 'sso', action: 'get_providers' })
+  } catch {
+    // SSO providers endpoint may be unavailable (CORS, network, etc.)
+    // This is non-critical - app works fine without SSO
     return []
   }
 }
