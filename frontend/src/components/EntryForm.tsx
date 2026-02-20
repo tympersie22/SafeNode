@@ -304,8 +304,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
       newErrors.username = 'Username/Email is required';
     }
     
-    if (formData.url && formData.url.trim() && !/^https?:\/\/.+/.test(formData.url)) {
-      newErrors.url = 'URL must start with http:// or https://';
+    if (formData.url && formData.url.trim()) {
+      // Auto-prepend https:// if no protocol specified
+      if (!/^https?:\/\//.test(formData.url)) {
+        formData.url = 'https://' + formData.url.trim();
+      }
     }
     
     setErrors(newErrors);
@@ -335,7 +338,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
     onClose();
   };
 
-  const isFormValid = formData.name.trim() && formData.username.trim() && Object.keys(errors).length === 0;
+  const isFormValid = formData.name.trim() && formData.username.trim() && Object.values(errors).filter(v => v).length === 0;
 
   return (
     <AnimatePresence>
@@ -358,13 +361,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
             aria-modal="true"
             aria-labelledby="entry-form-title"
           >
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[85vh] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] shadow-2xl overflow-hidden mx-1 sm:mx-4" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
               <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <button onClick={onClose} className="p-2.5 sm:p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center" aria-label="Back" title="Back">
-                      <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+                    <button onClick={onClose} className="p-2.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Back" title="Back">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
                     </button>
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-400 rounded-lg flex items-center justify-center">
@@ -391,7 +394,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
               {/* Form */}
               <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(85vh-180px)]">
                 {/* Basic Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">
                       Name *
@@ -456,7 +459,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </div>
 
                 {/* Credentials */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">
                       Username/Email *
@@ -493,11 +496,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         className="w-full px-3 py-2 pr-20 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 transition"
                         placeholder="Enter password"
                       />
-                      <div className="absolute right-1 top-1 flex space-x-1">
+                      <div className="absolute right-1 top-1 flex gap-1">
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="p-1.5 hover:bg-slate-100 rounded transition-colors"
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors touch-manipulation min-w-[36px] min-h-[36px] flex items-center justify-center"
                         >
                           {showPassword ? (
                             <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -514,7 +517,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                           type="button"
                           onClick={handleGeneratePassword}
                           disabled={isGeneratingPassword}
-                          className="p-1.5 hover:bg-slate-100 rounded transition-colors disabled:opacity-50"
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors disabled:opacity-50 touch-manipulation min-w-[36px] min-h-[36px] flex items-center justify-center"
                         >
                           {isGeneratingPassword ? (
                             <div className="w-4 h-4 border-2 border-slate-300 border-t-secondary-500 rounded-full animate-spin"></div>
@@ -684,26 +687,25 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </div>
                   )}
                 </div>
-              </form>
 
-              {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="btn btn-sm btn-outline"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={!isFormValid}
-                  className="btn btn-sm btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {entry ? 'Update Entry' : 'Create Entry'}
-                </button>
-              </div>
+                {/* Footer */}
+                <div className="sticky bottom-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white dark:bg-slate-800 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="btn btn-sm btn-outline w-full sm:w-auto min-h-[44px]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!isFormValid}
+                    className="btn btn-sm btn-primary w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                  >
+                    {entry ? 'Update Entry' : 'Create Entry'}
+                  </button>
+                </div>
+              </form>
             </div>
           </motion.div>
         </>

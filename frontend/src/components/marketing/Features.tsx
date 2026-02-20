@@ -77,15 +77,15 @@ const Features: React.FC = () => {
           {FEATURES.map((feature, index) => (
             <motion.div
               key={feature.title}
-              className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-indigo-500 transition-all"
+              className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-gray-400 transition-all"
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {/* Icon */}
-              <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <feature.icon className="w-6 h-6 text-indigo-600" />
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gray-950 transition-all duration-200">
+                <feature.icon className="w-6 h-6 text-gray-700 group-hover:text-white transition-colors duration-200" />
               </div>
 
               {/* Content */}

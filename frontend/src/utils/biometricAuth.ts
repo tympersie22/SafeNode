@@ -15,6 +15,7 @@
 
 import type { BiometricMLResult } from './biometricML';
 import { biometricMLService } from './biometricML';
+import { API_BASE } from '../config/api';
 
 export interface BiometricAuthResult {
   success: boolean;
@@ -214,7 +215,7 @@ class BiometricAuthService {
   private async authenticateWithWebAuthn(prompt: string): Promise<BiometricAuthResult> {
     try {
       // Request authentication options from backend
-      const optionsResponse = await fetch('/api/biometric/authenticate/options', {
+      const optionsResponse = await fetch(`${API_BASE}/api/biometric/authenticate/options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
@@ -252,7 +253,7 @@ class BiometricAuthService {
       const response = assertion.response as AuthenticatorAssertionResponse;
 
       // Verify with backend
-      const verifyResponse = await fetch('/api/biometric/authenticate/verify', {
+      const verifyResponse = await fetch(`${API_BASE}/api/biometric/authenticate/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -294,7 +295,7 @@ class BiometricAuthService {
 
     try {
       // Request registration options from backend
-      const optionsResponse = await fetch('/api/biometric/register/options', {
+      const optionsResponse = await fetch(`${API_BASE}/api/biometric/register/options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, userName, displayName })
@@ -344,7 +345,7 @@ class BiometricAuthService {
       const response = credential.response as AuthenticatorAttestationResponse;
 
       // Verify with backend
-      const verifyResponse = await fetch('/api/biometric/register/verify', {
+      const verifyResponse = await fetch(`${API_BASE}/api/biometric/register/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

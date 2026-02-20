@@ -1,4 +1,5 @@
 import type { PasskeyRecord } from '../types/passkeys';
+import { API_BASE } from '../config/api';
 
 const base64UrlToBuffer = (value: string): ArrayBuffer => {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
@@ -21,7 +22,7 @@ const bufferToBase64Url = (buffer: ArrayBuffer): string => {
 };
 
 export const listPasskeys = async (): Promise<PasskeyRecord[]> => {
-  const res = await fetch('/api/passkeys');
+  const res = await fetch(`${API_BASE}/api/passkeys`);
   if (!res.ok) {
     throw new Error('Failed to load passkeys');
   }
@@ -30,7 +31,7 @@ export const listPasskeys = async (): Promise<PasskeyRecord[]> => {
 };
 
 export const deletePasskey = async (id: string): Promise<void> => {
-  const res = await fetch(`/api/passkeys/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${API_BASE}/api/passkeys/${encodeURIComponent(id)}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -39,7 +40,7 @@ export const deletePasskey = async (id: string): Promise<void> => {
 };
 
 export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRecord> => {
-  const optionsResponse = await fetch('/api/passkeys/register/options', {
+  const optionsResponse = await fetch(`${API_BASE}/api/passkeys/register/options`, {
     method: 'POST'
   });
   if (!optionsResponse.ok) {
@@ -68,7 +69,7 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
   const attestationResponse = credential.response as AuthenticatorAttestationResponse;
   const transports = (attestationResponse as any).getTransports?.() ?? [];
 
-  const verifyRes = await fetch('/api/passkeys/register/verify', {
+  const verifyRes = await fetch(`${API_BASE}/api/passkeys/register/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -96,7 +97,7 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
 };
 
 export const authenticateWithPasskey = async (): Promise<void> => {
-  const optionsResponse = await fetch('/api/passkeys/authenticate/options', {
+  const optionsResponse = await fetch(`${API_BASE}/api/passkeys/authenticate/options`, {
     method: 'POST'
   });
   if (!optionsResponse.ok) {
@@ -127,7 +128,7 @@ export const authenticateWithPasskey = async (): Promise<void> => {
 
   const authResponse = assertion.response as AuthenticatorAssertionResponse;
 
-  const verifyRes = await fetch('/api/passkeys/authenticate/verify', {
+  const verifyRes = await fetch(`${API_BASE}/api/passkeys/authenticate/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

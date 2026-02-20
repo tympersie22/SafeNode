@@ -5,6 +5,7 @@
 
 import { vaultStorage, StoredVault } from '../storage/vaultStorage';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../crypto/crypto';
+import { API_BASE } from '../config/api';
 
 export interface ServerVaultResponse {
   encryptedVault: string;
@@ -22,10 +23,24 @@ export interface SyncResult {
 }
 
 export class VaultSync {
-  private baseUrl = '';
+  private baseUrl: string;
 
-  constructor(baseUrl: string = '') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl ?? API_BASE;
+  }
+
+  /**
+   * Get auth headers for API requests
+   */
+  private getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    const token = localStorage.getItem('safenode_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
   }
 
   /**
@@ -41,13 +56,26 @@ export class VaultSync {
         ? `?since=${encodeURIComponent(currentVersion)}`
         : '';
 
-      const vaultResponse = await fetch(`${this.baseUrl}/api/vault/latest${query}`);
+      // Use the auth-protected vault endpoint which returns salt included
+      const vaultResponse = await fetch(`${this.baseUrl}/api/auth/vault/latest${query}`, {
+        headers: this.getAuthHeaders(),
+        credentials: 'include'
+      });
 
       if (!vaultResponse.ok) {
-        throw new Error('Failed to fetch vault from server');
+        throw new Error(`Failed to fetch vault from server (${vaultResponse.status})`);
       }
 
       const vaultData = await vaultResponse.json();
+
+      // Check if vault doesn't exist yet (new user)
+      if (vaultData?.exists === false) {
+        return {
+          vault: null,
+          upToDate: false,
+          version: 0
+        };
+      }
 
       if (vaultData?.upToDate) {
         return {
@@ -57,30 +85,21 @@ export class VaultSync {
         };
       }
 
-      const token = localStorage.getItem('safenode_token');
-      if (!token) {
-        throw new Error('Not authenticated');
+      // /api/auth/vault/latest returns { exists, encryptedVault, iv, salt, version }
+      // No need for a separate salt fetch
+      if (!vaultData.encryptedVault || !vaultData.iv || !vaultData.salt) {
+        return {
+          vault: null,
+          upToDate: false,
+          version: 0
+        };
       }
-      
-      const saltResponse = await fetch(`${this.baseUrl}/api/auth/vault/salt`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-
-      if (!saltResponse.ok) {
-        throw new Error('Failed to fetch vault salt from server');
-      }
-
-      const saltData = await saltResponse.json();
 
       return {
         vault: {
           encryptedVault: vaultData.encryptedVault,
           iv: vaultData.iv,
-          salt: saltData.salt,
+          salt: vaultData.salt,
           version: vaultData.version || Date.now()
         },
         upToDate: false,
@@ -103,9 +122,8 @@ export class VaultSync {
     try {
       const response = await fetch(`${this.baseUrl}/api/vault`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({
           encryptedVault: vault.encryptedVault,
           iv: vault.iv,
@@ -128,12 +146,12 @@ export class VaultSync {
     try {
       // Get local vault
       const localVault = await vaultStorage.getVault();
-      
+
       // Try to fetch server vault
       const fetchResult = await this.fetchServerVault(localVault?.version);
       const serverVault = fetchResult.vault;
 
-      // If wewewe'reapos;reapos;re offline or server is unreachable
+      // If we're offline or server is unreachable
       if (!serverVault && !fetchResult.upToDate) {
         if (localVault) {
           return {
@@ -176,7 +194,7 @@ export class VaultSync {
           serverVault.version
         );
         await vaultStorage.storeVault(storedVault);
-        
+
         return {
           success: true,
           vault: storedVault,
@@ -205,7 +223,7 @@ export class VaultSync {
           serverVault.version
         );
         await vaultStorage.storeVault(updatedVault);
-        
+
         return {
           success: true,
           vault: updatedVault,
@@ -214,7 +232,7 @@ export class VaultSync {
       } else if (needsServerUpdate) {
         // Local is newer, update server
         const uploadSuccess = await this.uploadServerVault(localVault);
-        
+
         if (uploadSuccess) {
           return {
             success: true,
@@ -254,7 +272,7 @@ export class VaultSync {
   async forceServerSync(): Promise<SyncResult> {
     const fetchResult = await this.fetchServerVault();
     const serverVault = fetchResult.vault;
-    
+
     if (!serverVault) {
       return {
         success: false,
@@ -273,7 +291,7 @@ export class VaultSync {
     );
 
     await vaultStorage.storeVault(storedVault);
-    
+
     return {
       success: true,
       vault: storedVault,
@@ -286,7 +304,7 @@ export class VaultSync {
    */
   async forceLocalSync(): Promise<SyncResult> {
     const localVault = await vaultStorage.getVault();
-    
+
     if (!localVault) {
       return {
         success: false,
@@ -297,7 +315,7 @@ export class VaultSync {
     }
 
     const uploadSuccess = await this.uploadServerVault(localVault);
-    
+
     if (!uploadSuccess) {
       return {
         success: false,
@@ -326,7 +344,7 @@ export class VaultSync {
     const localVault = await vaultStorage.getVault();
     const fetchResult = await this.fetchServerVault(localVault?.version);
     const serverVault = fetchResult.vault;
-    
+
     return {
       needsSync: serverVault
         ? vaultStorage.needsSync(localVault?.version || 0, serverVault.version || 0)
@@ -338,5 +356,5 @@ export class VaultSync {
   }
 }
 
-// Export singleton instance
+// Export singleton instance with production API base URL
 export const vaultSync = new VaultSync();

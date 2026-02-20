@@ -42,8 +42,8 @@ const auth_1 = require("../middleware/auth");
 const sentryService_1 = require("../services/sentryService");
 const userService_1 = require("../services/userService");
 const emailVerificationService_1 = require("../services/emailVerificationService");
+const passwordResetService_1 = require("../services/passwordResetService");
 const totp_1 = require("../lib/totp");
-const userService_2 = require("../services/userService");
 const auditLogService_1 = require("../services/auditLogService");
 const config_1 = require("../config");
 const zod_1 = require("zod");
@@ -267,32 +267,12 @@ async function registerAuthRoutes(server) {
      */
     server.post('/api/auth/login', async (request, reply) => {
         try {
-            // CRITICAL DEBUG: Log everything about the request
-            request.log.info({
-                body: request.body,
-                bodyType: typeof request.body,
-                bodyIsUndefined: request.body === undefined,
-                bodyIsNull: request.body === null,
-                contentType: request.headers['content-type'],
-                hasBody: !!request.body,
-                bodyKeys: request.body && typeof request.body === 'object' ? Object.keys(request.body) : 'N/A'
-            }, 'Login request received - FULL DEBUG');
             const body = request.body;
-            // CRITICAL: If body is undefined, log error and return helpful message
+            // Validate body exists
             if (body === undefined || body === null) {
-                request.log.error({
-                    contentType: request.headers['content-type'],
-                    method: request.method,
-                    url: request.url,
-                    headers: request.headers
-                }, 'CRITICAL: request.body is undefined - JSON parsing may have failed');
                 return reply.code(400).send({
                     error: 'invalid_request',
-                    message: 'Request body is missing or invalid. Please ensure Content-Type is application/json.',
-                    debug: {
-                        contentType: request.headers['content-type'],
-                        bodyReceived: false
-                    }
+                    message: 'Request body is missing or invalid. Please ensure Content-Type is application/json.'
                 });
             }
             // Validate input
@@ -307,71 +287,28 @@ async function registerAuthRoutes(server) {
             }
             const { email, password } = validation.data;
             const normalizedEmail = email.toLowerCase().trim();
-            // Get password config for diagnostics
-            const { getPasswordConfig } = await Promise.resolve().then(() => __importStar(require('../utils/password')));
-            const passwordConfig = getPasswordConfig();
-            request.log.info({
-                email: normalizedEmail,
-                normalizedEmail,
-                hashingParamsVersion: passwordConfig.hashingParamsVersion
-            }, 'Starting authentication');
-            // Authenticate user with detailed error codes
+            // Authenticate user with timeout
             let authResult;
             try {
                 const authPromise = (0, userService_1.authenticateUser)(normalizedEmail, password);
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Authentication timeout')), 30000));
                 authResult = await Promise.race([authPromise, timeoutPromise]);
-                // Log structured info (never log raw passwords)
-                request.log.info({
-                    email: normalizedEmail,
-                    normalizedEmail,
-                    reason: authResult.reason,
-                    hashingParamsVersion: passwordConfig.hashingParamsVersion,
-                    userId: authResult.user?.id
-                }, 'Authentication completed');
             }
             catch (authError) {
-                request.log.error({
-                    error: authError?.message,
-                    email: normalizedEmail,
-                    normalizedEmail,
-                    reason: 'AUTH_ERROR',
-                    hashingParamsVersion: passwordConfig.hashingParamsVersion,
-                    stack: authError?.stack
-                }, 'Authentication error');
+                request.log.error({ error: authError?.message }, 'Authentication error');
                 return reply.code(500).send({
                     error: 'auth_error',
                     code: 'AUTH_ERROR',
                     message: authError?.message === 'Authentication timeout'
                         ? 'Authentication request timed out. Please try again.'
-                        : 'Authentication failed',
-                    details: process.env.NODE_ENV === 'development' ? authError?.message : undefined
+                        : 'Authentication failed'
                 });
             }
-            // Handle authentication results with specific error codes
-            if (authResult.reason === 'USER_NOT_FOUND') {
-                request.log.warn({
-                    email: normalizedEmail,
-                    normalizedEmail,
-                    reason: 'USER_NOT_FOUND',
-                    hashingParamsVersion: passwordConfig.hashingParamsVersion
-                }, 'User not found');
+            // Handle failed authentication
+            if (authResult.reason === 'USER_NOT_FOUND' || authResult.reason === 'BAD_PASSWORD') {
                 return reply.code(401).send({
                     error: 'invalid_credentials',
-                    code: 'USER_NOT_FOUND',
-                    message: 'Invalid email or password'
-                });
-            }
-            if (authResult.reason === 'BAD_PASSWORD') {
-                request.log.warn({
-                    email: normalizedEmail,
-                    normalizedEmail,
-                    reason: 'BAD_PASSWORD',
-                    hashingParamsVersion: passwordConfig.hashingParamsVersion
-                }, 'Password mismatch');
-                return reply.code(401).send({
-                    error: 'invalid_credentials',
-                    code: 'BAD_PASSWORD',
+                    code: authResult.reason,
                     message: 'Invalid email or password'
                 });
             }
@@ -599,7 +536,7 @@ async function registerAuthRoutes(server) {
                 const { randomBytes } = await Promise.resolve().then(() => __importStar(require('crypto')));
                 salt = randomBytes(32).toString('base64');
                 // Save the generated salt
-                await (0, userService_2.updateUser)(user.id, { vaultSalt: salt });
+                await (0, userService_1.updateUser)(user.id, { vaultSalt: salt });
                 request.log.info({ userId: user.id }, 'Generated new vault salt for user');
             }
             return {
@@ -917,7 +854,7 @@ async function registerAuthRoutes(server) {
             // Generate backup codes
             const backupCodes = (0, totp_1.generateBackupCodes)(10);
             // Store secret and backup codes (but don't enable 2FA yet - user needs to verify first)
-            await (0, userService_2.updateUser)(userData.id, {
+            await (0, userService_1.updateUser)(userData.id, {
                 twoFactorSecret: totpSecret.secret,
                 twoFactorBackupCodes: backupCodes
             });
@@ -973,7 +910,7 @@ async function registerAuthRoutes(server) {
                 });
             }
             // Enable 2FA
-            await (0, userService_2.updateUser)(userData.id, {
+            await (0, userService_1.updateUser)(userData.id, {
                 twoFactorEnabled: true
             });
             return {
@@ -1038,7 +975,7 @@ async function registerAuthRoutes(server) {
                     });
                 }
                 // Update backup codes
-                await (0, userService_2.updateUser)(userData.id, {
+                await (0, userService_1.updateUser)(userData.id, {
                     twoFactorBackupCodes: backupResult.remainingCodes
                 });
             }
@@ -1049,7 +986,7 @@ async function registerAuthRoutes(server) {
                 });
             }
             // Disable 2FA
-            await (0, userService_2.updateUser)(userData.id, {
+            await (0, userService_1.updateUser)(userData.id, {
                 twoFactorEnabled: false,
                 twoFactorSecret: undefined,
                 twoFactorBackupCodes: []
@@ -1114,7 +1051,7 @@ async function registerAuthRoutes(server) {
                 verified = backupResult.valid;
                 if (verified) {
                     // Update backup codes
-                    await (0, userService_2.updateUser)(user.id, {
+                    await (0, userService_1.updateUser)(user.id, {
                         twoFactorBackupCodes: backupResult.remainingCodes
                     });
                 }
@@ -1158,6 +1095,143 @@ async function registerAuthRoutes(server) {
             return reply.code(500).send({
                 error: error?.message || 'server_error',
                 message: 'Failed to verify 2FA code'
+            });
+        }
+    });
+    /**
+     * POST /api/auth/forgot-password
+     * Request a password reset email
+     * Always returns success to avoid revealing if user exists
+     */
+    server.post('/api/auth/forgot-password', async (request, reply) => {
+        try {
+            const body = request.body;
+            const forgotPasswordSchema = zod_1.z.object({
+                email: zod_1.z.string().email('Invalid email address')
+            });
+            const validation = forgotPasswordSchema.safeParse(body);
+            if (!validation.success) {
+                return reply.code(400).send({
+                    error: 'validation_error',
+                    message: 'Invalid email address',
+                    details: validation.error.errors
+                });
+            }
+            const { email } = validation.data;
+            // Create reset token and send email (always returns success)
+            await (0, passwordResetService_1.createPasswordResetToken)(email);
+            return {
+                success: true,
+                message: 'If an account exists with that email, a password reset link has been sent.'
+            };
+        }
+        catch (error) {
+            request.log.error(error);
+            // Still return success to avoid revealing information
+            return {
+                success: true,
+                message: 'If an account exists with that email, a password reset link has been sent.'
+            };
+        }
+    });
+    /**
+     * POST /api/auth/reset-password
+     * Reset password using a valid token
+     */
+    server.post('/api/auth/reset-password', async (request, reply) => {
+        try {
+            const body = request.body;
+            const resetPasswordSchema = zod_1.z.object({
+                token: zod_1.z.string().min(1, 'Reset token is required'),
+                newPassword: zod_1.z.string().min(8, 'Password must be at least 8 characters')
+            });
+            const validation = resetPasswordSchema.safeParse(body);
+            if (!validation.success) {
+                return reply.code(400).send({
+                    error: 'validation_error',
+                    message: 'Invalid input',
+                    details: validation.error.errors
+                });
+            }
+            const { token, newPassword } = validation.data;
+            const result = await (0, passwordResetService_1.resetPassword)(token, newPassword);
+            if (!result.success) {
+                return reply.code(400).send({
+                    error: 'reset_failed',
+                    message: result.error || 'Failed to reset password'
+                });
+            }
+            return {
+                success: true,
+                message: 'Password has been reset successfully. Please log in with your new password.'
+            };
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({
+                error: error?.message || 'server_error',
+                message: 'Failed to reset password'
+            });
+        }
+    });
+    /**
+     * DELETE /api/auth/account
+     * Permanently delete the authenticated user's account and all associated data
+     * Requires password confirmation for safety
+     */
+    server.delete('/api/auth/account', {
+        preHandler: auth_1.requireAuth
+    }, async (request, reply) => {
+        try {
+            const user = request.user;
+            const body = request.body;
+            // Require password confirmation
+            const validation = zod_1.z.object({
+                password: zod_1.z.string().min(1, 'Password is required for account deletion')
+            }).safeParse(body);
+            if (!validation.success) {
+                return reply.code(400).send({
+                    error: 'validation_error',
+                    message: 'Password confirmation is required to delete your account',
+                    details: validation.error.errors
+                });
+            }
+            // Verify the password matches
+            const authResult = await (0, userService_1.authenticateUser)(user.email, validation.data.password);
+            if (authResult.reason !== 'SUCCESS' || !authResult.user) {
+                return reply.code(401).send({
+                    error: 'invalid_credentials',
+                    message: 'Incorrect password. Account deletion cancelled.'
+                });
+            }
+            // Log the deletion before it happens
+            await (0, auditLogService_1.createAuditLog)({
+                userId: user.id,
+                action: 'account_deleted',
+                resourceType: 'user',
+                resourceId: user.id,
+                metadata: { email: user.email },
+                ipAddress: request.ip || request.headers['x-forwarded-for'] || undefined,
+                userAgent: request.headers['user-agent'] || undefined
+            }).catch(() => { }); // Don't fail if audit log fails
+            // Delete the user (cascades to all related data)
+            const deleted = await (0, userService_1.deleteUser)(user.id);
+            if (!deleted) {
+                return reply.code(404).send({
+                    error: 'user_not_found',
+                    message: 'Account not found'
+                });
+            }
+            return {
+                success: true,
+                message: 'Your account and all associated data have been permanently deleted.'
+            };
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({
+                error: error?.message || 'server_error',
+                message: 'Failed to delete account'
             });
         }
     });

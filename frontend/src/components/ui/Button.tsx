@@ -26,8 +26,8 @@ const Button: React.FC<ButtonProps> = ({
   title,
   ariaLabel,
 }) => {
-  const baseClasses = 'btn inline-flex items-center justify-center gap-2 font-medium rounded-lg select-none transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary-500 focus-visible:ring-offset-2'
-  
+  const baseClasses = 'btn inline-flex items-center justify-center gap-2 font-medium select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2'
+
   const variantClasses = {
     primary: 'btn-primary',
     outline: 'btn-outline',
@@ -35,14 +35,14 @@ const Button: React.FC<ButtonProps> = ({
     secondary: 'btn-secondary',
     danger: 'btn-danger'
   }
-  
+
   const sizeClasses = {
     sm: 'btn-sm',
     md: 'btn-md',
     lg: 'btn-lg'
   }
 
-  const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabled ? 'disabled:opacity-50 disabled:cursor-not-allowed' : ''} ${className}`
+  const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabled ? 'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none' : ''} ${className}`
 
   return (
     <motion.button
@@ -50,7 +50,7 @@ const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled || loading}
       className={buttonClasses}
-      whileHover={disabled || loading ? undefined : { scale: 1.02 }}
+      whileHover={disabled || loading ? undefined : { scale: 1.01 }}
       whileTap={disabled || loading ? undefined : { scale: 0.98 }}
       title={title}
       aria-label={ariaLabel}

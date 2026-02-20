@@ -103,7 +103,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
     >
       <div className="text-center mb-8">
         <div 
-          className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-safenode-secondary"
+          className="w-14 h-14 bg-gray-950 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gray-950/10"
           aria-hidden="true"
         >
           <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -216,7 +216,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1"
+              className="text-gray-900 hover:text-gray-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 rounded px-1 underline underline-offset-4 decoration-gray-300 hover:decoration-gray-900"
               aria-label="Switch to sign in form"
               data-testid="switch-to-login"
             >

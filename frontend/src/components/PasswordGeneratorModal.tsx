@@ -97,13 +97,13 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
               <div className="card-body">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900">Password Generator</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Password Generator</h2>
                   <button
                     onClick={onClose}
-                    className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+                    className="text-slate-400 hover:text-slate-600 text-2xl leading-none touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     ×
                   </button>
@@ -114,26 +114,28 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Generated Password
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       readOnly
                       value={generatedPassword}
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg bg-white font-mono text-lg"
+                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg bg-white font-mono text-base sm:text-lg min-h-[44px]"
                     />
-                    <button
-                      onClick={handleCopy}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
-                    >
-                      Copy
-                    </button>
-                    <button
-                      onClick={handleGenerate}
-                      disabled={isGenerating}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {isGenerating ? '...' : '↻'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCopy}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors min-h-[44px]"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50 min-h-[44px]"
+                      >
+                        {isGenerating ? '...' : '↻'}
+                      </button>
+                    </div>
                   </div>
                   {error && (
                     <p className="mt-2 text-sm text-red-600">{error}</p>
@@ -150,7 +152,7 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
                       <button
                         key={preset.label}
                         onClick={() => applyPreset(preset)}
-                        className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                        className="px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors min-h-[44px] whitespace-nowrap"
                       >
                         {preset.label}
                       </button>
@@ -275,17 +277,17 @@ const PasswordGeneratorModal: React.FC<PasswordGeneratorModalProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 justify-end">
+                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
                   <button
                     onClick={onClose}
-                    className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    className="w-full sm:w-auto px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors min-h-[44px]"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleUse}
                     disabled={!generatedPassword || isGenerating}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
                   >
                     Use Password
                   </button>

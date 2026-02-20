@@ -52,7 +52,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             type={isVisible ? 'text' : 'password'}
             className={clsx(
               'w-full px-4 py-3 pr-12 rounded-xl border transition-all duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
+              'focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent',
               error
                 ? 'border-red-300 bg-red-50'
                 : 'border-gray-300 bg-white hover:border-gray-400',
@@ -70,7 +70,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
               'absolute right-3 top-1/2 -translate-y-1/2',
               'p-2 rounded-lg transition-colors',
               'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-500'
+              'focus:outline-none focus:ring-2 focus:ring-gray-900'
             )}
             aria-label={isVisible ? 'Hide password' : 'Show password'}
             tabIndex={-1}

@@ -413,12 +413,52 @@ async function registerTeamRoutes(server) {
                     details: validation.error.errors
                 });
             }
-            // TODO: Implement vault sharing logic
-            // This would involve creating vault permission entries
-            return reply.code(501).send({
-                error: 'not_implemented',
-                message: 'Vault sharing is not yet implemented. Team vaults are accessible to all team members by default.'
+            const prisma = (0, prisma_1.getPrismaClient)();
+            const { memberIds } = validation.data;
+            // Verify the requesting user has permission to manage vault sharing
+            const membership = await prisma.teamMember.findUnique({
+                where: { teamId_userId: { teamId, userId: user.id } }
             });
+            if (!membership) {
+                return reply.code(403).send({ error: 'forbidden', message: 'You are not a member of this team' });
+            }
+            const userPerms = (0, teamService_1.getPermissionsForRole)(membership.role);
+            if (!userPerms.canShare) {
+                return reply.code(403).send({ error: 'forbidden', message: 'You do not have permission to manage vault sharing' });
+            }
+            // Verify vault exists in this team
+            const vault = await prisma.teamVault.findFirst({ where: { id: vaultId, teamId } });
+            if (!vault) {
+                return reply.code(404).send({ error: 'vault_not_found', message: 'Team vault not found' });
+            }
+            // Get team members who have access (all team members have role-based access)
+            const members = await prisma.teamMember.findMany({
+                where: {
+                    teamId,
+                    ...(memberIds?.length ? { userId: { in: memberIds } } : {})
+                },
+                include: { user: { select: { id: true, email: true, displayName: true } } }
+            });
+            const sharedWith = members.map(m => ({
+                memberId: m.id,
+                userId: m.userId,
+                email: m.user.email,
+                name: m.user.displayName,
+                role: m.role,
+                permissions: (0, teamService_1.getPermissionsForRole)(m.role)
+            }));
+            await (0, auditLogService_1.createAuditLog)({
+                userId: user.id,
+                action: 'vault_shared',
+                resourceType: 'vault',
+                resourceId: vaultId,
+                metadata: { teamId, memberCount: sharedWith.length }
+            }).catch(() => { });
+            return {
+                success: true,
+                vault: { id: vault.id, name: vault.name },
+                sharedWith
+            };
         }
         catch (error) {
             request.log.error(error);
@@ -455,11 +495,68 @@ async function registerTeamRoutes(server) {
                     details: validation.error.errors
                 });
             }
-            // TODO: Implement permission updates
-            return reply.code(501).send({
-                error: 'not_implemented',
-                message: 'Vault permission updates are not yet implemented. Permissions are based on team member roles.'
+            const prisma = (0, prisma_1.getPrismaClient)();
+            const { memberId, permissions } = validation.data;
+            // Verify the requesting user has admin/owner role
+            const requestingMember = await prisma.teamMember.findUnique({
+                where: { teamId_userId: { teamId, userId: user.id } }
             });
+            if (!requestingMember) {
+                return reply.code(403).send({ error: 'forbidden', message: 'You are not a member of this team' });
+            }
+            if (requestingMember.role !== 'owner' && requestingMember.role !== 'admin') {
+                return reply.code(403).send({ error: 'forbidden', message: 'Only owners and admins can update vault permissions' });
+            }
+            // Verify vault exists in this team
+            const vault = await prisma.teamVault.findFirst({ where: { id: vaultId, teamId } });
+            if (!vault) {
+                return reply.code(404).send({ error: 'vault_not_found', message: 'Team vault not found' });
+            }
+            // Verify the target member exists in the team
+            const targetMember = await prisma.teamMember.findUnique({
+                where: { id: memberId },
+                include: { user: { select: { id: true, email: true, displayName: true } } }
+            });
+            if (!targetMember || targetMember.teamId !== teamId) {
+                return reply.code(404).send({ error: 'member_not_found', message: 'Team member not found' });
+            }
+            // Determine the appropriate role based on requested permissions
+            // Permissions map to roles: canDelete → admin, canEdit → manager, canView → member
+            let newRole = targetMember.role;
+            if (permissions.canDelete) {
+                newRole = 'admin';
+            }
+            else if (permissions.canEdit) {
+                newRole = 'manager';
+            }
+            else if (permissions.canView) {
+                newRole = 'member';
+            }
+            else {
+                newRole = 'viewer';
+            }
+            // Update the member's role if changed
+            if (newRole !== targetMember.role) {
+                await (0, teamService_1.updateTeamMemberRole)(teamId, user.id, memberId, newRole);
+            }
+            await (0, auditLogService_1.createAuditLog)({
+                userId: user.id,
+                action: 'permission_updated',
+                resourceType: 'vault',
+                resourceId: vaultId,
+                metadata: { teamId, memberId, oldRole: targetMember.role, newRole, permissions }
+            }).catch(() => { });
+            return {
+                success: true,
+                member: {
+                    id: targetMember.id,
+                    userId: targetMember.userId,
+                    email: targetMember.user.email,
+                    name: targetMember.user.displayName,
+                    role: newRole,
+                    permissions: (0, teamService_1.getPermissionsForRole)(newRole)
+                }
+            };
         }
         catch (error) {
             request.log.error(error);

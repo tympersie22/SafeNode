@@ -20,7 +20,7 @@ const sizeClasses = {
 };
 
 const colorClasses = {
-  primary: 'border-indigo-600 border-t-transparent',
+  primary: 'border-gray-800 border-t-transparent',
   white: 'border-white border-t-transparent',
   gray: 'border-gray-300 border-t-transparent',
 };

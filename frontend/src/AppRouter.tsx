@@ -17,6 +17,12 @@ import { SecurityPage as DocsSecurityPage } from './pages/docs/Security'
 import BillingPage from './pages/docs/Billing'
 import { SettingsPage } from './pages/settings/index'
 import { SubscribePage } from './pages/billing/Subscribe'
+import { BillingSuccessPage } from './pages/billing/BillingSuccess'
+import { BillingCancelPage } from './pages/billing/BillingCancel'
+import { ForgotPasswordPage } from './pages/auth/ForgotPassword'
+import { ResetPasswordPage } from './pages/auth/ResetPassword'
+import { PrivacyPolicyPage } from './pages/marketing/PrivacyPolicy'
+import { TermsOfServicePage } from './pages/marketing/TermsOfService'
 
 /**
  * Router wrapper that handles marketing pages separately from the main app
@@ -33,6 +39,18 @@ export const AppRouter: React.FC = () => {
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           
+          {/* Legal Pages */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
+
+          {/* Auth Pages (public) */}
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+
+          {/* Billing Result Pages */}
+          <Route path="/billing/success" element={<BillingSuccessPage />} />
+          <Route path="/billing/cancel" element={<BillingCancelPage />} />
+
           {/* Documentation Pages */}
           <Route path="/docs/getting-started" element={<GettingStartedPage />} />
           <Route path="/docs/teams" element={<TeamsPage />} />

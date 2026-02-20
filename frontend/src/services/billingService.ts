@@ -23,7 +23,7 @@ export interface CheckoutSession {
 export async function createCheckoutSession(
   priceId: string,
   successUrl: string = `${window.location.origin}/billing/success`,
-  cancelUrl: string = `${window.location.origin}/billing`
+  cancelUrl: string = `${window.location.origin}/billing/cancel`
 ): Promise<CheckoutSession> {
   const token = localStorage.getItem('safenode_token')
   

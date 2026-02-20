@@ -66,9 +66,9 @@ export const Footer: React.FC = () => {
             &copy; {currentYear} SafeNode. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-sm">
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-            <a href="#" className="hover:text-white transition-colors">Security</a>
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link to="/security" className="hover:text-white transition-colors">Security</Link>
           </div>
         </div>
       </div>

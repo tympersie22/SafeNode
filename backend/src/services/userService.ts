@@ -194,6 +194,15 @@ export async function verifyMasterPassword(
 }
 
 /**
+ * Delete a user account and all associated data (cascading)
+ * Prisma schema has onDelete: Cascade on all relations,
+ * so deleting the user cascades to devices, tokens, audit logs, team memberships, subscriptions
+ */
+export async function deleteUser(userId: string): Promise<boolean> {
+  return db.users.delete(userId)
+}
+
+/**
  * Update vault data (encrypted by client)
  */
 export async function updateVault(

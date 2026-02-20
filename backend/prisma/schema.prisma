@@ -26,7 +26,7 @@ model User {
   vaultSalt String @map("vault_salt")
   vaultEncrypted String @default("") @map("vault_encrypted")
   vaultIV String @default("") @map("vault_iv")
-  vaultVersion Int @default(0) @map("vault_version")
+  vaultVersion BigInt @default(0) @map("vault_version")
   
   // Account security
   twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
@@ -47,6 +47,7 @@ model User {
   // Relations
   devices Device[]
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   auditLogs AuditLog[]
   teamMemberships TeamMember[]
   subscriptions Subscription[]
@@ -74,6 +75,22 @@ model EmailVerificationToken {
   @@index([token])
   @@index([userId])
   @@map("email_verification_tokens")
+}
+
+// Password Reset Token
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // Device Model

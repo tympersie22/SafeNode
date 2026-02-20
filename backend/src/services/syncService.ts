@@ -45,14 +45,16 @@ export async function detectConflicts(
 
   const conflicts: ConflictData[] = []
 
+  const serverVer = Number(user.vaultVersion || 0)
+
   // If versions are different, we might have conflicts
-  if (user.vaultVersion && localVersion !== user.vaultVersion) {
+  if (serverVer && localVersion !== serverVer) {
     // For now, return a general conflict indicator
     // In production, you'd decrypt and compare entries
     conflicts.push({
       entryId: 'vault',
       localVersion: localVersion,
-      serverVersion: user.vaultVersion || 0,
+      serverVersion: serverVer,
       localUpdatedAt: Date.now(),
       serverUpdatedAt: Date.now(),
       conflictType: 'version_mismatch'
@@ -89,7 +91,7 @@ export async function resolveConflicts(
     select: { vaultVersion: true }
   })
 
-  const newVersion = (user?.vaultVersion || 0) + 1
+  const newVersion = Number(user?.vaultVersion || 0) + 1
 
   return {
     success: true,
@@ -120,7 +122,7 @@ export async function getSyncStatus(
     throw new Error('User not found')
   }
 
-  const serverVersion = user.vaultVersion || 0
+  const serverVersion = Number(user.vaultVersion || 0)
   const hasConflicts = serverVersion !== localVersion && localVersion > 0
   const needsSync = serverVersion !== localVersion
 
