@@ -7,6 +7,7 @@ import { pinManager } from '../utils/pinManager';
 import { auditLogStorage } from '../storage/auditLogs';
 import { biometricAuthService, type BiometricCapabilities } from '../utils/biometricAuth';
 import { keychainService } from '../utils/keychain';
+import { API_BASE } from '../config/api';
 import Logo from './Logo';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -146,7 +147,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
       try {
         const token = localStorage.getItem('safenode_token');
         if (token) {
-          const saltResponse = await fetch('/api/auth/vault/salt', {
+          const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -198,7 +199,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
         if (!token) {
           throw new Error('Not authenticated');
         }
-        const saltResponse = await fetch('/api/auth/vault/salt', {
+        const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

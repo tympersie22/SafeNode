@@ -32,7 +32,7 @@ export const Testimonials: React.FC = () => {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section className="py-20 px-4 bg-gray-50 bg-gray-800">
+    <section className="py-20 px-4 bg-gray-50">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <motion.div
@@ -55,19 +55,19 @@ export const Testimonials: React.FC = () => {
           {TESTIMONIALS.map((testimonial, index) => (
             <motion.div
               key={index}
-              className="bg-white bg-gray-900 border border-gray-200 rounded-xl p-8 hover:shadow-lg transition-shadow"
+              className="bg-white border border-gray-200 rounded-xl p-8 hover:shadow-lg transition-shadow"
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {/* Quote Icon */}
-              <Quote className="w-8 h-8 text-indigo-500 mb-4" />
+              <Quote className="w-8 h-8 text-gray-300 mb-4" />
 
               {/* Stars */}
               <div className="flex gap-1 mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-indigo-500 text-indigo-500" />
+                  <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
                 ))}
               </div>
 

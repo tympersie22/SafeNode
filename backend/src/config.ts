@@ -28,6 +28,10 @@ export interface Config {
   
   // CORS
   corsOrigin: string | RegExp[]
+
+  // Stripe
+  stripeSecretKey: string | null
+  stripeWebhookSecret: string | null
 }
 
 /**
@@ -45,10 +49,15 @@ function getConfig(): Config {
     throw new Error('JWT_SECRET environment variable is required in production')
   }
   
-  // ENCRYPTION_KEY is optional but recommended for production
+  // ENCRYPTION_KEY is required in production for vault encryption at rest
   // Should be a 32-byte base64-encoded key
   // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
   const encryptionKey = process.env.ENCRYPTION_KEY || null
+  if (nodeEnv === 'production' && !encryptionKey) {
+    console.error('CRITICAL: ENCRYPTION_KEY is required in production for vault encryption at rest')
+    console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"')
+    // Don't throw — allow startup but log critical warning so it shows in Vercel logs
+  }
   if (encryptionKey && Buffer.from(encryptionKey, 'base64').length !== 32) {
     console.warn('WARNING: ENCRYPTION_KEY should be a 32-byte base64-encoded key')
   }
@@ -75,6 +84,10 @@ function getConfig(): Config {
     rateLimitWindowMinutes: parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || (nodeEnv === 'development' ? '1' : '15'), 10),
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || (nodeEnv === 'development' ? '1000' : '100'), 10),
     
+    // Stripe configuration
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY || null,
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
+
     // CORS - in production, restrict to your frontend domain
     // Supports comma-separated URLs and automatically includes Vercel preview URLs
     corsOrigin: nodeEnv === 'production'
@@ -82,7 +95,7 @@ function getConfig(): Config {
           const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || []
           // Always allow the known production frontend
           const knownOrigins = [
-            'https://frontend-pi-nine-39.vercel.app',
+            'https://frontend-mbwana-allys-projects.vercel.app',
             'https://safenode.app',
             'https://www.safenode.app',
           ]
@@ -104,6 +117,12 @@ if (config.nodeEnv === 'production') {
   }
   if (!config.encryptionKey) {
     console.warn('WARNING: ENCRYPTION_KEY not set. Vault data will not be encrypted at rest.')
+  }
+  if (!config.stripeSecretKey) {
+    console.warn('WARNING: STRIPE_SECRET_KEY not set. Billing and subscriptions will not work.')
+  }
+  if (!config.stripeWebhookSecret) {
+    console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Webhook signature verification will fail.')
   }
 }
 

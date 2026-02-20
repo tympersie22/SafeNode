@@ -152,7 +152,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full right-0 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg z-50"
+            className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-lg z-50"
           >
             <div className="p-4 border-b border-slate-200">
               <h3 className="font-semibold text-slate-900">Switch Account</h3>
@@ -163,17 +163,17 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
                 <button
                   key={account.id}
                   onClick={() => handleSwitchAccount(account.id)}
-                  className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center gap-3 ${
+                  className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center gap-3 min-h-[44px] ${
                     account.id === activeAccount?.id ? 'bg-secondary-50 border-l-4 border-secondary-600' : ''
                   }`}
                 >
-                  <span className="text-2xl">{getAccountIcon(account.type)}</span>
+                  <span className="text-2xl flex-shrink-0">{getAccountIcon(account.type)}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 truncate">{account.name}</div>
-                    <div className="text-sm text-slate-500 truncate">{account.email}</div>
+                    <div className="font-medium text-slate-900 truncate text-sm sm:text-base">{account.name}</div>
+                    <div className="text-xs sm:text-sm text-slate-500 truncate">{account.email}</div>
                   </div>
                   {account.id === activeAccount?.id && (
-                    <svg className="w-5 h-5 text-secondary-600" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-secondary-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -187,7 +187,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
                   onClick={() => setIsCreating(true)}
                   variant="ghost"
                   size="sm"
-                  className="w-full"
+                  className="w-full min-h-[44px]"
                 >
                   + Add Account
                 </Button>
@@ -199,7 +199,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
                   placeholder="Account name"
                   value={newAccountName}
                   onChange={(e) => setNewAccountName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[44px] text-base"
                   required
                 />
                 <input
@@ -207,21 +207,21 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
                   placeholder="Email"
                   value={newAccountEmail}
                   onChange={(e) => setNewAccountEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[44px] text-base"
                   required
                 />
                 <select
                   value={newAccountType}
                   onChange={(e) => setNewAccountType(e.target.value as Account['type'])}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[44px] text-base"
                 >
                   <option value="personal">Personal</option>
                   <option value="work">Work</option>
                   <option value="shared">Shared</option>
                   <option value="team">Team</option>
                 </select>
-                <div className="flex gap-2">
-                  <Button type="submit" variant="primary" size="sm" className="flex-1">
+                <div className="flex flex-col-reverse sm:flex-row gap-2">
+                  <Button type="submit" variant="primary" size="sm" className="flex-1 min-h-[44px]">
                     Create
                   </Button>
                   <Button
@@ -233,7 +233,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
                     }}
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 min-h-[44px]"
                   >
                     Cancel
                   </Button>

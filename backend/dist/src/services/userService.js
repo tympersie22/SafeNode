@@ -11,6 +11,7 @@ exports.findUserByEmail = findUserByEmail;
 exports.updateUser = updateUser;
 exports.emailExists = emailExists;
 exports.verifyMasterPassword = verifyMasterPassword;
+exports.deleteUser = deleteUser;
 exports.updateVault = updateVault;
 const crypto_1 = require("crypto");
 const database_1 = require("./database");
@@ -165,6 +166,14 @@ async function verifyMasterPassword(userId, masterPassword) {
         valid: true, // Client will verify by decrypting
         salt: user.vaultSalt
     };
+}
+/**
+ * Delete a user account and all associated data (cascading)
+ * Prisma schema has onDelete: Cascade on all relations,
+ * so deleting the user cascades to devices, tokens, audit logs, team memberships, subscriptions
+ */
+async function deleteUser(userId) {
+    return database_1.db.users.delete(userId);
 }
 /**
  * Update vault data (encrypted by client)

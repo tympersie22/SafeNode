@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import Button from '../../ui/Button'
 import Input from '../../ui/Input'
 import PasswordInput from '../ui/PasswordInput'
+import { Link } from 'react-router-dom'
 import { initiateSSOLogin, getSSOProviders } from '../../services/ssoService'
 import type { SSOProvider } from '../../services/ssoService'
 
@@ -65,7 +66,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
     >
       <div className="text-center mb-8">
         <div 
-          className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-safenode-secondary"
+          className="w-14 h-14 bg-gray-950 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gray-950/10"
           aria-hidden="true"
         >
           <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -132,16 +133,26 @@ const LoginForm: React.FC<LoginFormProps> = ({
           aria-describedby={error ? "login-error" : undefined}
         />
 
-        <PasswordInput
-          id="login-password"
-          label="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Enter your password"
-          required
-          hint="After login, you can enable Touch ID, Face ID, or PIN for faster access"
-        />
+        <div>
+          <PasswordInput
+            id="login-password"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter your password"
+            required
+            hint="After login, you can enable Touch ID, Face ID, or PIN for faster access"
+          />
+          <div className="mt-1 text-right">
+            <Link
+              to="/auth/forgot-password"
+              className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        </div>
 
         <Button
           type="submit"
@@ -222,7 +233,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             Don&apos;t have an account?{' '}
             <button
               onClick={onSwitchToSignup}
-              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1"
+              className="text-gray-900 hover:text-gray-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 rounded px-1 underline underline-offset-4 decoration-gray-300 hover:decoration-gray-900"
               aria-label="Switch to sign up form"
               data-testid="switch-to-signup"
             >

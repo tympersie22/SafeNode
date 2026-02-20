@@ -38,7 +38,7 @@ export const Platforms: React.FC = () => {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section className="py-20 px-4 bg-white bg-gray-900">
+    <section className="py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <motion.div
@@ -61,15 +61,15 @@ export const Platforms: React.FC = () => {
           {PLATFORMS.map((platform, index) => (
             <motion.div
               key={platform.name}
-              className="bg-gray-50 bg-gray-800 border border-gray-200 rounded-xl p-6 text-center hover:shadow-lg hover:border-indigo-500 transition-all"
+              className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center hover:shadow-lg hover:border-gray-400 transition-all"
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {/* Icon */}
-              <div className="w-16 h-16 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <platform.icon className="w-8 h-8 text-indigo-600" />
+              <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <platform.icon className="w-8 h-8 text-gray-700" />
               </div>
 
               {/* Name */}
@@ -103,7 +103,7 @@ export const Platforms: React.FC = () => {
           </p>
           <a
             href="/downloads"
-            className="inline-block px-6 py-3 border-2 border-indigo-500 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 transition-all"
+            className="inline-block px-6 py-3 bg-gray-950 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-950/10"
           >
             View All Downloads
           </a>

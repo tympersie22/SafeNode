@@ -28,6 +28,7 @@ import { SubscribePage } from './pages/billing/Subscribe';
 import { syncManager, SyncStatus } from './sync/syncManager';
 import { backupManager } from './sync/backupManager';
 import type { VaultBackup } from './storage/backupStorage';
+import { API_BASE } from './config/api';
 import type { VaultEntry, VaultAttachment } from './types/vault';
 import { evaluatePasswordHealth, type PasswordHealthSummary } from './health/passwordHealth';
 import PasskeysModal from './components/PasskeysModal';
@@ -396,7 +397,7 @@ const App: React.FC = () => {
         // Get the encrypted vault from server to store it
         const token = localStorage.getItem('safenode_token');
         if (token) {
-          const vaultResponse = await fetch('/api/auth/vault/latest', {
+          const vaultResponse = await fetch(`${API_BASE}/api/auth/vault/latest`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }

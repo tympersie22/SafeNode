@@ -8,6 +8,7 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import compress from '@fastify/compress'
+import rawBody from 'fastify-raw-body'
 import { config } from './config'
 
 import { registerAuthRoutes } from './routes/auth'
@@ -16,6 +17,7 @@ import { registerSyncRoutes } from './routes/sync'
 import { registerSSORoutes } from './routes/sso'
 import { registerHealthRoutes } from './routes/health'
 import { registerDownloadRoutes } from './routes/downloads'
+import { registerDeviceRoutes } from './routes/devices'
 import { requireAuth } from './middleware/auth'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
 import { getBreachRange, getCacheStats } from './controllers/breachController'
@@ -44,6 +46,14 @@ export async function createApp() {
   // Register compression (gzip)
   await server.register(compress, {
     encodings: ['gzip', 'deflate']
+  })
+
+  // Register raw body support for Stripe webhook signature verification
+  await server.register(rawBody, {
+    field: 'rawBody',
+    global: false,
+    runFirst: true,
+    encoding: false
   })
 
   // Security headers are registered via registerSecurityHeaders middleware
@@ -88,6 +98,9 @@ export async function createApp() {
 
   // Register download routes
   await registerDownloadRoutes(server)
+
+  // Register device routes
+  await registerDeviceRoutes(server)
 
   // Vault routes
   // NOTE: For backward compatibility, these are NOT protected by default

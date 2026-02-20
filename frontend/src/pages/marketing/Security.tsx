@@ -102,7 +102,7 @@ const SecurityPage: React.FC = () => {
               Security You Can Trust
             </h1>
             <p className="text-xl text-slate-600 dark:text-slate-400 mb-8 max-w-2xl mx-auto">
-              Military-grade encryption. Zero-knowledge architecture. Your passwords are protected by the same technology banks and governments use.
+              All encryption happens on your device. Our servers never see your passwords. We can't access your data — by design, not by policy.
             </p>
           </motion.div>
         </div>

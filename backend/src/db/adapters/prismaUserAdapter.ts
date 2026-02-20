@@ -25,7 +25,7 @@ function prismaUserToDomain(prismaUser: any): User {
     vaultSalt: prismaUser.vaultSalt,
     vaultEncrypted: prismaUser.vaultEncrypted,
     vaultIV: prismaUser.vaultIV,
-    vaultVersion: prismaUser.vaultVersion,
+    vaultVersion: Number(prismaUser.vaultVersion),
     
     // Account settings
     twoFactorEnabled: prismaUser.twoFactorEnabled,

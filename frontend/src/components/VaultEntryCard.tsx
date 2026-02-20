@@ -53,7 +53,7 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 shadow-sm hover:shadow-md transition-all duration-200"
+      className="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 shadow-sm hover:shadow-md transition-all duration-200"
     >
       {/* Breach Warning Banner */}
       {isBreached && (
@@ -81,7 +81,7 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
                 }}
               />
             ) : null}
-            <div className={`w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center ${favicon ? 'hidden' : ''}`}>
+            <div className={`w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center ${favicon ? 'hidden' : ''}`}>
               <Shield className="w-5 h-5 text-white" />
             </div>
           </div>
@@ -96,19 +96,19 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
                 href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
               >
-                <span className="truncate max-w-[200px]">{entry.url}</span>
+                <span className="truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px]">{entry.url}</span>
                 <ExternalLink className="w-3 h-3 flex-shrink-0" />
               </a>
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Action Buttons — always visible on mobile, hover-reveal on desktop */}
+          <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => onEdit(entry)}
-              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Edit entry"
               title="Edit"
             >
@@ -116,7 +116,7 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
             </button>
             <button
               onClick={handleDelete}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-lg transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 showConfirmDelete
                   ? 'text-white bg-red-600 hover:bg-red-700'
                   : 'text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
@@ -199,7 +199,7 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
               {entry.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-1 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full"
+                  className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full"
                 >
                   {tag}
                 </span>

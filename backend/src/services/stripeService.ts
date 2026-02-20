@@ -293,6 +293,34 @@ export async function handleStripeWebhook(event: any): Promise<void> {
       break
     }
 
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object as any
+      const subscriptionId = invoice.subscription as string
+
+      if (subscriptionId) {
+        const dbSubscription = await prisma.subscription.findUnique({
+          where: { stripeSubscriptionId: subscriptionId }
+        })
+
+        if (dbSubscription) {
+          // Update subscription status to past_due
+          await prisma.subscription.update({
+            where: { id: dbSubscription.id },
+            data: { status: 'past_due' }
+          })
+
+          // Update user subscription status
+          await updateUser(dbSubscription.userId, {
+            subscriptionStatus: 'past_due'
+          })
+
+          console.log('Invoice payment failed for subscription:', subscriptionId)
+        }
+      }
+
+      break
+    }
+
     default:
       console.log('Unhandled Stripe webhook event:', event.type)
   }

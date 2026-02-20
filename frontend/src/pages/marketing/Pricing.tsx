@@ -182,7 +182,7 @@ export const PricingNewPage: React.FC = () => {
             <Link to="/" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
               Home
             </Link>
-            <Link to="/auth" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition">
+            <Link to="/auth" className="px-4 py-2 bg-gray-950 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition">
               Get Started
             </Link>
           </div>
@@ -240,19 +240,19 @@ export const PricingNewPage: React.FC = () => {
                 key={plan.id}
                 className={`relative bg-white rounded-2xl border-2 p-8 ${
                   plan.highlight
-                    ? 'border-indigo-500 shadow-xl scale-105'
+                    ? 'border-gray-950 shadow-xl scale-105'
                     : 'border-gray-200'
                 }`}
                 whileHover={{ y: -4 }}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-sm font-semibold rounded-full">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-950 text-white text-sm font-semibold rounded-full">
                     {plan.tagline}
                   </div>
                 )}
 
                 <div className="mb-6">
-                  <Icon className={`w-10 h-10 mb-4 ${plan.highlight ? 'text-indigo-600' : 'text-gray-600'}`} />
+                  <Icon className={`w-10 h-10 mb-4 ${plan.highlight ? 'text-gray-950' : 'text-gray-600'}`} />
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
                   {!plan.highlight && <p className="text-sm text-gray-600">{plan.tagline}</p>}
                 </div>
@@ -283,7 +283,7 @@ export const PricingNewPage: React.FC = () => {
                   disabled={isLoading}
                   className={`w-full py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
                     plan.highlight
-                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      ? 'bg-gray-950 hover:bg-gray-800 text-white shadow-lg shadow-gray-950/10'
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                   }`}
                 >
@@ -340,17 +340,17 @@ export const PricingNewPage: React.FC = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-indigo-600">
+      <section className="py-20 bg-gray-950">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl font-extrabold text-white mb-4">
             Ready to get started?
           </h2>
-          <p className="text-xl text-indigo-100 mb-8">
+          <p className="text-xl text-gray-400 mb-8">
             Join thousands protecting their passwords with SafeNode.
           </p>
           <button
             onClick={() => navigate('/auth?mode=signup')}
-            className="px-8 py-4 bg-white hover:bg-gray-50 text-indigo-600 text-lg font-semibold rounded-xl transition shadow-xl"
+            className="px-8 py-4 bg-white hover:bg-gray-100 text-gray-950 text-lg font-semibold rounded-xl transition shadow-xl shadow-white/10"
           >
             Start Free Today
           </button>

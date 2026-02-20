@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { SaasButton, SaasInput, SaasCard } from '../ui'
 import { Vault, Lock, Eye, EyeOff, LogOut } from 'lucide-react'
 import { base64ToArrayBuffer } from '../crypto/crypto'
+import { API_BASE } from '../config/api'
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -128,7 +129,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       const vault = await unlockVault(storedPassword)
       
       // Get salt from server
-      const saltResponse = await fetch('/api/auth/vault/salt', {
+      const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
         }
@@ -186,7 +187,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       const vault = await unlockVault(masterPassword)
       
       // Get salt from server for callback
-      const saltResponse = await fetch('/api/auth/vault/salt', {
+      const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
         }

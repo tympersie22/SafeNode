@@ -65,7 +65,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
           'bg-white border border-gray-300 hover:border-gray-400',
           'text-gray-700 hover:text-gray-900',
           'transition-all duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-indigo-500',
+          'focus:outline-none focus:ring-2 focus:ring-gray-900',
           isCopied && 'bg-green-50 border-green-300 text-green-700',
           className
         )}
@@ -94,7 +94,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
         'inline-flex items-center justify-center rounded-lg',
         'transition-all duration-200',
         'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
-        'focus:outline-none focus:ring-2 focus:ring-indigo-500',
+        'focus:outline-none focus:ring-2 focus:ring-gray-900',
         isCopied && 'text-green-600 bg-green-50',
         sizeClasses[size],
         className

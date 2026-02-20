@@ -12,6 +12,7 @@ const fastify_1 = __importDefault(require("fastify"));
 const cors_1 = __importDefault(require("@fastify/cors"));
 const rate_limit_1 = __importDefault(require("@fastify/rate-limit"));
 const compress_1 = __importDefault(require("@fastify/compress"));
+const fastify_raw_body_1 = __importDefault(require("fastify-raw-body"));
 const config_1 = require("./config");
 const auth_1 = require("./routes/auth");
 const billing_1 = require("./routes/billing");
@@ -19,6 +20,7 @@ const sync_1 = require("./routes/sync");
 const sso_1 = require("./routes/sso");
 const health_1 = require("./routes/health");
 const downloads_1 = require("./routes/downloads");
+const devices_1 = require("./routes/devices");
 const auth_2 = require("./middleware/auth");
 const vaultController_1 = require("./controllers/vaultController");
 const breachController_1 = require("./controllers/breachController");
@@ -44,6 +46,13 @@ async function createApp() {
     // Register compression (gzip)
     await server.register(compress_1.default, {
         encodings: ['gzip', 'deflate']
+    });
+    // Register raw body support for Stripe webhook signature verification
+    await server.register(fastify_raw_body_1.default, {
+        field: 'rawBody',
+        global: false,
+        runFirst: true,
+        encoding: false
     });
     // Security headers are registered via registerSecurityHeaders middleware
     // This ensures consistent CSP configuration across the application
@@ -79,6 +88,8 @@ async function createApp() {
     await (0, health_1.registerHealthRoutes)(server);
     // Register download routes
     await (0, downloads_1.registerDownloadRoutes)(server);
+    // Register device routes
+    await (0, devices_1.registerDeviceRoutes)(server);
     // Vault routes
     // NOTE: For backward compatibility, these are NOT protected by default
     // To enable JWT auth, uncomment the preHandler lines

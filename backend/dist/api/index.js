@@ -130,6 +130,23 @@ async function handler(req, res) {
                 }
             });
         }
+        // CORS safety net: Fastify's inject() sometimes doesn't set access-control-allow-origin
+        // on non-preflight requests even when Origin is present. Ensure it's always set correctly.
+        const requestOrigin = req.headers?.origin;
+        if (requestOrigin) {
+            const allowedOrigins = [
+                'https://frontend-pi-nine-39.vercel.app',
+                'https://safenode.app',
+                'https://www.safenode.app',
+                ...(process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean) || []),
+            ];
+            const vercelPreviewPattern = /^https:\/\/frontend-[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/;
+            if (allowedOrigins.includes(requestOrigin) || vercelPreviewPattern.test(requestOrigin)) {
+                res.setHeader('access-control-allow-origin', requestOrigin);
+                res.setHeader('access-control-allow-credentials', 'true');
+                res.setHeader('vary', 'Origin');
+            }
+        }
         // Set status
         res.status(response.statusCode || 200);
         // Send response

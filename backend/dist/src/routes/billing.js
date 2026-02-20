@@ -135,7 +135,9 @@ async function registerBillingRoutes(server) {
      * POST /api/billing/webhook
      * Handle Stripe webhook events (public endpoint with signature verification)
      */
-    server.post('/api/billing/webhook', async (request, reply) => {
+    server.post('/api/billing/webhook', {
+        config: { rawBody: true }
+    }, async (request, reply) => {
         try {
             // Dynamic import to avoid type checking issues
             // @ts-ignore - Stripe is installed but TypeScript may not resolve it
@@ -165,8 +167,15 @@ async function registerBillingRoutes(server) {
             // Verify webhook signature
             let event;
             try {
-                // Fastify raw body handling
-                const rawBody = request.rawBody || (request.body ? Buffer.from(JSON.stringify(request.body)) : Buffer.alloc(0));
+                // Use raw body from fastify-raw-body plugin for accurate signature verification
+                const rawBody = request.rawBody;
+                if (!rawBody) {
+                    request.log.error('Raw body not available for webhook signature verification');
+                    return reply.code(500).send({
+                        error: 'server_error',
+                        message: 'Raw body not available for webhook verification'
+                    });
+                }
                 event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
             }
             catch (err) {

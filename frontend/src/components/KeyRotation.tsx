@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getPasswordBreachCount } from '../crypto/crypto';
+import { API_BASE } from '../config/api';
 
 interface KeyRotationProps {
   isOpen: boolean;
@@ -157,7 +158,7 @@ const KeyRotation: React.FC<KeyRotationProps> = ({ isOpen, onClose, onSuccess })
     setIsRotating(true);
     try {
       // Call key rotation API
-      const response = await fetch('/api/vault/rotate-key', {
+      const response = await fetch(`${API_BASE}/api/vault/rotate-key`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
