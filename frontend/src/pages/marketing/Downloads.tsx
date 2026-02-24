@@ -33,6 +33,11 @@ const BrandLogos = {
       <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-5.344 9.257c.206.01.413.016.621.016 6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728z"/>
     </svg>
   ),
+  Firefox: () => (
+    <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor">
+      <path d="M22.418 7.936c-.468-1.187-1.27-2.195-2.248-2.945a9.97 9.97 0 0 0-1.502-.944l-.082-.04c-.145-.068-.334-.154-.487-.217.258.312.55.873.566 1.291l-.003.001c-2.233-1.493-5.45-1.715-8.005-.417C7.154 6.443 5.1 9.824 5.33 13.49c-.423-.393-.8-1.122-.877-1.589a8.426 8.426 0 0 0-.43 2.614c0 4.687 3.87 8.485 8.645 8.485 4.774 0 8.644-3.798 8.644-8.485 0-.27-.014-.54-.04-.804l.002-.001c.65-.867 1.01-2.013 1.01-3.274 0-.886-.177-1.722-.496-2.5zM12.65 21.194c-3.646 0-6.602-2.9-6.602-6.476 0-1.596.589-3.058 1.565-4.187.604.547 1.15.875 1.867 1.099-.79-.962-1.25-2.186-1.216-3.42.027-.998.314-1.912.798-2.69 2.378-1.984 5.79-1.86 7.99-.254.19.137.373.287.547.448-.133-.019-.282-.005-.424.025-.754.158-1.108.852-1.058 1.712.026.457.173.92.433 1.35-.578-.38-1.412-.559-2.2-.244-1.048.418-1.644 1.537-1.54 2.723.11 1.233 1.008 2.232 2.155 2.436.483.087.98.03 1.445-.138-.307.617-.854 1.212-1.49 1.654a4.906 4.906 0 0 1-2.289.845c1.18.662 2.567.873 3.915.565-.98 1.754-2.88 2.952-5.055 2.952z"/>
+    </svg>
+  ),
   Android: () => (
     <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor">
       <path d="M17.523 15.341c-.808 0-1.463-.653-1.463-1.461s.655-1.461 1.463-1.461 1.463.653 1.463 1.461-.655 1.461-1.463 1.461zm-11.046 0c-.808 0-1.463-.653-1.463-1.461s.655-1.461 1.463-1.461 1.463.653 1.463 1.461-.655 1.461-1.463 1.461zm11.405-6.936l1.834-3.178a.298.298 0 0 0-.103-.41.295.295 0 0 0-.41.103l-1.858 3.217a14.158 14.158 0 0 0-5.345-1.036 14.163 14.163 0 0 0-5.346 1.036L5.796 5.92a.294.294 0 0 0-.41-.103.298.298 0 0 0-.103.41l1.834 3.178C2.797 11.074 0 14.868 0 19.264h24c0-4.396-2.797-8.19-7.118-9.859z"/>
@@ -59,25 +64,25 @@ const DOWNLOADS = {
       name: 'macOS',
       os: 'macos',
       logo: BrandLogos.Apple,
-      url: 'https://github.com/safenode/releases/latest/SafeNode-macOS.dmg',
-      size: '89 MB',
-      version: '1.0.0',
+      url: '/artifacts/SafeNode_0.1.0_aarch64.dmg',
+      size: '5.5 MB',
+      version: '0.1.0',
     },
     {
       name: 'Windows',
       os: 'windows',
       logo: BrandLogos.Windows,
-      url: 'https://github.com/safenode/releases/latest/SafeNode-Windows.exe',
-      size: '75 MB',
-      version: '1.0.0',
+      url: '',
+      size: 'Pending',
+      version: 'Pending',
     },
     {
       name: 'Linux',
       os: 'linux',
       logo: BrandLogos.Linux,
-      url: 'https://github.com/safenode/releases/latest/SafeNode-Linux.AppImage',
-      size: '82 MB',
-      version: '1.0.0',
+      url: '',
+      size: 'Pending',
+      version: 'Pending',
     },
   ],
   mobile: [
@@ -85,22 +90,35 @@ const DOWNLOADS = {
       name: 'iOS',
       os: 'ios',
       logo: BrandLogos.Apple,
-      url: 'https://apps.apple.com/app/safenode',
-      badge: 'App Store',
+      url: 'https://expo.dev/accounts/tympersie/projects/safenode-mobile/builds',
+      badge: 'iOS build queue',
     },
     {
       name: 'Android',
       os: 'android',
       logo: BrandLogos.Android,
-      url: 'https://play.google.com/store/apps/details?id=com.safenode',
-      badge: 'Google Play',
+      url: 'https://expo.dev/artifacts/eas/riMYrqX5e6kKneetuChBPa.apk',
+      badge: 'APK direct download',
     },
   ],
   browser: [
     {
       name: 'Chrome',
       logo: BrandLogos.Chrome,
-      url: 'https://chrome.google.com/webstore/detail/safenode',
+      url: '/artifacts/extensions/safenode-extension-chrome.zip',
+      cta: 'Download ZIP',
+    },
+    {
+      name: 'Firefox',
+      logo: BrandLogos.Firefox,
+      url: '/artifacts/extensions/safenode-extension-firefox.zip',
+      cta: 'Download ZIP',
+    },
+    {
+      name: 'Safari',
+      logo: BrandLogos.Apple,
+      url: '/artifacts/extensions/safenode-extension-safari.zip',
+      cta: 'Download ZIP',
     },
   ],
 };
@@ -120,7 +138,9 @@ export const DownloadsNewPage: React.FC = () => {
       return DOWNLOADS.mobile.find((d) => d.os === userOS) || DOWNLOADS.mobile[0];
     }
 
-    return DOWNLOADS.desktop.find((d) => d.os === userOS) || DOWNLOADS.desktop[0];
+    const desktopMatch = DOWNLOADS.desktop.find((d) => d.os === userOS);
+    if (desktopMatch?.url) return desktopMatch;
+    return DOWNLOADS.desktop[0];
   };
 
   const primaryDownload = getPrimaryDownload();
@@ -182,14 +202,14 @@ export const DownloadsNewPage: React.FC = () => {
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-8">Desktop</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {DOWNLOADS.desktop.map((platform) => {
+            {DOWNLOADS.desktop.map((platform) => {
                 const LogoComponent = platform.logo;
+                const isAvailable = Boolean(platform.url);
                 return (
-                  <motion.a
+                  <motion.div
                     key={platform.name}
-                    href={platform.url}
-                    className="block bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition"
-                    whileHover={{ y: -4 }}
+                    className="block bg-white rounded-xl border border-gray-200 p-6 transition hover:shadow-lg"
+                    whileHover={isAvailable ? { y: -4 } : {}}
                   >
                     <div className="w-12 h-12 text-gray-700 mb-4">
                       <LogoComponent />
@@ -198,11 +218,17 @@ export const DownloadsNewPage: React.FC = () => {
                     <p className="text-sm text-gray-600 mb-4">
                       Version {platform.version} • {platform.size}
                     </p>
-                    <div className="flex items-center gap-2 text-gray-900 font-medium">
-                      <Download className="w-4 h-4" />
-                      <span>Download</span>
-                    </div>
-                  </motion.a>
+                    {isAvailable ? (
+                      <a href={platform.url} className="flex items-center gap-2 text-gray-900 font-medium">
+                        <Download className="w-4 h-4" />
+                        <span>Download</span>
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-400 font-medium">
+                        <span>Build pending</span>
+                      </div>
+                    )}
+                  </motion.div>
                 );
               })}
             </div>
@@ -241,23 +267,31 @@ export const DownloadsNewPage: React.FC = () => {
           {/* Browser Extension */}
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-8">Browser Extension</h2>
-            <motion.a
-              href={DOWNLOADS.browser[0].url}
-              className="block bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition max-w-md"
-              whileHover={{ y: -4 }}
-            >
-              <div className="w-12 h-12 text-gray-700 mb-4">
-                <BrandLogos.Chrome />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Chrome Extension</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Auto-fill passwords on any website
-              </p>
-              <div className="flex items-center gap-2 text-gray-900 font-medium">
-                <Download className="w-4 h-4" />
-                <span>Add to Chrome</span>
-              </div>
-            </motion.a>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {DOWNLOADS.browser.map((platform) => {
+                const LogoComponent = platform.logo;
+                return (
+                  <motion.a
+                    key={platform.name}
+                    href={platform.url}
+                    className="block bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition"
+                    whileHover={{ y: -4 }}
+                  >
+                    <div className="w-12 h-12 text-gray-700 mb-4">
+                      <LogoComponent />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name} Extension</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Auto-fill passwords on any website
+                    </p>
+                    <div className="flex items-center gap-2 text-gray-900 font-medium">
+                      <Download className="w-4 h-4" />
+                      <span>{platform.cta || 'Download'}</span>
+                    </div>
+                  </motion.a>
+                );
+              })}
+            </div>
           </div>
 
           {/* Web App */}

@@ -7,7 +7,6 @@ use tauri::{command, State, Window, Manager, AppHandle};
 use keyring::Entry;
 
 mod biometrics;
-use biometrics::{check_biometric_available, authenticate_biometric};
 
 // Note: For production biometric authentication on desktop:
 // - macOS: Use LocalAuthentication framework via Objective-C/Swift bridge or a crate like `localauth`
@@ -206,7 +205,6 @@ fn create_system_tray_menu(is_unlocked: bool) -> tauri::SystemTrayMenu {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             vault_data: Mutex::new(None),
             is_unlocked: Mutex::new(false),
