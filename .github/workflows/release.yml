@@ -12,20 +12,24 @@ jobs:
   build-desktop:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.optional }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             platform: macos
+            optional: false
             bundle: dmg
             artifact_glob: src-tauri/target/release/bundle/dmg/*.dmg
           - os: windows-latest
             platform: windows
+            optional: false
             bundle: nsis
             artifact_glob: src-tauri/target/release/bundle/nsis/*.exe
           - os: ubuntu-latest
             platform: linux
+            optional: true
             bundle: appimage
             artifact_glob: src-tauri/target/release/bundle/appimage/*.AppImage
 
@@ -56,7 +60,7 @@ jobs:
         with:
           name: desktop-${{ matrix.platform }}
           path: ${{ matrix.artifact_glob }}
-          if-no-files-found: error
+          if-no-files-found: ${{ matrix.optional && 'warn' || 'error' }}
 
   package-extensions:
     name: Package Extensions
@@ -119,9 +123,26 @@ jobs:
       - name: Normalize filenames
         run: |
           mkdir -p release-assets
-          cp artifacts/desktop-macos/*.dmg release-assets/SafeNode-macOS.dmg
-          cp artifacts/desktop-windows/*.exe release-assets/SafeNode-Windows.exe
-          cp artifacts/desktop-linux/*.AppImage release-assets/SafeNode-Linux.AppImage
+
+          MAC_FILE="$(find artifacts/desktop-macos -type f -name '*.dmg' | head -n 1 || true)"
+          WIN_FILE="$(find artifacts/desktop-windows -type f -name '*.exe' | head -n 1 || true)"
+          LINUX_FILE="$(find artifacts/desktop-linux -type f -name '*.AppImage' | head -n 1 || true)"
+
+          if [ -z "${MAC_FILE}" ]; then
+            echo "Missing macOS artifact"
+            exit 1
+          fi
+          if [ -z "${WIN_FILE}" ]; then
+            echo "Missing Windows artifact"
+            exit 1
+          fi
+
+          cp "${MAC_FILE}" release-assets/SafeNode-macOS.dmg
+          cp "${WIN_FILE}" release-assets/SafeNode-Windows.exe
+          if [ -n "${LINUX_FILE}" ]; then
+            cp "${LINUX_FILE}" release-assets/SafeNode-Linux.AppImage
+          fi
+
           cp artifacts/extensions/safenode-extension-chrome.zip release-assets/safenode-extension-chrome.zip
           cp artifacts/extensions/safenode-extension-firefox.zip release-assets/safenode-extension-firefox.zip
           cp artifacts/extensions/safenode-extension-safari.zip release-assets/safenode-extension-safari.zip
@@ -129,10 +150,4 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release-assets/SafeNode-macOS.dmg
-            release-assets/SafeNode-Windows.exe
-            release-assets/SafeNode-Linux.AppImage
-            release-assets/safenode-extension-chrome.zip
-            release-assets/safenode-extension-firefox.zip
-            release-assets/safenode-extension-safari.zip
+          files: release-assets/*
