@@ -1,103 +1,138 @@
-name: Release & Deploy
+name: Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
-  # Build and publish desktop app
-  desktop:
-    name: Build Desktop App
+  build-desktop:
+    name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-    
+        include:
+          - os: macos-latest
+            platform: macos
+            bundle: dmg
+            artifact_glob: src-tauri/target/release/bundle/dmg/*.dmg
+          - os: windows-latest
+            platform: windows
+            bundle: nsis
+            artifact_glob: src-tauri/target/release/bundle/nsis/*.exe
+          - os: ubuntu-latest
+            platform: linux
+            bundle: appimage
+            artifact_glob: src-tauri/target/release/bundle/appimage/*.AppImage
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux deps
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf || \
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend deps
+        run: npm ci --prefix frontend
+
+      - name: Build desktop app
+        run: npx @tauri-apps/cli@1.5.14 build --bundles ${{ matrix.bundle }}
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
         with:
-          toolchain: stable
+          name: desktop-${{ matrix.platform }}
+          path: ${{ matrix.artifact_glob }}
+          if-no-files-found: error
 
-      - name: Install dependencies
-        run: |
-          cd frontend && npm ci
-          cd ../backend && npm ci
-
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-
-      - name: Build Tauri app
-        working-directory: ./src-tauri
-        run: |
-          cargo build --release
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-
-      - name: Create release artifacts
-        working-directory: ./src-tauri
-        run: |
-          # Artifacts will be created in target/release/bundle
-          # Upload these as release assets
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: desktop-${{ matrix.os }}
-          path: src-tauri/target/release/bundle/
-
-  # Deploy backend
-  deploy-backend:
-    name: Deploy Backend
+  package-extensions:
+    name: Package Extensions
     runs-on: ubuntu-latest
-    needs: [desktop]
-    
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to production
+      - name: Build extension zips
         run: |
-          echo "Deploy backend to production server"
-          # Add deployment commands here (e.g., Railway, Render, etc.)
+          mkdir -p release-assets
+          cp -R extension release-assets/chrome
+          cp -R extension release-assets/firefox
+          cp -R extension release-assets/safari
 
-  # Deploy frontend
-  deploy-frontend:
-    name: Deploy Frontend
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          firefox_manifest = Path("release-assets/firefox/manifest.json")
+          fm = json.loads(firefox_manifest.read_text())
+          fm["browser_specific_settings"] = {"gecko": {"id": "safenode@safenode.app", "strict_min_version": "109.0"}}
+          fm["background"] = {"scripts": ["background.js"]}
+          fm.pop("web_accessible_resources", None)
+          firefox_manifest.write_text(json.dumps(fm, indent=2) + "\n")
+
+          safari_manifest = Path("release-assets/safari/manifest.json")
+          sm = json.loads(safari_manifest.read_text())
+          sm["name"] = "SafeNode Password Manager (Safari)"
+          sm.pop("web_accessible_resources", None)
+          safari_manifest.write_text(json.dumps(sm, indent=2) + "\n")
+          PY
+
+          cd release-assets/chrome && zip -rq ../safenode-extension-chrome.zip . && cd ../..
+          cd release-assets/firefox && zip -rq ../safenode-extension-firefox.zip . && cd ../..
+          cd release-assets/safari && zip -rq ../safenode-extension-safari.zip . && cd ../..
+          rm -rf release-assets/chrome release-assets/firefox release-assets/safari
+
+      - name: Upload extension artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extensions
+          path: |
+            release-assets/safenode-extension-chrome.zip
+            release-assets/safenode-extension-firefox.zip
+            release-assets/safenode-extension-safari.zip
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish Release Assets
     runs-on: ubuntu-latest
-    
+    needs:
+      - build-desktop
+      - package-extensions
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
+          path: artifacts
 
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: npm ci
+      - name: Normalize filenames
+        run: |
+          mkdir -p release-assets
+          cp artifacts/desktop-macos/*.dmg release-assets/SafeNode-macOS.dmg
+          cp artifacts/desktop-windows/*.exe release-assets/SafeNode-Windows.exe
+          cp artifacts/desktop-linux/*.AppImage release-assets/SafeNode-Linux.AppImage
+          cp artifacts/extensions/safenode-extension-chrome.zip release-assets/safenode-extension-chrome.zip
+          cp artifacts/extensions/safenode-extension-firefox.zip release-assets/safenode-extension-firefox.zip
+          cp artifacts/extensions/safenode-extension-safari.zip release-assets/safenode-extension-safari.zip
 
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-        env:
-          VITE_API_URL: https://api.safenode.app
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./frontend
-
+          files: |
+            release-assets/SafeNode-macOS.dmg
+            release-assets/SafeNode-Windows.exe
+            release-assets/SafeNode-Linux.AppImage
+            release-assets/safenode-extension-chrome.zip
+            release-assets/safenode-extension-firefox.zip
+            release-assets/safenode-extension-safari.zip
