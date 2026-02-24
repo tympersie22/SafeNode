@@ -16,6 +16,7 @@ jobs:
   deploy:
     name: Deploy SafeNode Backend to Railway
     runs-on: ubuntu-latest
+    if: ${{ secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_PROJECT_ID != '' && secrets.RAILWAY_PUBLIC_DOMAIN != '' }}
     # environment: production # Uncomment if you've created a GitHub environment named "production"
     
     steps:
