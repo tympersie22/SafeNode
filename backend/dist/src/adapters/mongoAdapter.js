@@ -12,7 +12,7 @@
  * USAGE:
  * - Local MongoDB: MONGO_URI="mongodb://localhost:27017/safenode"
  * - MongoDB Atlas: MONGO_URI="mongodb+srv://<credentials>@<cluster-url>/safenode"
- * - With auth: MONGO_URI="mongodb://user:pass@localhost:27017/safenode?authSource=admin"
+ * - With auth: MONGO_URI="mongodb://<credentials>@localhost:27017/safenode?authSource=admin"
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mongoAdapter = void 0;
