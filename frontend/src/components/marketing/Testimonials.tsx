@@ -89,18 +89,6 @@ export const Testimonials: React.FC = () => {
           ))}
         </div>
 
-        {/* Trust Badge */}
-        <motion.div
-          className="text-center mt-12"
-          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          <p className="text-gray-600">
-            ⭐️ ⭐️ ⭐️ ⭐️ ⭐️ Rated 4.9/5 by thousands of users
-          </p>
-        </motion.div>
       </div>
     </section>
   );
