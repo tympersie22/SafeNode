@@ -1,39 +1,41 @@
 {
   "expo": {
     "name": "SafeNode",
-    "slug": "safenode",
-    "version": "0.1.0",
-    "runtimeVersion": {
-      "policy": "sdkVersion"
-    },
+    "slug": "safenode-mobile",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "safenode",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#0f172a"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.safenode.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.safenode.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#0f172a"
-      }
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "f90ff0ff-a61b-4a6a-aa90-a1cba430dddc"
       }
     },
-    "plugins": [
-      "expo-secure-store"
-    ]
+    "owner": "tympersie"
   }
 }

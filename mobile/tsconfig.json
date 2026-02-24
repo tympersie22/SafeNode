@@ -1,26 +1,6 @@
 {
-  "extends": "../frontend/tsconfig.json",
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@mobile/*": ["src/*"],
-      "@shared/crypto": ["../frontend/src/crypto/crypto"],
-      "@shared/types": ["../frontend/src/types/vault"]
-    },
-    "types": ["react", "nativewind/types"],
-    "skipLibCheck": true,
-    "typeRoots": [
-      "./src/types",
-      "../frontend/node_modules/@types",
-      "../node_modules/@types"
-    ]
-  },
-  "include": ["src"],
-  "exclude": [
-    "../frontend/node_modules",
-    "../backend/node_modules",
-    "../src-tauri/node_modules",
-    "../node_modules",
-    "node_modules"
-  ]
+    "strict": true
+  }
 }
