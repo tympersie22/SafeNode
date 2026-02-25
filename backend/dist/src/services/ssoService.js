@@ -4,39 +4,6 @@
  * Handles Enterprise SSO integrations (SAML, OAuth2/OIDC)
  * Supports Google, Microsoft, GitHub, and generic SAML providers
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSSOLoginUrl = getSSOLoginUrl;
 exports.handleSSOCallback = handleSSOCallback;
@@ -47,15 +14,12 @@ const crypto_1 = require("crypto");
 const database_1 = require("./database");
 const userService_1 = require("./userService");
 const auth_1 = require("../middleware/auth");
-// Dynamic import for node-fetch (ESM-only, can't use static import with CommonJS)
-let fetch;
-const getFetch = async () => {
-    if (!fetch) {
-        const module = await Promise.resolve().then(() => __importStar(require('node-fetch')));
-        fetch = module.default;
+function getFetch() {
+    if (typeof globalThis.fetch !== 'function') {
+        throw new Error('Global fetch is unavailable. Use Node.js 18+ runtime.');
     }
-    return fetch;
-};
+    return globalThis.fetch.bind(globalThis);
+}
 // In-memory state storage for OAuth flows (use Redis in production)
 const oauthStates = new Map();
 // Provider configurations
@@ -170,7 +134,7 @@ async function exchangeCodeForToken(provider, code, redirectUri, config, codeVer
     if (provider === 'github') {
         tokenParams.client_secret = providerConfigObj.clientSecret;
     }
-    const fetchFn = await getFetch();
+    const fetchFn = getFetch();
     const tokenResponse = await fetchFn(tokenUrl, {
         method: 'POST',
         headers: {

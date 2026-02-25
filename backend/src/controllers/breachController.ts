@@ -5,10 +5,11 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify'
 
-// Dynamic import for node-fetch (ESM-only, can't use static import with CommonJS)
-const getFetch = async () => {
-  const module = await import('node-fetch')
-  return module.default
+function getFetch(): typeof globalThis.fetch {
+  if (typeof globalThis.fetch !== 'function') {
+    throw new Error('Global fetch is unavailable. Use Node.js 18+ runtime.')
+  }
+  return globalThis.fetch.bind(globalThis)
 }
 
 // Simple in-memory LRU cache with TTL
@@ -81,7 +82,7 @@ export async function getBreachRange(
     
     let response
     try {
-      const fetch = await getFetch()
+      const fetch = getFetch()
       response = await fetch(url, {
         headers: {
           // Per HIBP guidelines
@@ -165,4 +166,3 @@ export async function getCacheStats(
     })
   }
 }
-

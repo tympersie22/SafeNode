@@ -10,14 +10,11 @@ import { createUser } from './userService'
 import { issueToken } from '../middleware/auth'
 import type { User } from '../models/User'
 
-// Dynamic import for node-fetch (ESM-only, can't use static import with CommonJS)
-let fetch: typeof import('node-fetch').default
-const getFetch = async () => {
-  if (!fetch) {
-    const module = await import('node-fetch')
-    fetch = module.default
+function getFetch(): typeof globalThis.fetch {
+  if (typeof globalThis.fetch !== 'function') {
+    throw new Error('Global fetch is unavailable. Use Node.js 18+ runtime.')
   }
-  return fetch
+  return globalThis.fetch.bind(globalThis)
 }
 
 export interface SSOProvider {
@@ -195,7 +192,7 @@ async function exchangeCodeForToken(
     tokenParams.client_secret = providerConfigObj.clientSecret
   }
 
-  const fetchFn = await getFetch()
+  const fetchFn = getFetch()
   const tokenResponse = await fetchFn(tokenUrl, {
     method: 'POST',
     headers: {

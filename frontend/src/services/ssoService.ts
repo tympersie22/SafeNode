@@ -4,8 +4,7 @@
 
 import { setUser as setSentryUser, captureException } from './sentryService'
 import { setToken } from './authService'
-
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface SSOProvider {
   id: string
@@ -43,11 +42,12 @@ export async function getSSOProviders(): Promise<SSOProvider[]> {
  */
 export function initiateSSOLogin(provider: 'google' | 'microsoft' | 'github'): void {
   try {
-    // Build redirect URI for callback
-const redirectUri = `${API_BASE}/api/sso/callback/${provider}`
+    const apiBase = API_BASE || ''
+    // Frontend callback URL used after backend completes OAuth code exchange
+    const redirectUri = `${window.location.origin}/auth/sso/callback`
     
     // Redirect to backend SSO login endpoint
-    const loginUrl = `${API_BASE}/api/sso/login/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`
+    const loginUrl = `${apiBase}/api/sso/login/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`
     
     // Store provider in sessionStorage for callback handling
     sessionStorage.setItem('sso_provider', provider)
@@ -111,4 +111,3 @@ export function isSSOCallback(): boolean {
 export function getStoredSSOProvider(): string | null {
   return sessionStorage.getItem('sso_provider')
 }
-

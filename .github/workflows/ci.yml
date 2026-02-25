@@ -95,7 +95,7 @@ jobs:
         working-directory: ./frontend
         run: npm run build
         env:
-          VITE_API_URL: https://api.safenode.app
+          VITE_API_URL: https://api.safe-node.app
 
   # E2E Tests (optional - can be added later)
   # e2e:

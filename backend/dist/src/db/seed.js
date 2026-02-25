@@ -13,7 +13,7 @@ const prisma_1 = require("./prisma");
 const crypto_1 = require("crypto");
 const password_1 = require("../utils/password");
 const hash_wasm_1 = require("hash-wasm");
-const DEMO_EMAIL = 'demo@safenode.app';
+const DEMO_EMAIL = 'demo@safe-node.app';
 const DEMO_PASSWORD = 'demo-password';
 // Stable demo user ID from env or deterministic generation
 function getStableDemoUserId() {

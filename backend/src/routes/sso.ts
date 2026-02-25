@@ -113,9 +113,15 @@ export async function registerSSORoutes(server: FastifyInstance) {
       // In Vercel/production, use environment variable or detect from headers
       let backendCallbackUrl: string
       
-      // Try to use explicit BACKEND_URL env var first (most reliable)
-      if (process.env.BACKEND_URL) {
+      // Try explicit callback base URL first
+      if (process.env.SSO_CALLBACK_BASE_URL) {
+        backendCallbackUrl = `${process.env.SSO_CALLBACK_BASE_URL}/api/sso/callback/${provider}`
+      } else if (process.env.BACKEND_URL) {
+        // Backward-compatible fallback
         backendCallbackUrl = `${process.env.BACKEND_URL}/api/sso/callback/${provider}`
+      } else if (process.env.FRONTEND_URL) {
+        // Use canonical public domain when backend is behind rewrites/proxy
+        backendCallbackUrl = `${process.env.FRONTEND_URL}/api/sso/callback/${provider}`
       } else {
         // Fallback to constructing from request (works in Vercel)
         const protocol = request.headers['x-forwarded-proto'] || request.protocol || 'https'

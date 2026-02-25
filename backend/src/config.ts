@@ -95,14 +95,11 @@ function getConfig(): Config {
           const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || []
           // Always allow the known production frontend
           const knownOrigins = [
-            'https://frontend-mbwana-allys-projects.vercel.app',
             'https://safe-node.app',
             'https://www.safe-node.app',
           ]
-          // Allow all Vercel preview deployments for this project
-          const vercelPreviewPattern = /^https:\/\/frontend-[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/
           const allOrigins = [...new Set([...knownOrigins, ...explicitOrigins])]
-          return [...allOrigins, vercelPreviewPattern] as unknown as string | RegExp[]
+          return allOrigins as unknown as string | RegExp[]
         })()
       : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/]
   }
@@ -125,4 +122,3 @@ if (config.nodeEnv === 'production') {
     console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Webhook signature verification will fail.')
   }
 }
-

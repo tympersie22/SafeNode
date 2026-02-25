@@ -41,6 +41,7 @@ Backend (Railway):
 - `JWT_SECRET` (32+ chars)
 - `ENCRYPTION_KEY`
 - `FRONTEND_URL=https://safe-node.app`
+- `SSO_CALLBACK_BASE_URL=https://safe-node.app` (for Google OAuth callback branding)
 - Stripe keys (if billing enabled)
 - Sentry DSN (recommended)
 
@@ -51,6 +52,12 @@ Frontend (Vercel):
 Do not use:
 - Legacy domains (`*.vercel.app` or `safenode.app`)
 - `https://www.safe-node.app` unless DNS + certificate are explicitly configured
+
+Google OAuth branding checklist:
+- Set OAuth consent app name to `Safenode` in Google Cloud Console.
+- Upload `SafeNodelogo.png` as the OAuth app logo.
+- Add `safe-node.app` as an authorized domain.
+- Ensure redirect URI is `https://safe-node.app/api/sso/callback/google`.
 
 ## 4) Deploy Order
 
@@ -93,3 +100,15 @@ Rollback plan:
 - Watch API p95 latency and 5xx.
 - Watch password reset and login success rates.
 - If severe auth/data issue appears, rollback immediately and investigate offline.
+
+## 8) TLS Certificate Pre-Generation (local/proxy)
+
+To pre-generate TLS certs for local nginx/docker usage:
+
+```bash
+npm run ssl:generate
+```
+
+This creates:
+- `ssl/fullchain.pem`
+- `ssl/privkey.pem`

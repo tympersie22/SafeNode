@@ -6,6 +6,7 @@ import PasswordInput from '../ui/PasswordInput'
 import { Link } from 'react-router-dom'
 import { initiateSSOLogin, getSSOProviders } from '../../services/ssoService'
 import type { SSOProvider } from '../../services/ssoService'
+import Logo from '../Logo'
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => void
@@ -66,12 +67,10 @@ const LoginForm: React.FC<LoginFormProps> = ({
     >
       <div className="text-center mb-8">
         <div 
-          className="w-14 h-14 bg-gray-950 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gray-950/10"
+          className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gray-950/5"
           aria-hidden="true"
         >
-          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+          <Logo variant="icon" size="sm" />
         </div>
         <h2 
           id="login-heading"

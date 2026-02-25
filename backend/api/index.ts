@@ -142,14 +142,11 @@ export default async function handler(req: any, res: any) {
     const requestOrigin = req.headers?.origin
     if (requestOrigin) {
       const allowedOrigins = [
-        'https://frontend-pi-nine-39.vercel.app',
         'https://safe-node.app',
         'https://www.safe-node.app',
         ...(process.env.CORS_ORIGIN?.split(',').map((s: string) => s.trim()).filter(Boolean) || []),
       ]
-      const vercelPreviewPattern = /^https:\/\/frontend-[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/
-
-      if (allowedOrigins.includes(requestOrigin) || vercelPreviewPattern.test(requestOrigin)) {
+      if (allowedOrigins.includes(requestOrigin)) {
         res.setHeader('access-control-allow-origin', requestOrigin)
         res.setHeader('access-control-allow-credentials', 'true')
         res.setHeader('vary', 'Origin')

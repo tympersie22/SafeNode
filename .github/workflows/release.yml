@@ -81,7 +81,7 @@ jobs:
 
           firefox_manifest = Path("release-assets/firefox/manifest.json")
           fm = json.loads(firefox_manifest.read_text())
-          fm["browser_specific_settings"] = {"gecko": {"id": "safenode@safenode.app", "strict_min_version": "109.0"}}
+          fm["browser_specific_settings"] = {"gecko": {"id": "safenode@safe-node.app", "strict_min_version": "109.0"}}
           fm["background"] = {"scripts": ["background.js"]}
           fm.pop("web_accessible_resources", None)
           firefox_manifest.write_text(json.dumps(fm, indent=2) + "\n")

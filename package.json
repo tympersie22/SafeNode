@@ -6,7 +6,9 @@
   "scripts": {
     "test:apis": "node test-apis.js",
     "test:apis:bash": "./test-apis.sh",
-    "test:apis:help": "echo 'Usage: npm run test:apis (Node.js) or npm run test:apis:bash (Bash)'"
+    "test:apis:help": "echo 'Usage: npm run test:apis (Node.js) or npm run test:apis:bash (Bash)'",
+    "ssl:generate": "./scripts/generate-ssl-certs.sh",
+    "tauri:icons": "./scripts/regenerate-tauri-icons.sh"
   },
   "keywords": [
     "password-manager",

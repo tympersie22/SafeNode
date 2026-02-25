@@ -132,9 +132,17 @@ async function registerSSORoutes(server) {
             // OAuth providers need the backend callback URL, not the frontend URL
             // In Vercel/production, use environment variable or detect from headers
             let backendCallbackUrl;
-            // Try to use explicit BACKEND_URL env var first (most reliable)
-            if (process.env.BACKEND_URL) {
+            // Try explicit callback base URL first
+            if (process.env.SSO_CALLBACK_BASE_URL) {
+                backendCallbackUrl = `${process.env.SSO_CALLBACK_BASE_URL}/api/sso/callback/${provider}`;
+            }
+            else if (process.env.BACKEND_URL) {
+                // Backward-compatible fallback
                 backendCallbackUrl = `${process.env.BACKEND_URL}/api/sso/callback/${provider}`;
+            }
+            else if (process.env.FRONTEND_URL) {
+                // Use canonical public domain when backend is behind rewrites/proxy
+                backendCallbackUrl = `${process.env.FRONTEND_URL}/api/sso/callback/${provider}`;
             }
             else {
                 // Fallback to constructing from request (works in Vercel)
@@ -197,7 +205,7 @@ async function registerSSORoutes(server) {
             const { getStoredFrontendRedirectUri } = await Promise.resolve().then(() => __importStar(require('../services/ssoService')));
             const frontendRedirectUri = getStoredFrontendRedirectUri(state) ||
                 (config_1.config.nodeEnv === 'production'
-                    ? process.env.FRONTEND_URL || 'https://safe-node.vercel.app'
+                    ? process.env.FRONTEND_URL || 'https://safe-node.app'
                     : 'http://localhost:5173') + '/auth/sso/callback';
             // Redirect to frontend with token
             const redirectUrl = new URL(frontendRedirectUri);
@@ -209,7 +217,7 @@ async function registerSSORoutes(server) {
             request.log.error(error);
             // Redirect to frontend error page
             const frontendUrl = config_1.config.nodeEnv === 'production'
-                ? process.env.FRONTEND_URL || 'https://safenode.app'
+                ? process.env.FRONTEND_URL || 'https://safe-node.app'
                 : 'http://localhost:5173';
             const errorUrl = new URL(`${frontendUrl}/auth/sso/error`);
             errorUrl.searchParams.set('error', error?.message || 'SSO callback failed');

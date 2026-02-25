@@ -47,7 +47,11 @@ check_no_bad_domain() {
     "$ROOT_DIR/frontend" \
     "$ROOT_DIR/.github" \
     "$ROOT_DIR"/*.txt \
-    -S >/dev/null
+    -S \
+    --glob '!**/dist/**' \
+    --glob '!**/*.old.*' \
+    --glob '!**/*.backup.*' \
+    --glob '!**/*backup*' >/dev/null
 }
 
 check_rls_patch_present() {

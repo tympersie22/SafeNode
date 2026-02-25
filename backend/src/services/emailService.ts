@@ -13,6 +13,13 @@ export interface EmailOptions {
   text?: string
 }
 
+function getFetch(): typeof globalThis.fetch {
+  if (typeof globalThis.fetch !== 'function') {
+    throw new Error('Global fetch is unavailable. Use Node.js 18+ runtime.')
+  }
+  return globalThis.fetch.bind(globalThis)
+}
+
 class EmailService {
   private provider: 'resend' | 'sendgrid' | 'nodemailer' | 'none'
   private apiKey: string | null = null
@@ -234,8 +241,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
       throw new Error('RESEND_API_KEY not configured')
     }
 
-    const { default: fetch } = await import('node-fetch')
-    
+    const fetch = getFetch()
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -265,8 +271,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
       throw new Error('SENDGRID_API_KEY not configured')
     }
 
-    const { default: fetch } = await import('node-fetch')
-    
+    const fetch = getFetch()
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
@@ -330,4 +335,3 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
 }
 
 export const emailService = new EmailService()
-

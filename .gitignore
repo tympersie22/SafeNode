@@ -80,3 +80,6 @@ frontend/.eslintcache
 # Misc
 *.local
 PRODUCTION_SECRETS.md
+
+# Generated TLS certs (local/proxy only)
+ssl/*.pem

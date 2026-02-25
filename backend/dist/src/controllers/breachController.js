@@ -3,47 +3,15 @@
  * Breach Controller
  * Proxies requests to HaveIBeenPwned API with caching and error handling
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getBreachRange = getBreachRange;
 exports.getCacheStats = getCacheStats;
-// Dynamic import for node-fetch (ESM-only, can't use static import with CommonJS)
-const getFetch = async () => {
-    const module = await Promise.resolve().then(() => __importStar(require('node-fetch')));
-    return module.default;
-};
+function getFetch() {
+    if (typeof globalThis.fetch !== 'function') {
+        throw new Error('Global fetch is unavailable. Use Node.js 18+ runtime.');
+    }
+    return globalThis.fetch.bind(globalThis);
+}
 const cache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_CACHE_SIZE = 1000; // Maximum number of cached entries
@@ -97,12 +65,12 @@ async function getBreachRange(request, reply) {
         const url = `https://api.pwnedpasswords.com/range/${upperPrefix}`;
         let response;
         try {
-            const fetch = await getFetch();
+            const fetch = getFetch();
             response = await fetch(url, {
                 headers: {
                     // Per HIBP guidelines
                     'Add-Padding': 'true',
-                    'User-Agent': 'SafeNode/1.0 (https://safenode.app)'
+                    'User-Agent': 'SafeNode/1.0 (https://safe-node.app)'
                 },
                 // 10 second timeout
                 signal: AbortSignal.timeout(10000)

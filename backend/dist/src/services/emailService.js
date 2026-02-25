@@ -40,6 +40,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailService = void 0;
 const config_1 = require("../config");
+function getFetch() {
+    if (typeof globalThis.fetch !== 'function') {
+        throw new Error('Global fetch is unavailable. Use Node.js 18+ runtime.');
+    }
+    return globalThis.fetch.bind(globalThis);
+}
 class EmailService {
     provider;
     apiKey = null;
@@ -254,7 +260,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
         if (!this.apiKey) {
             throw new Error('RESEND_API_KEY not configured');
         }
-        const { default: fetch } = await Promise.resolve().then(() => __importStar(require('node-fetch')));
+        const fetch = getFetch();
         const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -262,7 +268,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                from: process.env.EMAIL_FROM || 'SafeNode <noreply@safenode.app>',
+                from: process.env.EMAIL_FROM || 'SafeNode <noreply@safe-node.app>',
                 to: [options.to],
                 subject: options.subject,
                 html: options.html,
@@ -281,7 +287,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
         if (!this.apiKey) {
             throw new Error('SENDGRID_API_KEY not configured');
         }
-        const { default: fetch } = await Promise.resolve().then(() => __importStar(require('node-fetch')));
+        const fetch = getFetch();
         const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
             method: 'POST',
             headers: {
@@ -293,7 +299,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
                         to: [{ email: options.to }]
                     }],
                 from: {
-                    email: process.env.EMAIL_FROM || 'noreply@safenode.app',
+                    email: process.env.EMAIL_FROM || 'noreply@safe-node.app',
                     name: 'SafeNode'
                 },
                 subject: options.subject,
@@ -331,7 +337,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
             }
         });
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM || 'SafeNode <noreply@safenode.app>',
+            from: process.env.EMAIL_FROM || 'SafeNode <noreply@safe-node.app>',
             to: options.to,
             subject: options.subject,
             html: options.html,
