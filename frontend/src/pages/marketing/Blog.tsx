@@ -1,45 +1,10 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, ArrowRight, Shield, KeyRound, ServerCrash } from 'lucide-react'
+import { Calendar, ArrowRight } from 'lucide-react'
 import Logo from '../../components/Logo'
 import Footer from '../../components/marketing/Footer'
-
-type Post = {
-  title: string
-  date: string
-  readTime: string
-  category: string
-  excerpt: string
-  icon: React.ComponentType<{ className?: string }>
-}
-
-const posts: Post[] = [
-  {
-    title: 'How SafeNode Implements Zero-Knowledge Encryption',
-    date: 'February 24, 2026',
-    readTime: '6 min read',
-    category: 'Architecture',
-    excerpt: 'A practical breakdown of our client-side encryption model, key derivation, and sync boundaries.',
-    icon: Shield
-  },
-  {
-    title: 'Incident Playbooks: What Happens During API Degradation',
-    date: 'February 20, 2026',
-    readTime: '5 min read',
-    category: 'Reliability',
-    excerpt: 'The operational checklist we follow when auth, sync, or vault endpoints degrade in production.',
-    icon: ServerCrash
-  },
-  {
-    title: 'Master Password Design: Balancing Security and Recovery',
-    date: 'February 18, 2026',
-    readTime: '4 min read',
-    category: 'Security',
-    excerpt: 'Why SafeNode never stores your master password and how to build safer recovery flows around it.',
-    icon: KeyRound
-  }
-]
+import { blogPosts } from './blogData'
 
 const BlogPage: React.FC = () => {
   const navigate = useNavigate()
@@ -80,9 +45,9 @@ const BlogPage: React.FC = () => {
         </motion.div>
 
         <div className="grid gap-5 mt-10">
-          {posts.map((post, idx) => (
+          {blogPosts.map((post, idx) => (
             <motion.article
-              key={post.title}
+              key={post.slug}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.08 }}
@@ -101,9 +66,9 @@ const BlogPage: React.FC = () => {
                   <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{post.date}</span>
                   <span>{post.readTime}</span>
                 </div>
-                <button className="inline-flex items-center gap-1 text-sm font-semibold text-secondary-700 dark:text-secondary-300">
+                <Link to={`/blog/${post.slug}`} className="inline-flex items-center gap-1 text-sm font-semibold text-secondary-700 dark:text-secondary-300">
                   Read post <ArrowRight className="w-4 h-4" />
-                </button>
+                </Link>
               </div>
             </motion.article>
           ))}

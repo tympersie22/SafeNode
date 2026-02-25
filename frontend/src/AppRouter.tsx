@@ -12,6 +12,7 @@ import SecurityPage from './pages/marketing/Security'
 import DownloadsPage from './pages/marketing/Downloads'
 import ContactPage from './pages/marketing/Contact'
 import BlogPage from './pages/marketing/Blog'
+import BlogPostPage from './pages/marketing/BlogPost'
 import CareersPage from './pages/marketing/Careers'
 import GettingStartedPage from './pages/docs/GettingStarted'
 import TeamsPage from './pages/docs/Teams'
@@ -41,6 +42,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/careers" element={<CareersPage />} />
           
           {/* Legal Pages */}
