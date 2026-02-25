@@ -198,7 +198,7 @@ export async function registerSSORoutes(server: FastifyInstance) {
       const { getStoredFrontendRedirectUri } = await import('../services/ssoService')
       const frontendRedirectUri = getStoredFrontendRedirectUri(state) || 
         (config.nodeEnv === 'production' 
-          ? process.env.FRONTEND_URL || 'https://safe-node.vercel.app'
+          ? process.env.FRONTEND_URL || 'https://safe-node.app'
           : 'http://localhost:5173') + '/auth/sso/callback'
 
       // Redirect to frontend with token
@@ -212,7 +212,7 @@ export async function registerSSORoutes(server: FastifyInstance) {
       
       // Redirect to frontend error page
       const frontendUrl = config.nodeEnv === 'production'
-        ? process.env.FRONTEND_URL || 'https://safenode.app'
+        ? process.env.FRONTEND_URL || 'https://safe-node.app'
         : 'http://localhost:5173'
       
       const errorUrl = new URL(`${frontendUrl}/auth/sso/error`)

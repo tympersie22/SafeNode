@@ -6,7 +6,7 @@
 
 import { getPrismaClient } from '../src/db/prisma'
 
-const DEMO_EMAIL = 'demo@safenode.app'
+const DEMO_EMAIL = 'demo@safe-node.app'
 
 async function resetDemoVault() {
   try {
@@ -48,7 +48,7 @@ async function resetDemoVault() {
     console.log('✅ Vault reset successfully!')
     console.log('')
     console.log('📝 Next steps:')
-    console.log('   1. Log in with: demo@safenode.app / demo-password')
+    console.log('   1. Log in with: demo@safe-node.app / demo-password')
     console.log('   2. You will see the "Set Up Master Password" screen')
     console.log('   3. Set your new master password (remember it!)')
     console.log('   4. Your vault will be initialized with the new password')

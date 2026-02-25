@@ -134,10 +134,10 @@ export const AccountSettings: React.FC = () => {
             </p>
             <div className="space-y-2">
               <a
-                href="mailto:support@safenode.app"
+                href="mailto:support@safe-node.app"
                 className="text-sm text-secondary-600 dark:text-secondary-400 hover:underline"
               >
-                support@safenode.app
+                support@safe-node.app
               </a>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Response time: Usually within 24 hours

@@ -50,14 +50,14 @@ Rate limits vary by subscription tier:
 
 ## Base URL
 
-**Production**: \`https://api.safenode.app\`
+**Production**: \`https://api.safe-node.app\`
 **Development**: \`http://localhost:4000\`
         `,
         version: '1.0.0',
         contact: {
           name: 'SafeNode Support',
-          email: 'support@safenode.app',
-          url: 'https://safenode.app/support'
+          email: 'support@safe-node.app',
+          url: 'https://safe-node.app/support'
         },
         license: {
           name: 'MIT',
@@ -67,7 +67,7 @@ Rate limits vary by subscription tier:
       servers: [
         {
           url: config.nodeEnv === 'production'
-            ? 'https://api.safenode.app'
+            ? 'https://api.safe-node.app'
             : 'http://localhost:4000',
           description: config.nodeEnv === 'production' ? 'Production server' : 'Development server'
         }

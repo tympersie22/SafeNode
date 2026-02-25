@@ -122,8 +122,8 @@ export const TermsOfServicePage: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900 mb-3">11. Contact</h2>
             <p className="text-gray-600 leading-relaxed">
               Questions about these Terms of Service should be directed to{' '}
-              <a href="mailto:support@safenode.app" className="text-gray-950 font-medium hover:underline">
-                support@safenode.app
+              <a href="mailto:support@safe-node.app" className="text-gray-950 font-medium hover:underline">
+                support@safe-node.app
               </a>.
             </p>
           </section>

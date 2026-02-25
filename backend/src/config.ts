@@ -96,8 +96,8 @@ function getConfig(): Config {
           // Always allow the known production frontend
           const knownOrigins = [
             'https://frontend-mbwana-allys-projects.vercel.app',
-            'https://safenode.app',
-            'https://www.safenode.app',
+            'https://safe-node.app',
+            'https://www.safe-node.app',
           ]
           // Allow all Vercel preview deployments for this project
           const vercelPreviewPattern = /^https:\/\/frontend-[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/

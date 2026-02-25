@@ -358,7 +358,7 @@ const App: React.FC = () => {
           const accountName = user?.displayName || 'Personal';
           const defaultAccount = await accountStorage.createAccount(
             accountName,
-            user?.email || 'demo@safenode.app',
+            user?.email || 'demo@safe-node.app',
             'personal'
           );
           setCurrentAccount(defaultAccount);
@@ -1934,7 +1934,7 @@ const App: React.FC = () => {
       <TeamVaultsModal
         isOpen={isTeamVaultsOpen}
         onClose={() => setIsTeamVaultsOpen(false)}
-        currentUserId={user?.email || 'demo@safenode.app'}
+        currentUserId={user?.email || 'demo@safe-node.app'}
       />
       <PINSetupModal
         isOpen={isPINSetupOpen}
@@ -1948,7 +1948,7 @@ const App: React.FC = () => {
       <BiometricSetupModal
         isOpen={isBiometricSetupOpen}
         onClose={() => setIsBiometricSetupOpen(false)}
-        userId={user?.email || 'demo@safenode.app'}
+        userId={user?.email || 'demo@safe-node.app'}
         userName={user?.email || 'Demo User'}
         onSuccess={() => {
           // Biometric setup successful

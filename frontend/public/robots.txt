@@ -5,4 +5,4 @@ Disallow: /settings/
 Disallow: /billing/
 Disallow: /api/
 
-Sitemap: https://safenode.app/sitemap.xml
+Sitemap: https://safe-node.app/sitemap.xml

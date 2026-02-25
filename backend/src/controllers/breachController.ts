@@ -86,7 +86,7 @@ export async function getBreachRange(
         headers: {
           // Per HIBP guidelines
           'Add-Padding': 'true',
-          'User-Agent': 'SafeNode/1.0 (https://safenode.app)'
+          'User-Agent': 'SafeNode/1.0 (https://safe-node.app)'
         },
         // 10 second timeout
         signal: AbortSignal.timeout(10000)

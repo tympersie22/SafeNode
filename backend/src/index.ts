@@ -47,9 +47,9 @@ async function generateDemoVault (): Promise<void> {
       {
         id: '1',
         name: 'SafeNode Demo',
-        username: 'demo@safenode.app',
+        username: 'demo@safe-node.app',
         password: 'hunter2',
-        url: 'https://safenode.app',
+        url: 'https://safe-node.app',
         notes: 'This is a demo entry generated on backend startup.',
         tags: ['work', 'priority'],
         category: 'Login',
@@ -337,7 +337,7 @@ server.post('/api/passkeys/register/options', async (req, reply) => {
       },
       user: {
         id: base64Url(Buffer.from('demo-user')),
-        name: 'demo@safenode.app',
+        name: 'demo@safe-node.app',
         displayName: 'SafeNode Demo'
       },
       pubKeyCredParams: [
@@ -483,7 +483,7 @@ server.post('/api/passkeys/authenticate/verify', async (req, reply) => {
           headers: {
             // Per HIBP guidelines
             'Add-Padding': 'true',
-            'User-Agent': 'SafeNode/0.1 (https://safenode.app)'
+            'User-Agent': 'SafeNode/0.1 (https://safe-node.app)'
           }
         })
       } catch (fetchError: any) {
@@ -833,7 +833,7 @@ server.post('/api/passkeys/authenticate/verify', async (req, reply) => {
         },
         user: {
           id: Buffer.from(userId || 'demo-user').toString('base64url'),
-          name: userName || 'demo@safenode.app',
+          name: userName || 'demo@safe-node.app',
           displayName: displayName || userName || 'SafeNode Demo'
         },
         pubKeyCredParams: [

@@ -59,7 +59,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 # SMTP_PORT=587
 # SMTP_USER=your-email@gmail.com
 # SMTP_PASS=your-app-password
-# SMTP_FROM=noreply@safenode.app
+# SMTP_FROM=noreply@safe-node.app
 
 # SSO - Google OAuth (optional)
 # GOOGLE_CLIENT_ID=your-google-client-id

@@ -143,8 +143,8 @@ export default async function handler(req: any, res: any) {
     if (requestOrigin) {
       const allowedOrigins = [
         'https://frontend-pi-nine-39.vercel.app',
-        'https://safenode.app',
-        'https://www.safenode.app',
+        'https://safe-node.app',
+        'https://www.safe-node.app',
         ...(process.env.CORS_ORIGIN?.split(',').map((s: string) => s.trim()).filter(Boolean) || []),
       ]
       const vercelPreviewPattern = /^https:\/\/frontend-[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/

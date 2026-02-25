@@ -42,7 +42,7 @@ audit_zero() {
 }
 
 check_no_bad_domain() {
-  ! rg -n "www\\.safe-node\\.vercel\\.app" \
+  ! rg -n "www\\.safe-node\\.vercel\\.app|safe-node\\.vercel\\.app|safenode\\.app" \
     "$ROOT_DIR/backend" \
     "$ROOT_DIR/frontend" \
     "$ROOT_DIR/.github" \
@@ -80,7 +80,7 @@ run_step "Frontend lint (non-blocking warnings allowed)" bash -lc "cd \"$ROOT_DI
 run_step "Backend tests (requires DATABASE_URL)" check_backend_tests
 run_step "Frontend tests" bash -lc "cd \"$ROOT_DIR/frontend\" && npm run test -- --run"
 
-run_step "No invalid Vercel www subdomain references" check_no_bad_domain
+run_step "No legacy domain references (vercel.app/safenode.app)" check_no_bad_domain
 run_step "RLS patch files for password_reset_tokens present" check_rls_patch_present
 
 blue "Manual Gate Reminders"

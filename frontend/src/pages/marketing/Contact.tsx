@@ -113,8 +113,8 @@ const ContactPage: React.FC = () => {
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                 Get help from our team
               </p>
-              <a href="mailto:support@safenode.app" className="text-secondary-600 dark:text-secondary-400 text-sm font-medium hover:underline">
-                support@safenode.app
+              <a href="mailto:support@safe-node.app" className="text-secondary-600 dark:text-secondary-400 text-sm font-medium hover:underline">
+                support@safe-node.app
               </a>
             </div>
 

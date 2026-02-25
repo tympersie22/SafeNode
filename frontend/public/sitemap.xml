@@ -1,57 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://safenode.app/</loc>
+    <loc>https://safe-node.app/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://safenode.app/pricing</loc>
+    <loc>https://safe-node.app/pricing</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://safenode.app/security</loc>
+    <loc>https://safe-node.app/security</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://safenode.app/downloads</loc>
+    <loc>https://safe-node.app/downloads</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://safenode.app/contact</loc>
+    <loc>https://safe-node.app/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://safenode.app/privacy</loc>
+    <loc>https://safe-node.app/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://safenode.app/terms</loc>
+    <loc>https://safe-node.app/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://safenode.app/docs/getting-started</loc>
+    <loc>https://safe-node.app/docs/getting-started</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://safenode.app/docs/teams</loc>
+    <loc>https://safe-node.app/docs/teams</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://safenode.app/docs/security</loc>
+    <loc>https://safe-node.app/docs/security</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://safenode.app/docs/billing</loc>
+    <loc>https://safe-node.app/docs/billing</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>

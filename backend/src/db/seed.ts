@@ -11,7 +11,7 @@ import { createHash, randomBytes, createCipheriv } from 'crypto'
 import { hashPassword } from '../utils/password'
 import { argon2id } from 'hash-wasm'
 
-const DEMO_EMAIL = 'demo@safenode.app'
+const DEMO_EMAIL = 'demo@safe-node.app'
 const DEMO_PASSWORD = 'demo-password'
 
 // Stable demo user ID from env or deterministic generation

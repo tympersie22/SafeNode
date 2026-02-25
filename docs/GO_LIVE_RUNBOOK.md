@@ -14,7 +14,7 @@ Required green checks:
 - `npm audit` is zero for `backend`, `frontend`, and `mobile`.
 - `backend` build succeeds.
 - `frontend` build succeeds.
-- No `www.safe-node.vercel.app` references.
+- No legacy domain references (`*.vercel.app` or `safenode.app`).
 - RLS patch files for `password_reset_tokens` exist.
 
 Current known blockers before hard production launch:
@@ -40,7 +40,7 @@ Backend (Railway):
 - `DATABASE_URL` (from Railway Postgres)
 - `JWT_SECRET` (32+ chars)
 - `ENCRYPTION_KEY`
-- `FRONTEND_URL=https://safe-node.vercel.app` (or your custom domain)
+- `FRONTEND_URL=https://safe-node.app`
 - Stripe keys (if billing enabled)
 - Sentry DSN (recommended)
 
@@ -49,7 +49,8 @@ Frontend (Vercel):
 - Optional Sentry/browser telemetry keys
 
 Do not use:
-- `https://www.safe-node.vercel.app` (invalid for Vercel subdomain certs)
+- Legacy domains (`*.vercel.app` or `safenode.app`)
+- `https://www.safe-node.app` unless DNS + certificate are explicitly configured
 
 ## 4) Deploy Order
 
