@@ -4,6 +4,19 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.safe-node.app"
+        }
+      ],
+      "destination": "https://safe-node.app/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/manifest.webmanifest",
