@@ -5,6 +5,7 @@
 -- Enable RLS on each table
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_verification_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.password_reset_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
@@ -26,6 +27,10 @@ CREATE POLICY "Deny authenticated access to users" ON public.users FOR ALL TO au
 -- Email verification tokens
 CREATE POLICY "Deny anon access to email_verification_tokens" ON public.email_verification_tokens FOR ALL TO anon USING (false);
 CREATE POLICY "Deny authenticated access to email_verification_tokens" ON public.email_verification_tokens FOR ALL TO authenticated USING (false);
+
+-- Password reset tokens
+CREATE POLICY "Deny anon access to password_reset_tokens" ON public.password_reset_tokens FOR ALL TO anon USING (false);
+CREATE POLICY "Deny authenticated access to password_reset_tokens" ON public.password_reset_tokens FOR ALL TO authenticated USING (false);
 
 -- Devices
 CREATE POLICY "Deny anon access to devices" ON public.devices FOR ALL TO anon USING (false);
@@ -54,6 +59,7 @@ CREATE POLICY "Deny authenticated access to audit_logs" ON public.audit_logs FOR
 -- Allow service_role full access (explicit policies)
 CREATE POLICY "Service role full access to users" ON public.users FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role full access to email_verification_tokens" ON public.email_verification_tokens FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access to password_reset_tokens" ON public.password_reset_tokens FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role full access to devices" ON public.devices FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role full access to teams" ON public.teams FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role full access to team_members" ON public.team_members FOR ALL TO service_role USING (true) WITH CHECK (true);
