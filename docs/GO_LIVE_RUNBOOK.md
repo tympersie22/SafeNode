@@ -99,6 +99,7 @@ Before traffic:
 - Confirm Sentry backend + frontend ingest events.
 - Confirm health check/uptime monitor for API.
 - Confirm log access for Railway/Vercel.
+- Configure alerts per `docs/MONITORING_ALERTS.md`.
 
 Rollback plan:
 - Frontend: rollback to previous Vercel deployment.
