@@ -48,7 +48,8 @@ Backend (Railway):
 Backend (Vercel + Supabase Postgres alternative):
 - `NODE_ENV=production`
 - `DB_ADAPTER=prisma`
-- `POSTGRES_PRISMA_URL` (pooler URL from Vercel/Supabase integration)
+- `DATABASE_URL=postgres://postgres:[YOUR-PASSWORD]@db.ohzfyxtxffvnzyhkaihs.supabase.co:6543/postgres?sslmode=require` (dedicated pooler)
+- Optional: `POSTGRES_PRISMA_URL` with the same dedicated pooler URL
 - Optional: `POSTGRES_URL_NON_POOLING` for direct non-pool connections
 - `JWT_SECRET` (32+ chars)
 - `ENCRYPTION_KEY` (32-byte base64)
