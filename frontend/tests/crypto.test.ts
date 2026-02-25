@@ -8,11 +8,16 @@ import { generateSalt, deriveKey, encrypt, decrypt } from '../src/crypto/crypto'
 
 // Mock hash-wasm
 vi.mock('hash-wasm', () => ({
-  argon2id: vi.fn(async ({ password, salt, iterations, memorySize, parallelism, hashLength, outputType }) => {
-    // Simple mock that returns a deterministic hash for testing
-    const combined = `${password}-${Array.from(new Uint8Array(salt)).join(',')}-${iterations}`
-    const hash = Buffer.from(combined).toString('hex').slice(0, hashLength * 2)
-    return hash
+  argon2id: vi.fn(async ({ password, salt }) => {
+    const bytes = new Uint8Array(32)
+    const seed = `${password}:${Array.from(salt as Uint8Array).join(',')}`
+    for (let i = 0; i < bytes.length; i++) {
+      const ch = seed.charCodeAt(i % seed.length)
+      bytes[i] = (ch + i * 13) % 256
+    }
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
   })
 }))
 
@@ -62,18 +67,23 @@ describe('Crypto Utilities', () => {
       const salt = await generateSalt(32)
       const key = await deriveKey('test-password', salt)
       
-      expect(key).toBeInstanceOf(CryptoKey)
+      expect(key).toBeDefined()
       expect(key.algorithm.name).toBe('AES-GCM')
     })
 
     it('should throw error if WebCrypto not available', async () => {
-      const originalSubtle = global.crypto.subtle
-      // @ts-ignore
-      global.crypto.subtle = null
-      
+      const originalCrypto = window.crypto
+      Object.defineProperty(window, 'crypto', {
+        configurable: true,
+        value: undefined
+      })
+
       await expect(deriveKey('password', await generateSalt(32))).rejects.toThrow('WebCrypto API not supported')
-      
-      global.crypto.subtle = originalSubtle
+
+      Object.defineProperty(window, 'crypto', {
+        configurable: true,
+        value: originalCrypto
+      })
     })
 
     it('should produce same key for same password and salt', async () => {
@@ -174,14 +184,18 @@ describe('Crypto Utilities', () => {
     })
 
     it('should throw error if WebCrypto not available', async () => {
-      const originalSubtle = global.crypto.subtle
-      // @ts-ignore
-      global.crypto.subtle = null
-      
+      const originalCrypto = window.crypto
+      Object.defineProperty(window, 'crypto', {
+        configurable: true,
+        value: undefined
+      })
+
       await expect(encrypt('data', 'password')).rejects.toThrow('WebCrypto API not supported')
-      
-      global.crypto.subtle = originalSubtle
+
+      Object.defineProperty(window, 'crypto', {
+        configurable: true,
+        value: originalCrypto
+      })
     })
   })
 })
-

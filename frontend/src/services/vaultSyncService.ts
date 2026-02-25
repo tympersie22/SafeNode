@@ -135,7 +135,7 @@ export async function syncVault(
  * Merge two vaults together
  * Combines entries from both vaults, preferring newer versions
  */
-function mergeVaults(localVault: Vault, serverVault: Vault): Vault {
+export function mergeVaults(localVault: Vault, serverVault: Vault): Vault {
   const localEntries = localVault.entries || []
   const serverEntries = serverVault.entries || []
 
@@ -204,4 +204,3 @@ export async function syncVaultInBackground(
 
   return result
 }
-

@@ -39,6 +39,12 @@ class MockIDBRequest {
 const mockDB = new MockIDBDatabase()
 const mockOpenRequest = new MockIDBRequest()
 
+const asyncSuccessRequest = <T>(result: T) => {
+  const request = new MockIDBRequest()
+  setTimeout(() => request.simulateSuccess(result), 0)
+  return request
+}
+
 // @ts-ignore
 global.indexedDB = {
   open: vi.fn(() => {
@@ -70,31 +76,35 @@ describe('Vault Storage', () => {
 
   describe('init', () => {
     it('should initialize IndexedDB connection', async () => {
+      const initPromise = vaultStorage.init()
       mockOpenRequest.simulateSuccess(mockDB)
-      
-      await vaultStorage.init()
+      await initPromise
       
       expect(global.indexedDB.open).toHaveBeenCalledWith('SafeNodeVault', 1)
     })
 
     it('should create object store on upgrade', async () => {
+      mockDB.createObjectStore = vi.fn(() => ({
+        createIndex: vi.fn()
+      } as any))
       const upgradeEvent = {
         target: { result: mockDB }
       }
       
+      const initPromise = vaultStorage.init()
       mockOpenRequest.onupgradeneeded?.(upgradeEvent as any)
       mockOpenRequest.simulateSuccess(mockDB)
-      
-      await vaultStorage.init()
+      await initPromise
       
       expect(mockDB.createObjectStore).toHaveBeenCalled()
     })
 
     it('should handle initialization errors', async () => {
       const error = new Error('Database error')
+      const initPromise = vaultStorage.init()
       mockOpenRequest.simulateError(error)
-      
-      await expect(vaultStorage.init()).rejects.toThrow()
+
+      await expect(initPromise).rejects.toThrow()
     })
   })
 
@@ -112,17 +122,14 @@ describe('Vault Storage', () => {
 
       const mockTransaction = {
         objectStore: vi.fn(() => ({
-          put: vi.fn(() => {
-            const request = new MockIDBRequest()
-            request.simulateSuccess(undefined)
-            return request
-          })
+          put: vi.fn(() => asyncSuccessRequest(undefined))
         }))
       }
       mockDB.transaction = vi.fn(() => mockTransaction)
-      mockOpenRequest.simulateSuccess(mockDB)
 
-      await vaultStorage.init()
+      const initPromise = vaultStorage.init()
+      mockOpenRequest.simulateSuccess(mockDB)
+      await initPromise
       await vaultStorage.storeVault(vault)
 
       expect(mockDB.transaction).toHaveBeenCalled()
@@ -143,17 +150,14 @@ describe('Vault Storage', () => {
 
       const mockTransaction = {
         objectStore: vi.fn(() => ({
-          get: vi.fn(() => {
-            const request = new MockIDBRequest()
-            request.simulateSuccess(vault)
-            return request
-          })
+          get: vi.fn(() => asyncSuccessRequest(vault))
         }))
       }
       mockDB.transaction = vi.fn(() => mockTransaction)
-      mockOpenRequest.simulateSuccess(mockDB)
 
-      await vaultStorage.init()
+      const initPromise = vaultStorage.init()
+      mockOpenRequest.simulateSuccess(mockDB)
+      await initPromise
       const retrieved = await vaultStorage.getVault('default')
 
       expect(retrieved).toEqual(vault)
@@ -162,17 +166,14 @@ describe('Vault Storage', () => {
     it('should return null if vault does not exist', async () => {
       const mockTransaction = {
         objectStore: vi.fn(() => ({
-          get: vi.fn(() => {
-            const request = new MockIDBRequest()
-            request.simulateSuccess(undefined)
-            return request
-          })
+          get: vi.fn(() => asyncSuccessRequest(undefined))
         }))
       }
       mockDB.transaction = vi.fn(() => mockTransaction)
-      mockOpenRequest.simulateSuccess(mockDB)
 
-      await vaultStorage.init()
+      const initPromise = vaultStorage.init()
+      mockOpenRequest.simulateSuccess(mockDB)
+      await initPromise
       const retrieved = await vaultStorage.getVault('nonexistent')
 
       expect(retrieved).toBeNull()
@@ -193,17 +194,14 @@ describe('Vault Storage', () => {
 
       const mockTransaction = {
         objectStore: vi.fn(() => ({
-          get: vi.fn(() => {
-            const request = new MockIDBRequest()
-            request.simulateSuccess(vault)
-            return request
-          })
+          get: vi.fn(() => asyncSuccessRequest(vault))
         }))
       }
       mockDB.transaction = vi.fn(() => mockTransaction)
-      mockOpenRequest.simulateSuccess(mockDB)
 
-      await vaultStorage.init()
+      const initPromise = vaultStorage.init()
+      mockOpenRequest.simulateSuccess(mockDB)
+      await initPromise
       const metadata = await vaultStorage.getVaultMetadata('default')
 
       expect(metadata).toEqual({
@@ -214,4 +212,3 @@ describe('Vault Storage', () => {
     })
   })
 })
-

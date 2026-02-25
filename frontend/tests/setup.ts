@@ -6,6 +6,7 @@
 import { beforeAll, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import React from 'react'
+import { webcrypto } from 'crypto'
 
 // Mock environment variables
 beforeAll(() => {
@@ -44,22 +45,14 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
 } as any
 
-// Mock WebCrypto API
-Object.defineProperty(global, 'crypto', {
-  value: {
-    subtle: {
-      encrypt: vi.fn(),
-      decrypt: vi.fn(),
-      importKey: vi.fn(),
-      generateKey: vi.fn()
-    },
-    getRandomValues: vi.fn((arr: any) => {
-      for (let i = 0; i < arr.length; i++) {
-        arr[i] = Math.floor(Math.random() * 256)
-      }
-      return arr
-    })
-  }
+// Use Node's real WebCrypto in tests so crypto unit tests behave like runtime
+Object.defineProperty(globalThis, 'crypto', {
+  configurable: true,
+  value: webcrypto
+})
+Object.defineProperty(window, 'crypto', {
+  configurable: true,
+  value: webcrypto
 })
 
 // Mock localStorage
@@ -93,7 +86,21 @@ vi.mock('framer-motion', async () => {
   // Create a simple component wrapper that just returns the element
   const createMotionComponent = (tag: string) => {
     return React.forwardRef((props: any, ref: any) => {
-      return React.createElement(tag, { ...props, ref })
+      const {
+        whileHover,
+        whileTap,
+        whileFocus,
+        whileInView,
+        initial,
+        animate,
+        exit,
+        transition,
+        layout,
+        viewport,
+        variants,
+        ...domProps
+      } = props
+      return React.createElement(tag, { ...domProps, ref })
     })
   }
   

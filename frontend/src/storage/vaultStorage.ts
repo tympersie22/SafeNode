@@ -23,7 +23,7 @@ const DB_NAME = 'SafeNodeVault';
 const DB_VERSION = 1;
 const STORE_NAME = 'vaults';
 
-class VaultStorage {
+export class VaultStorage {
   private db: IDBDatabase | null = null;
   private isInitialized = false;
 

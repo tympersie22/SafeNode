@@ -64,7 +64,7 @@ export async function deriveKey(
   const rawKeyBytes = hexToArrayBuffer(hashHex)
   const key = await window.crypto.subtle.importKey(
     'raw',
-    rawKeyBytes,
+    new Uint8Array(rawKeyBytes),
     { name: 'AES-GCM' },
     false,
     ['encrypt', 'decrypt']
@@ -109,7 +109,7 @@ export async function encrypt(
   const encrypted = await window.crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv: iv
+      iv: new Uint8Array(iv)
     },
     key,
     dataBuffer
@@ -158,7 +158,7 @@ export async function decrypt(
     const decrypted = await window.crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
-        iv: params.iv
+        iv: new Uint8Array(params.iv)
       },
       key,
       params.encrypted
