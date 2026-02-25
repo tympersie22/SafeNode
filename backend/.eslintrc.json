@@ -18,6 +18,10 @@
   "rules": {
     "@typescript-eslint/no-unused-vars": "warn",
     "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-var-requires": "off"
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/no-require-imports": "warn",
+    "no-case-declarations": "warn",
+    "no-extra-semi": "warn"
   }
 }

@@ -178,16 +178,15 @@ function registerStructuredLogging(server) {
     server.addHook('onSend', logRequest);
     // Log errors (with sanitization)
     server.setErrorHandler((error, request, reply) => {
-        const sanitizedError = {
-            ...error,
-            message: error.message || 'An unexpected error occurred',
-            stack: process.env.NODE_ENV === 'production' ? '[REDACTED]' : error.stack
-        };
+        const err = error instanceof Error ? error : new Error('An unexpected error occurred');
+        const sanitizedError = Object.assign(err, {
+            stack: process.env.NODE_ENV === 'production' ? '[REDACTED]' : err.stack
+        });
         logError(sanitizedError, request, reply);
         // Return error response
-        reply.code(error.statusCode || 500).send({
-            error: error.name || 'InternalServerError',
-            message: error.message || 'An unexpected error occurred',
+        reply.code(error?.statusCode || 500).send({
+            error: err.name || 'InternalServerError',
+            message: err.message || 'An unexpected error occurred',
             correlationId: request.correlationId
         });
     });

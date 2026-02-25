@@ -148,7 +148,7 @@ export async function perUserRateLimit(
     }
 
     const tier = userRecord.subscriptionTier || 'free'
-    const endpoint = request.routerPath || request.url
+    const endpoint = (request as any).routeOptions?.url || request.url
 
     const result = await checkRateLimit(user.id, tier, endpoint)
 
@@ -189,7 +189,7 @@ export function registerPerUserRateLimit(
   } else {
     // Apply to specific routes only
     server.addHook('onRequest', async (request, reply) => {
-      const route = request.routerPath || request.url
+      const route = (request as any).routeOptions?.url || request.url
       if (routes.some(r => route.startsWith(r))) {
         return perUserRateLimit(request, reply)
       }
@@ -240,4 +240,3 @@ export async function getUserRateLimitStatus(userId: string): Promise<{
     remaining: limit === -1 ? -1 : Math.max(0, limit - record.count)
   }
 }
-

@@ -121,7 +121,7 @@ async function perUserRateLimit(request, reply) {
             }
         }
         const tier = userRecord.subscriptionTier || 'free';
-        const endpoint = request.routerPath || request.url;
+        const endpoint = request.routeOptions?.url || request.url;
         const result = await checkRateLimit(user.id, tier, endpoint);
         // Add rate limit headers
         reply.header('X-RateLimit-Limit', getRateLimitForTier(tier).toString());
@@ -156,7 +156,7 @@ function registerPerUserRateLimit(server, routes = []) {
     else {
         // Apply to specific routes only
         server.addHook('onRequest', async (request, reply) => {
-            const route = request.routerPath || request.url;
+            const route = request.routeOptions?.url || request.url;
             if (routes.some(r => route.startsWith(r))) {
                 return perUserRateLimit(request, reply);
             }
