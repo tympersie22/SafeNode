@@ -8,11 +8,27 @@ import { config } from '../config'
 
 let prisma: PrismaClient | null = null
 
+function resolveDatabaseUrl(): string | null {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_URL ||
+    null
+  )
+}
+
 /**
  * Get or create Prisma client instance
  * Uses singleton pattern to avoid multiple connections
  */
 export function getPrismaClient(): PrismaClient {
+  // Allow Vercel/Supabase POSTGRES_* vars without requiring manual DATABASE_URL duplication.
+  const resolvedDatabaseUrl = resolveDatabaseUrl()
+  if (!process.env.DATABASE_URL && resolvedDatabaseUrl) {
+    process.env.DATABASE_URL = resolvedDatabaseUrl
+  }
+
   if (!prisma) {
     prisma = new PrismaClient({
       log: config.nodeEnv === 'development' 
@@ -64,4 +80,3 @@ export async function healthCheck(): Promise<boolean> {
 }
 
 export { PrismaClient }
-

@@ -45,9 +45,19 @@ Backend (Railway):
 - Stripe keys (if billing enabled)
 - Sentry DSN (recommended)
 
+Backend (Vercel + Supabase Postgres alternative):
+- `NODE_ENV=production`
+- `DB_ADAPTER=prisma`
+- `POSTGRES_PRISMA_URL` (pooler URL from Vercel/Supabase integration)
+- Optional: `POSTGRES_URL_NON_POOLING` for direct non-pool connections
+- `JWT_SECRET` (32+ chars)
+- `ENCRYPTION_KEY` (32-byte base64)
+- `FRONTEND_URL=https://safe-node.app`
+
 Frontend (Vercel):
 - `VITE_API_URL=https://<your-backend-domain>`
 - Optional Sentry/browser telemetry keys
+- Note: SafeNode frontend uses Vite env vars (`VITE_*`), not `NEXT_PUBLIC_*`.
 
 Do not use:
 - Legacy domains (`*.vercel.app` or `safenode.app`)

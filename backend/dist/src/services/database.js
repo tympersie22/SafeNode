@@ -28,8 +28,8 @@ class DatabaseService {
             // STRICT MODE: Fail hard if Prisma connection fails
             // NO FALLBACK to in-memory database
             if (!config_1.config.databaseUrl) {
-                const error = new Error('DATABASE_URL is required when using Prisma adapter. ' +
-                    'Please set DATABASE_URL in your .env file.');
+                const error = new Error('A Prisma database URL is required when using Prisma adapter. ' +
+                    'Set DATABASE_URL or POSTGRES_PRISMA_URL (Vercel/Supabase).');
                 console.error('❌ Database configuration error:', error.message);
                 throw error;
             }
@@ -48,7 +48,7 @@ class DatabaseService {
                 console.error('');
                 console.error('🔧 FIX REQUIRED:');
                 console.error('   1. Ensure PostgreSQL is running');
-                console.error('   2. Verify DATABASE_URL is correct');
+                console.error('   2. Verify DATABASE_URL/POSTGRES_PRISMA_URL is correct');
                 console.error('   3. Check database exists: psql -U postgres -c "\\l"');
                 console.error('   4. Create database if needed: createdb safenode');
                 console.error('   5. Check user permissions');

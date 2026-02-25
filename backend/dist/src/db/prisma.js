@@ -13,11 +13,23 @@ const client_1 = require("@prisma/client");
 Object.defineProperty(exports, "PrismaClient", { enumerable: true, get: function () { return client_1.PrismaClient; } });
 const config_1 = require("../config");
 let prisma = null;
+function resolveDatabaseUrl() {
+    return (process.env.DATABASE_URL ||
+        process.env.POSTGRES_PRISMA_URL ||
+        process.env.POSTGRES_URL_NON_POOLING ||
+        process.env.POSTGRES_URL ||
+        null);
+}
 /**
  * Get or create Prisma client instance
  * Uses singleton pattern to avoid multiple connections
  */
 function getPrismaClient() {
+    // Allow Vercel/Supabase POSTGRES_* vars without requiring manual DATABASE_URL duplication.
+    const resolvedDatabaseUrl = resolveDatabaseUrl();
+    if (!process.env.DATABASE_URL && resolvedDatabaseUrl) {
+        process.env.DATABASE_URL = resolvedDatabaseUrl;
+    }
     if (!prisma) {
         prisma = new client_1.PrismaClient({
             log: config_1.config.nodeEnv === 'development'

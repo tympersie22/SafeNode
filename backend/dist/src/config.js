@@ -17,6 +17,11 @@ dotenv_1.default.config();
  */
 function getConfig() {
     const nodeEnv = (process.env.NODE_ENV || 'development');
+    const databaseUrl = process.env.DATABASE_URL ||
+        process.env.POSTGRES_PRISMA_URL ||
+        process.env.POSTGRES_URL_NON_POOLING ||
+        process.env.POSTGRES_URL ||
+        null;
     // JWT_SECRET is required for authentication
     // In production, this MUST be a strong random string (32+ bytes)
     // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
@@ -43,9 +48,11 @@ function getConfig() {
         // Database adapter selection
         // Options: 'file' (default, in-memory), 'prisma' (PostgreSQL/MySQL), 'mongo' (MongoDB)
         // To use Prisma: Set DB_ADAPTER=prisma and provide DATABASE_URL
+        // Vercel/Supabase fallback vars are also supported:
+        // POSTGRES_PRISMA_URL, POSTGRES_URL_NON_POOLING, POSTGRES_URL
         // To use MongoDB: Set DB_ADAPTER=mongo and provide MONGO_URI
-        dbAdapter: (process.env.DB_ADAPTER || 'file'),
-        databaseUrl: process.env.DATABASE_URL || null,
+        dbAdapter: (process.env.DB_ADAPTER || (databaseUrl ? 'prisma' : 'file')),
+        databaseUrl,
         mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/safenode',
         // Security - CRITICAL: Rotate these keys regularly in production
         jwtSecret: jwtSecret || 'dev-secret-change-in-production-' + Date.now(),
