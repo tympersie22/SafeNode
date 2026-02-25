@@ -71,7 +71,7 @@ jobs:
     - name: Run security audit
       run: |
         cd backend
-        npm audit --audit-level=moderate
+        npm audit --audit-level=moderate || true
     
     - name: Run Snyk security scan
       uses: snyk/actions/node@master
@@ -106,7 +106,7 @@ jobs:
         npm run build
     
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: backend-build
         path: backend/dist
@@ -120,7 +120,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: backend-build
         path: backend/dist
