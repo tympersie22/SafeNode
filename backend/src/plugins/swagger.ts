@@ -42,10 +42,8 @@ Authorization: Bearer <your-jwt-token>
 
 Rate limits vary by subscription tier:
 - Free: 100 requests/minute
-- Individual: 500 requests/minute
-- Family: 1000 requests/minute
+- Pro (Personal/Family): 500 requests/minute
 - Teams: 5000 requests/minute
-- Business: 10000 requests/minute
 - Enterprise: Unlimited
 
 ## Base URL
@@ -109,7 +107,7 @@ Rate limits vary by subscription tier:
               emailVerified: { type: 'boolean' },
               subscriptionTier: {
                 type: 'string',
-                enum: ['free', 'individual', 'family', 'teams', 'business', 'enterprise']
+                enum: ['free', 'pro', 'enterprise']
               },
               subscriptionStatus: {
                 type: 'string',
@@ -312,4 +310,3 @@ Rate limits vary by subscription tier:
   // Note: /docs/json is automatically provided by @fastify/swagger-ui
   // No need to manually register it
 }
-

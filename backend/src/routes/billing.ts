@@ -66,6 +66,14 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       }
     } catch (error: any) {
       request.log.error(error)
+
+      if (error?.message?.includes('Invalid Stripe price ID')) {
+        return reply.code(400).send({
+          error: 'invalid_price_id',
+          message: error.message
+        })
+      }
+
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to create checkout session'
@@ -257,4 +265,3 @@ export async function registerBillingRoutes(server: FastifyInstance) {
     }
   })
 }
-

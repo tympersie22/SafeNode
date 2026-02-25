@@ -7,121 +7,38 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { Check, Zap, Shield, Users, Building2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import Logo from '../../components/Logo';
 import Footer from '../../components/marketing/Footer';
 import { Spinner } from '../../components/ui/Spinner';
 import { showToast } from '../../components/ui/Toast';
 import { createCheckoutSession } from '../../services/billingService';
 import { getCurrentUser } from '../../services/authService';
-
-// Stripe Price IDs (replace with your actual Stripe price IDs)
-const STRIPE_PRICES = {
-  individual_monthly: 'price_individual_monthly',
-  individual_annual: 'price_individual_annual',
-  family_monthly: 'price_family_monthly',
-  family_annual: 'price_family_annual',
-  teams_monthly: 'price_teams_monthly',
-  teams_annual: 'price_teams_annual',
-};
-
-const PLANS = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    icon: Shield,
-    tagline: 'Start secure today',
-    features: [
-      'Unlimited passwords',
-      '1 device',
-      'AES-256 encryption',
-      'Password generator',
-      'Breach monitoring',
-    ],
-    cta: 'Get Started',
-    highlight: false,
-  },
-  {
-    id: 'individual',
-    name: 'Personal',
-    price: { monthly: 2.99, annual: 29.88 },
-    icon: Zap,
-    tagline: 'Most popular',
-    features: [
-      'Everything in Free',
-      '5 devices',
-      'Real-time sync',
-      '2FA + Biometric',
-      'Priority support',
-    ],
-    cta: 'Start Free Trial',
-    highlight: true,
-    stripePriceIds: {
-      monthly: STRIPE_PRICES.individual_monthly,
-      annual: STRIPE_PRICES.individual_annual,
-    },
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    price: { monthly: 4.99, annual: 49.88 },
-    icon: Users,
-    tagline: 'Share with family',
-    features: [
-      'Everything in Personal',
-      '10 devices',
-      '20 shared vaults',
-      '5GB file storage',
-      'Family controls',
-    ],
-    cta: 'Start Free Trial',
-    highlight: false,
-    stripePriceIds: {
-      monthly: STRIPE_PRICES.family_monthly,
-      annual: STRIPE_PRICES.family_annual,
-    },
-  },
-  {
-    id: 'teams',
-    name: 'Teams',
-    price: { monthly: 9.99, annual: 99.88 },
-    icon: Building2,
-    tagline: 'For businesses',
-    features: [
-      'Everything in Family',
-      '50 devices',
-      'Admin dashboard',
-      'RBAC + SSO',
-      '24/7 support',
-    ],
-    cta: 'Start Free Trial',
-    highlight: false,
-    stripePriceIds: {
-      monthly: STRIPE_PRICES.teams_monthly,
-      annual: STRIPE_PRICES.teams_annual,
-    },
-  },
-];
+import { PRICING_PLANS, type PricingPlan, getCheckoutTarget, getPlanMonthlyPrice } from '../../config/pricingPlans';
 
 export const PricingNewPage: React.FC = () => {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleSubscribe = async (planId: string, stripePriceId?: string) => {
+  const handleSubscribe = async (planId: string, checkoutTarget?: { provider: 'paddle' | 'stripe'; value: string } | null) => {
     if (planId === 'free') {
       navigate('/auth?mode=signup');
       return;
     }
 
-    if (!stripePriceId) {
-      showToast.error('Payment integration coming soon');
+    if (!checkoutTarget) {
+      showToast.error('Checkout is not configured for this plan yet.');
       return;
     }
 
     try {
       setLoading(planId);
+
+      if (checkoutTarget.provider === 'paddle') {
+        window.location.href = checkoutTarget.value;
+        return;
+      }
 
       // Check if user is logged in
       const user = await getCurrentUser();
@@ -132,7 +49,7 @@ export const PricingNewPage: React.FC = () => {
       }
 
       // Create Stripe checkout session
-      const { url } = await createCheckoutSession(stripePriceId);
+      const { url } = await createCheckoutSession(checkoutTarget.value);
 
       if (url) {
         // Redirect to Stripe checkout
@@ -148,18 +65,9 @@ export const PricingNewPage: React.FC = () => {
     }
   };
 
-  const getPrice = (plan: typeof PLANS[0]) => {
-    if (plan.price === 0) return '$0';
-    if (typeof plan.price === 'number') return `$${plan.price}`;
+  const getPrice = (plan: PricingPlan) => getPlanMonthlyPrice(plan, billingCycle);
 
-    const price = billingCycle === 'annual'
-      ? plan.price.annual / 12
-      : plan.price.monthly;
-
-    return `$${price.toFixed(2)}`;
-  };
-
-  const getSavings = (plan: typeof PLANS[0]) => {
+  const getSavings = (plan: PricingPlan) => {
     if (typeof plan.price !== 'object' || billingCycle === 'monthly') return null;
 
     const monthlyCost = plan.price.monthly * 12;
@@ -229,10 +137,10 @@ export const PricingNewPage: React.FC = () => {
       {/* Pricing Cards */}
       <section className="pb-20">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {PLANS.map((plan) => {
+          {PRICING_PLANS.map((plan) => {
             const Icon = plan.icon;
             const isLoading = loading === plan.id;
-            const stripePriceId = plan.stripePriceIds?.[billingCycle];
+            const checkoutTarget = getCheckoutTarget(plan, billingCycle);
             const savings = getSavings(plan);
 
             return (
@@ -279,7 +187,7 @@ export const PricingNewPage: React.FC = () => {
                 </ul>
 
                 <button
-                  onClick={() => handleSubscribe(plan.id, stripePriceId)}
+                  onClick={() => handleSubscribe(plan.id, checkoutTarget)}
                   disabled={isLoading}
                   className={`w-full py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
                     plan.highlight

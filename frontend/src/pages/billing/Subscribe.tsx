@@ -10,106 +10,48 @@ import { createCheckoutSession } from '../../services/billingService'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
 import { Shield } from '../../icons/Shield'
-
-const PLANS = [
-  {
-    id: 'individual',
-    name: 'Individual',
-    price: '$0.99',
-    period: 'month',
-    description: 'Perfect for personal use',
-    features: [
-      '3 devices',
-      '5 vaults',
-      '1GB storage',
-      'Priority support',
-      'Breach monitoring',
-      'Password generator'
-    ],
-    priceId: import.meta.env.VITE_STRIPE_PRICE_INDIVIDUAL || 'price_individual_monthly',
-    popular: false
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    price: '$1.99',
-    period: 'month',
-    description: 'For families and small teams',
-    features: [
-      '10 devices',
-      '20 vaults',
-      '5GB storage',
-      'Priority support',
-      'Breach monitoring',
-      'Password generator',
-      'Secure sharing'
-    ],
-    priceId: import.meta.env.VITE_STRIPE_PRICE_FAMILY || 'price_family_monthly',
-    popular: true
-  },
-  {
-    id: 'teams',
-    name: 'Teams',
-    price: '$11.99',
-    period: 'month',
-    description: 'For growing teams',
-    features: [
-      '50 devices',
-      '100 vaults',
-      '10GB storage',
-      'Priority support',
-      'Breach monitoring',
-      'Password generator',
-      'Secure sharing',
-      'Team vaults',
-      'Role-based access',
-      'Audit logs'
-    ],
-    priceId: import.meta.env.VITE_STRIPE_PRICE_TEAMS || 'price_teams_monthly',
-    popular: false
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: '$5.99',
-    period: 'month',
-    description: 'For businesses',
-    features: [
-      '200 devices',
-      '500 vaults',
-      '50GB storage',
-      '24/7 support',
-      'Breach monitoring',
-      'Password generator',
-      'Secure sharing',
-      'Team vaults',
-      'Role-based access',
-      'Audit logs',
-      'SSO integration',
-      'API access'
-    ],
-    priceId: import.meta.env.VITE_STRIPE_PRICE_BUSINESS || 'price_business_monthly',
-    popular: false
-  }
-]
+import {
+  PRICING_PLANS,
+  type BillingCycle,
+  getCheckoutTarget,
+  getPlanMonthlyPrice,
+} from '../../config/pricingPlans'
 
 export const SubscribePage: React.FC = () => {
   const navigate = useNavigate()
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual')
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSubscribe = async (planId: string, priceId: string) => {
+  const handleSubscribe = async (
+    planId: string,
+    checkoutTarget?: { provider: 'paddle' | 'stripe'; value: string } | null
+  ) => {
+    if (planId === 'free') {
+      navigate('/auth?mode=signup')
+      return
+    }
+
+    if (!checkoutTarget) {
+      setError('Checkout is not configured for this plan yet. Please contact support.')
+      return
+    }
+
     setLoading(planId)
     setError(null)
 
     try {
+      if (checkoutTarget.provider === 'paddle') {
+        window.location.href = checkoutTarget.value
+        return
+      }
+
       const session = await createCheckoutSession(
-        priceId,
+        checkoutTarget.value,
         `${window.location.origin}/billing/success?plan=${planId}`,
         `${window.location.origin}/billing`
       )
 
-      // Redirect to Stripe Checkout
       window.location.href = session.url
     } catch (err: any) {
       setError(err.message || 'Failed to create checkout session')
@@ -120,7 +62,6 @@ export const SubscribePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Back Button */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -139,11 +80,10 @@ export const SubscribePage: React.FC = () => {
           </motion.button>
         </motion.div>
 
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="text-center mb-8"
         >
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl mb-4">
             <Shield className="w-8 h-8 text-white" />
@@ -151,9 +91,32 @@ export const SubscribePage: React.FC = () => {
           <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-6">
             Upgrade to unlock advanced features and protect your digital life with SafeNode
           </p>
+
+          <div className="inline-flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                billingCycle === 'monthly'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('annual')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                billingCycle === 'annual'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Annual <span className="text-green-600">Save 17%</span>
+            </button>
+          </div>
         </motion.div>
 
         {error && (
@@ -166,81 +129,84 @@ export const SubscribePage: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-          {PLANS.map((plan, index) => (
-            <motion.div
-              key={plan.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <SaasCard
-                className={`h-full flex flex-col ${plan.popular ? 'ring-2 ring-secondary-500 shadow-xl' : ''}`}
+          {PRICING_PLANS.map((plan, index) => {
+            const checkoutTarget = getCheckoutTarget(plan, billingCycle)
+            const isLoading = loading === plan.id
+
+            return (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
               >
-                {plan.popular && (
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <span className="bg-gradient-to-r from-secondary-500 to-primary-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                    {plan.name}
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
-                    {plan.description}
-                  </p>
-
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-slate-900 dark:text-slate-100">
-                      {plan.price}
-                    </span>
-                    <span className="text-slate-600 dark:text-slate-400">/{plan.period}</span>
-                  </div>
-
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <svg
-                          className="w-5 h-5 text-secondary-500 mt-0.5 flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        <span className="text-slate-700 dark:text-slate-300 text-sm">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <SaasButton
-                  variant={plan.popular ? 'primary' : 'secondary'}
-                  size="lg"
-                  fullWidth
-                  onClick={() => handleSubscribe(plan.id, plan.priceId)}
-                  disabled={loading !== null}
-                  isLoading={loading === plan.id}
+                <SaasCard
+                  className={`h-full flex flex-col ${plan.highlight ? 'ring-2 ring-secondary-500 shadow-xl' : ''}`}
                 >
-                  {loading === plan.id ? 'Loading...' : 'Subscribe'}
-                </SaasButton>
-              </SaasCard>
-            </motion.div>
-          ))}
+                  {plan.highlight && (
+                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                      <span className="bg-gradient-to-r from-secondary-500 to-primary-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                      {plan.name}
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
+                      {plan.tagline}
+                    </p>
+
+                    <div className="mb-6">
+                      <span className="text-4xl font-bold text-slate-900 dark:text-slate-100">
+                        {getPlanMonthlyPrice(plan, billingCycle)}
+                      </span>
+                      {plan.price !== 0 && <span className="text-slate-600 dark:text-slate-400">/mo</span>}
+                    </div>
+
+                    <ul className="space-y-3 mb-8">
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <svg
+                            className="w-5 h-5 text-secondary-500 mt-0.5 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span className="text-slate-700 dark:text-slate-300 text-sm">
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <SaasButton
+                    variant={plan.highlight ? 'primary' : 'secondary'}
+                    size="lg"
+                    fullWidth
+                    onClick={() => handleSubscribe(plan.id, checkoutTarget)}
+                    disabled={loading !== null}
+                    isLoading={isLoading}
+                  >
+                    {isLoading ? 'Loading...' : plan.cta}
+                  </SaasButton>
+                </SaasCard>
+              </motion.div>
+            )
+          })}
         </div>
 
-        {/* Security Note */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -256,4 +222,3 @@ export const SubscribePage: React.FC = () => {
     </div>
   )
 }
-

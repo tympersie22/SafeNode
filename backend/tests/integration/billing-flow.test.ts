@@ -38,7 +38,7 @@ describe('Billing Flow Integration', () => {
       } as any)
 
       const devicesResult = await checkSubscriptionLimits(userId, 'devices')
-      expect(devicesResult.limit).toBe(3) // Individual tier limit
+      expect(devicesResult.limit).toBe(5) // Individual tier limit
 
       const vaultsResult = await checkSubscriptionLimits(userId, 'vaults')
       expect(vaultsResult.limit).toBe(5) // Individual tier limit
@@ -73,4 +73,3 @@ describe('Billing Flow Integration', () => {
     })
   })
 })
-

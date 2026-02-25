@@ -1,6 +1,6 @@
 /**
  * Billing Service
- * Handles Stripe subscription and billing operations
+ * Handles backend-driven billing operations (Stripe-compatible endpoint)
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
@@ -18,7 +18,7 @@ export interface CheckoutSession {
 }
 
 /**
- * Create Stripe checkout session
+ * Create hosted checkout session via backend billing provider
  */
 export async function createCheckoutSession(
   priceId: string,
@@ -142,4 +142,3 @@ export async function checkResourceLimit(
     limit: limits.limit
   }
 }
-

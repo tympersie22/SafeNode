@@ -68,11 +68,11 @@ describe('Stripe Service', () => {
   describe('SUBSCRIPTION_LIMITS', () => {
     it('should have correct limits for all tiers', () => {
       expect(SUBSCRIPTION_LIMITS.free.devices).toBe(1)
-      expect(SUBSCRIPTION_LIMITS.individual.devices).toBe(3)
+      expect(SUBSCRIPTION_LIMITS.individual.devices).toBe(5)
       expect(SUBSCRIPTION_LIMITS.family.devices).toBe(10)
       expect(SUBSCRIPTION_LIMITS.teams.devices).toBe(50)
-      expect(SUBSCRIPTION_LIMITS.business.devices).toBe(200)
-      expect(SUBSCRIPTION_LIMITS.enterprise.devices).toBe(-1)
+      expect(SUBSCRIPTION_LIMITS.pro.devices).toBe(5)
+      expect(SUBSCRIPTION_LIMITS.enterprise.devices).toBe(50)
     })
   })
 
@@ -110,14 +110,14 @@ describe('Stripe Service', () => {
       expect(result).toHaveProperty('limit')
     })
 
-    it('should allow unlimited for enterprise tier', async () => {
+    it('should map enterprise tier to teams limits', async () => {
       await updateUser(userId, {
         subscriptionTier: 'enterprise'
       } as any)
 
       const result = await checkSubscriptionLimits(userId, 'devices')
       
-      expect(result.limit).toBe(-1)
+      expect(result.limit).toBe(50)
       expect(result.allowed).toBe(true)
     })
 
@@ -130,4 +130,3 @@ describe('Stripe Service', () => {
     })
   })
 })
-
