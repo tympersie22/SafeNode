@@ -68,6 +68,18 @@ const Home: React.FC<HomeProps> = ({ onEnterApp }) => {
                 >
                   Download
                 </Link>
+                <Link
+                  to="/blog"
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors duration-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-2 py-1"
+                >
+                  Blog
+                </Link>
+                <Link
+                  to="/careers"
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors duration-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-secondary-500 rounded px-2 py-1"
+                >
+                  Careers
+                </Link>
               </nav>
               <div className="flex items-center gap-3">
                 <motion.button
@@ -155,6 +167,27 @@ const Home: React.FC<HomeProps> = ({ onEnterApp }) => {
                   className="flex items-center px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-base font-medium min-h-[44px]"
                 >
                   Download
+                </Link>
+                <Link
+                  to="/blog"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-base font-medium min-h-[44px]"
+                >
+                  Blog
+                </Link>
+                <Link
+                  to="/careers"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-base font-medium min-h-[44px]"
+                >
+                  Careers
+                </Link>
+                <Link
+                  to="/contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-base font-medium min-h-[44px]"
+                >
+                  Contact
                 </Link>
                 <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
                   <button

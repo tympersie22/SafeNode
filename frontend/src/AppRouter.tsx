@@ -11,6 +11,8 @@ import PricingPage from './pages/marketing/Pricing'
 import SecurityPage from './pages/marketing/Security'
 import DownloadsPage from './pages/marketing/Downloads'
 import ContactPage from './pages/marketing/Contact'
+import BlogPage from './pages/marketing/Blog'
+import CareersPage from './pages/marketing/Careers'
 import GettingStartedPage from './pages/docs/GettingStarted'
 import TeamsPage from './pages/docs/Teams'
 import { SecurityPage as DocsSecurityPage } from './pages/docs/Security'
@@ -38,6 +40,8 @@ export const AppRouter: React.FC = () => {
           <Route path="/security" element={<SecurityPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/careers" element={<CareersPage />} />
           
           {/* Legal Pages */}
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -78,4 +82,3 @@ export const AppRouter: React.FC = () => {
 }
 
 export default AppRouter
-

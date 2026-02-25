@@ -26,6 +26,16 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://safe-node.app/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://safe-node.app/careers</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://safe-node.app/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
