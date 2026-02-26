@@ -32,7 +32,7 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             transition={{ duration: 0.5 }}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Open Source &amp; Audited
+            Open-Core Security Model
           </motion.div>
 
           {/* Main Headline */}
@@ -102,11 +102,11 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             </div>
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4" />
-              <span>Open Source</span>
+              <span>Public Crypto Core</span>
             </div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4" />
-              <span>Always Free</span>
+              <span>Attestable Controls</span>
             </div>
           </motion.div>
         </div>

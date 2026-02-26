@@ -45,8 +45,8 @@ const FEATURES = [
   },
   {
     icon: Eye,
-    title: 'Open Source',
-    description: 'Audited by security experts. Verify our security yourself.',
+    title: 'Open-Core Assurance',
+    description: 'Cryptographic core is publicly reviewable; operational controls remain hardened and private.',
   },
 ];
 
