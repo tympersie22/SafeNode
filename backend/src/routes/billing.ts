@@ -11,6 +11,7 @@ import {
   handleStripeWebhook,
   checkSubscriptionLimits
 } from '../services/stripeService'
+import { handlePaddleWebhookEvent, verifyPaddleSignature } from '../services/paddleService'
 // Stripe will be imported dynamically
 import { z } from 'zod'
 
@@ -200,6 +201,54 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to process webhook'
+      })
+    }
+  })
+
+  /**
+   * POST /api/billing/paddle/webhook
+   * Handle Paddle webhook events (public endpoint with signature verification)
+   */
+  server.post('/api/billing/paddle/webhook', {
+    config: { rawBody: true }
+  }, async (request, reply) => {
+    try {
+      const signature = (request.headers['paddle-signature'] || request.headers['Paddle-Signature']) as string | undefined
+      const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET
+
+      if (!signature || !webhookSecret) {
+        return reply.code(400).send({
+          error: 'missing_signature',
+          message: 'Paddle signature or webhook secret is missing'
+        })
+      }
+
+      const rawBody = (request as any).rawBody as Buffer | undefined
+      if (!rawBody) {
+        request.log.error('Raw body not available for Paddle webhook signature verification')
+        return reply.code(500).send({
+          error: 'server_error',
+          message: 'Raw body not available for webhook verification'
+        })
+      }
+
+      const isValid = verifyPaddleSignature(rawBody, signature, webhookSecret)
+      if (!isValid) {
+        return reply.code(400).send({
+          error: 'invalid_signature',
+          message: 'Invalid Paddle webhook signature'
+        })
+      }
+
+      const event = JSON.parse(rawBody.toString('utf8'))
+      await handlePaddleWebhookEvent(event)
+
+      return { received: true }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to process Paddle webhook'
       })
     }
   })

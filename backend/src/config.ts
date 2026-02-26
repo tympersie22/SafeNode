@@ -32,6 +32,9 @@ export interface Config {
   // Stripe
   stripeSecretKey: string | null
   stripeWebhookSecret: string | null
+  billingProvider: 'stripe' | 'paddle'
+  paddleApiKey: string | null
+  paddleWebhookSecret: string | null
 }
 
 /**
@@ -95,6 +98,9 @@ function getConfig(): Config {
     // Stripe configuration
     stripeSecretKey: process.env.STRIPE_SECRET_KEY || null,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
+    billingProvider: ((process.env.BILLING_PROVIDER || 'paddle').toLowerCase() === 'stripe' ? 'stripe' : 'paddle'),
+    paddleApiKey: process.env.PADDLE_API_KEY || null,
+    paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET || null,
 
     // CORS - in production, restrict to your frontend domain
     // Supports comma-separated URLs and automatically includes Vercel preview URLs
@@ -123,10 +129,20 @@ if (config.nodeEnv === 'production') {
   if (!config.encryptionKey) {
     console.warn('WARNING: ENCRYPTION_KEY not set. Vault data will not be encrypted at rest.')
   }
-  if (!config.stripeSecretKey) {
-    console.warn('WARNING: STRIPE_SECRET_KEY not set. Billing and subscriptions will not work.')
+  if (config.billingProvider === 'stripe') {
+    if (!config.stripeSecretKey) {
+      console.warn('WARNING: STRIPE_SECRET_KEY not set. Stripe billing will not work.')
+    }
+    if (!config.stripeWebhookSecret) {
+      console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Stripe webhook verification will fail.')
+    }
   }
-  if (!config.stripeWebhookSecret) {
-    console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Webhook signature verification will fail.')
+  if (config.billingProvider === 'paddle') {
+    if (!config.paddleApiKey) {
+      console.warn('WARNING: PADDLE_API_KEY not set. Paddle API-backed checkout creation will not work.')
+    }
+    if (!config.paddleWebhookSecret) {
+      console.warn('WARNING: PADDLE_WEBHOOK_SECRET not set. Paddle webhook verification will fail.')
+    }
   }
 }
