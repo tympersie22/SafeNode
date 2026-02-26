@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ShieldCheck, Laptop, Globe, ArrowRight } from 'lucide-react'
 import Logo from '../../components/Logo'
 import Footer from '../../components/marketing/Footer'
+import AppFeatureRibbon from '../../components/marketing/AppFeatureRibbon'
 
 type Role = {
   title: string
@@ -68,6 +69,8 @@ const CareersPage: React.FC = () => {
             We move quickly, document deeply, and ship reliable systems.
           </p>
         </motion.div>
+
+        <AppFeatureRibbon />
 
         <section className="grid md:grid-cols-3 gap-4 mt-10">
           <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-5 bg-slate-50/60 dark:bg-slate-800/50">

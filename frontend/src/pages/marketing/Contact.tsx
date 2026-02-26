@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Mail, ShieldAlert, Briefcase, Send } from 'lucide-react'
 import Logo from '../../components/Logo'
 import Footer from '../../components/marketing/Footer'
+import AppFeatureRibbon from '../../components/marketing/AppFeatureRibbon'
 import { showToast } from '../../components/ui/Toast'
 import { Spinner } from '../../components/ui/Spinner'
 
@@ -64,6 +65,8 @@ const ContactPage: React.FC = () => {
             Reach product, support, and security engineering from one place. For urgent incidents, use the security contact channel.
           </p>
         </motion.div>
+
+        <AppFeatureRibbon />
 
         <section className="grid lg:grid-cols-3 gap-5 mt-10">
           <div className="space-y-4 lg:col-span-1">

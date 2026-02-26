@@ -82,6 +82,8 @@ export async function apiRequest<T = any>(
       if (response.status === 429 || errorData.error === 'rate_limit_exceeded') {
         const retryAfter = errorData.retryAfter || response.headers.get('Retry-After') || '15'
         const error = new Error(errorData.message || 'Rate limit exceeded')
+        ;(error as any).status = response.status
+        ;(error as any).code = errorData.code || errorData.error
         ;(error as any).retryAfter = parseInt(retryAfter, 10)
         ;(error as any).isRateLimit = true
         throw error
@@ -97,7 +99,10 @@ export async function apiRequest<T = any>(
         })
       }
 
-      throw new Error(errorData.message || errorData.error || 'Request failed')
+      const error = new Error(errorData.message || errorData.error || 'Request failed')
+      ;(error as any).status = response.status
+      ;(error as any).code = errorData.code || errorData.error
+      throw error
     }
 
     // Parse JSON response
@@ -169,4 +174,3 @@ export async function apiDelete<T = any>(
     method: 'DELETE'
   })
 }
-

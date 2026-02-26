@@ -24,6 +24,7 @@ import { BillingSuccessPage } from './pages/billing/BillingSuccess'
 import { BillingCancelPage } from './pages/billing/BillingCancel'
 import { ForgotPasswordPage } from './pages/auth/ForgotPassword'
 import { ResetPasswordPage } from './pages/auth/ResetPassword'
+import VerifyEmailPage from './pages/auth/VerifyEmail'
 import { PrivacyPolicyPage } from './pages/marketing/PrivacyPolicy'
 import { TermsOfServicePage } from './pages/marketing/TermsOfService'
 
@@ -52,6 +53,7 @@ export const AppRouter: React.FC = () => {
           {/* Auth Pages (public) */}
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/verify" element={<VerifyEmailPage />} />
 
           {/* Billing Result Pages */}
           <Route path="/billing/success" element={<BillingSuccessPage />} />

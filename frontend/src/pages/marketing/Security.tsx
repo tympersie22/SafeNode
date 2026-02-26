@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Shield, Lock, KeyRound, Eye, Server, AlertOctagon, FileCheck2, Workflow } from 'lucide-react'
 import Logo from '../../components/Logo'
 import Footer from '../../components/marketing/Footer'
+import AppFeatureRibbon from '../../components/marketing/AppFeatureRibbon'
 
 const controls = [
   {
@@ -78,6 +79,8 @@ const SecurityPage: React.FC = () => {
             SafeNode is built with a default assumption that compromise attempts are normal. Encryption, auth, and operational checks are treated as core product behavior.
           </p>
         </motion.section>
+
+        <AppFeatureRibbon />
 
         <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-10">
           {controls.map((control, idx) => (

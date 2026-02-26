@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Calendar, ArrowRight } from 'lucide-react'
 import Logo from '../../components/Logo'
 import Footer from '../../components/marketing/Footer'
+import AppFeatureRibbon from '../../components/marketing/AppFeatureRibbon'
 import { blogPosts } from './blogData'
 
 const BlogPage: React.FC = () => {
@@ -43,6 +44,8 @@ const BlogPage: React.FC = () => {
             Updates from the SafeNode team on encryption architecture, reliability improvements, release operations, and security practices.
           </p>
         </motion.div>
+
+        <AppFeatureRibbon />
 
         <div className="grid gap-5 mt-10">
           {blogPosts.map((post, idx) => (

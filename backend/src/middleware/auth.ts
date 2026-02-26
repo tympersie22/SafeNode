@@ -109,15 +109,15 @@ export async function requireAuth(
     // Verify user exists and check token version
     const { db } = await import('../services/database')
     
-    // For new users, there might be a slight delay in database propagation
-    // Retry up to 3 times with exponential backoff
+    // For new users, there can be propagation delay in serverless + managed DB setups.
+    // Retry with exponential backoff to reduce false USER_NOT_FOUND responses.
     let user = await db.users.findById(payload.userId)
     let retries = 0
-    const maxRetries = 3
+    const maxRetries = 6
     
     while (!user && retries < maxRetries) {
-      // Wait before retry (exponential backoff: 50ms, 100ms, 200ms)
-      await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, retries)))
+      // 75ms, 150ms, 300ms, 600ms, 1200ms, 2400ms
+      await new Promise(resolve => setTimeout(resolve, 75 * Math.pow(2, retries)))
       user = await db.users.findById(payload.userId)
       retries++
     }
@@ -206,4 +206,3 @@ export async function optionalAuth(
     // Ignore errors for optional auth
   }
 }
-

@@ -721,16 +721,30 @@ const App: React.FC = () => {
         version: Date.now()
       };
 
-      // Use API client with authentication
-      let response;
-      if (operation === 'CREATE') {
-        response = await apiPost('/api/vault/entry', payload, { requireAuth: true });
-      } else if (operation === 'UPDATE' && entryId) {
-        response = await apiPut(`/api/vault/entry/${entryId}`, payload, { requireAuth: true });
-      } else if (operation === 'DELETE' && entryId) {
-        response = await apiDelete(`/api/vault/entry/${entryId}`, { requireAuth: true });
-      } else {
+      const performVaultMutation = async () => {
+        if (operation === 'CREATE') {
+          return apiPost('/api/vault/entry', payload, { requireAuth: true });
+        }
+        if (operation === 'UPDATE' && entryId) {
+          return apiPut(`/api/vault/entry/${entryId}`, payload, { requireAuth: true });
+        }
+        if (operation === 'DELETE' && entryId) {
+          return apiDelete(`/api/vault/entry/${entryId}`, { requireAuth: true });
+        }
         throw new Error('Invalid operation or missing entryId');
+      };
+
+      // New accounts can hit short DB propagation windows.
+      let response;
+      try {
+        response = await performVaultMutation();
+      } catch (error: any) {
+        if (error?.code === 'USER_NOT_FOUND') {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          response = await performVaultMutation();
+        } else {
+          throw error;
+        }
       }
 
       // Update local storage
