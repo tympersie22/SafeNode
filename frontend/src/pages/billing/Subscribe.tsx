@@ -41,11 +41,6 @@ export const SubscribePage: React.FC = () => {
     setError(null)
 
     try {
-      if (checkoutTarget.provider === 'paddle') {
-        window.location.href = checkoutTarget.value
-        return
-      }
-
       const session = await createCheckoutSession(
         checkoutTarget.value,
         `${window.location.origin}/billing/success?plan=${planId}`,

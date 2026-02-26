@@ -5,13 +5,14 @@
 
 import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth'
+import { config } from '../config'
 import {
   createCheckoutSession,
   createPortalSession,
   handleStripeWebhook,
   checkSubscriptionLimits
 } from '../services/stripeService'
-import { handlePaddleWebhookEvent, verifyPaddleSignature } from '../services/paddleService'
+import { createPaddleCheckoutSession, handlePaddleWebhookEvent, verifyPaddleSignature } from '../services/paddleService'
 // Stripe will be imported dynamically
 import { z } from 'zod'
 
@@ -52,13 +53,9 @@ export async function registerBillingRoutes(server: FastifyInstance) {
 
       const { priceId, successUrl, cancelUrl } = validation.data
 
-      // Create checkout session
-      const session = await createCheckoutSession(
-        user.id,
-        priceId,
-        successUrl,
-        cancelUrl
-      )
+      const session = config.billingProvider === 'paddle'
+        ? await createPaddleCheckoutSession(user.id, priceId, successUrl, cancelUrl)
+        : await createCheckoutSession(user.id, priceId, successUrl, cancelUrl)
 
       return {
         success: true,
@@ -68,7 +65,7 @@ export async function registerBillingRoutes(server: FastifyInstance) {
     } catch (error: any) {
       request.log.error(error)
 
-      if (error?.message?.includes('Invalid Stripe price ID')) {
+      if (error?.message?.includes('Invalid Stripe price ID') || error?.message?.includes('Invalid Paddle price ID')) {
         return reply.code(400).send({
           error: 'invalid_price_id',
           message: error.message

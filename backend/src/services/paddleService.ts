@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { getPrismaClient } from '../db/prisma'
-import { updateUser } from './userService'
+import { findUserById, updateUser } from './userService'
 import { createAuditLog } from './auditLogService'
 
 type PaddlePlan = 'individual' | 'family' | 'teams'
@@ -25,6 +25,12 @@ const PADDLE_PLAN_PRICE_IDS: Record<PaddlePlan, string[]> = {
     process.env.PADDLE_PRICE_TEAMS_MONTHLY || '',
     process.env.PADDLE_PRICE_TEAMS_ANNUAL || ''
   ].filter(Boolean)
+}
+
+const ALL_PADDLE_PRICE_IDS = new Set(Object.values(PADDLE_PLAN_PRICE_IDS).flat())
+
+export function isSupportedPaddlePriceId(priceId: string): boolean {
+  return ALL_PADDLE_PRICE_IDS.has(priceId)
 }
 
 function parsePaddleSignatureHeader(header: string): { timestamp: string; signatures: string[] } {
@@ -246,4 +252,64 @@ export async function handlePaddleWebhookEvent(event: PaddleWebhookEvent): Promi
       status
     }
   })
+}
+
+export async function createPaddleCheckoutSession(
+  userId: string,
+  priceId: string,
+  successUrl: string,
+  cancelUrl: string
+): Promise<{ sessionId: string; url: string }> {
+  const apiKey = process.env.PADDLE_API_KEY
+  if (!apiKey) {
+    throw new Error('Paddle is not configured. Set PADDLE_API_KEY.')
+  }
+
+  if (!isSupportedPaddlePriceId(priceId)) {
+    throw new Error('Invalid Paddle price ID. Configure all PADDLE_PRICE_* environment variables first.')
+  }
+
+  const user = await findUserById(userId)
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  const response = await fetch('https://api.paddle.com/transactions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      items: [{ price_id: priceId, quantity: 1 }],
+      customer: {
+        email: user.email
+      },
+      custom_data: {
+        userId: user.id
+      },
+      checkout: {
+        success_url: successUrl,
+        cancel_url: cancelUrl
+      }
+    })
+  })
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => '')
+    throw new Error(`Failed to create Paddle checkout session (${response.status}): ${details}`)
+  }
+
+  const payload: any = await response.json()
+  const checkoutUrl = payload?.data?.checkout?.url || payload?.data?.url
+  const transactionId = payload?.data?.id
+
+  if (!checkoutUrl || !transactionId) {
+    throw new Error('Paddle transaction created but checkout URL was missing in response')
+  }
+
+  return {
+    sessionId: String(transactionId),
+    url: String(checkoutUrl)
+  }
 }

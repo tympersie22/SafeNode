@@ -121,6 +121,19 @@ function getConfig(): Config {
 
 export const config = getConfig()
 
+function getMissingPaddlePriceVars(): string[] {
+  const required = [
+    'PADDLE_PRICE_INDIVIDUAL_MONTHLY',
+    'PADDLE_PRICE_INDIVIDUAL_ANNUAL',
+    'PADDLE_PRICE_FAMILY_MONTHLY',
+    'PADDLE_PRICE_FAMILY_ANNUAL',
+    'PADDLE_PRICE_TEAMS_MONTHLY',
+    'PADDLE_PRICE_TEAMS_ANNUAL'
+  ]
+
+  return required.filter((key) => !process.env[key])
+}
+
 // Validate critical configuration
 if (config.nodeEnv === 'production') {
   if (config.jwtSecret === 'dev-secret-change-in-production-' || config.jwtSecret.length < 32) {
@@ -143,6 +156,11 @@ if (config.nodeEnv === 'production') {
     }
     if (!config.paddleWebhookSecret) {
       console.warn('WARNING: PADDLE_WEBHOOK_SECRET not set. Paddle webhook verification will fail.')
+    }
+    const missingPriceVars = getMissingPaddlePriceVars()
+    if (missingPriceVars.length > 0) {
+      console.warn(`WARNING: Missing Paddle price env vars: ${missingPriceVars.join(', ')}`)
+      console.warn('WARNING: Plan mapping and checkout may fail until all 6 PADDLE_PRICE_* values are set.')
     }
   }
 }

@@ -35,11 +35,6 @@ export const PricingNewPage: React.FC = () => {
     try {
       setLoading(planId);
 
-      if (checkoutTarget.provider === 'paddle') {
-        window.location.href = checkoutTarget.value;
-        return;
-      }
-
       // Check if user is logged in
       const user = await getCurrentUser();
       if (!user) {

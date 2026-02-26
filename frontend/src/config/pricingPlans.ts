@@ -21,7 +21,7 @@ export interface PricingPlan {
     monthly?: string
     annual?: string
   }
-  paddleCheckoutUrls?: {
+  paddlePriceIds?: {
     monthly?: string
     annual?: string
   }
@@ -69,9 +69,9 @@ export const PRICING_PLANS: PricingPlan[] = [
       monthly: env.VITE_STRIPE_PRICE_INDIVIDUAL_MONTHLY,
       annual: env.VITE_STRIPE_PRICE_INDIVIDUAL_ANNUAL
     },
-    paddleCheckoutUrls: {
-      monthly: env.VITE_PADDLE_CHECKOUT_INDIVIDUAL_MONTHLY,
-      annual: env.VITE_PADDLE_CHECKOUT_INDIVIDUAL_ANNUAL
+    paddlePriceIds: {
+      monthly: env.VITE_PADDLE_PRICE_INDIVIDUAL_MONTHLY,
+      annual: env.VITE_PADDLE_PRICE_INDIVIDUAL_ANNUAL
     }
   },
   {
@@ -96,9 +96,9 @@ export const PRICING_PLANS: PricingPlan[] = [
       monthly: env.VITE_STRIPE_PRICE_FAMILY_MONTHLY,
       annual: env.VITE_STRIPE_PRICE_FAMILY_ANNUAL
     },
-    paddleCheckoutUrls: {
-      monthly: env.VITE_PADDLE_CHECKOUT_FAMILY_MONTHLY,
-      annual: env.VITE_PADDLE_CHECKOUT_FAMILY_ANNUAL
+    paddlePriceIds: {
+      monthly: env.VITE_PADDLE_PRICE_FAMILY_MONTHLY,
+      annual: env.VITE_PADDLE_PRICE_FAMILY_ANNUAL
     }
   },
   {
@@ -123,9 +123,9 @@ export const PRICING_PLANS: PricingPlan[] = [
       monthly: env.VITE_STRIPE_PRICE_TEAMS_MONTHLY,
       annual: env.VITE_STRIPE_PRICE_TEAMS_ANNUAL
     },
-    paddleCheckoutUrls: {
-      monthly: env.VITE_PADDLE_CHECKOUT_TEAMS_MONTHLY,
-      annual: env.VITE_PADDLE_CHECKOUT_TEAMS_ANNUAL
+    paddlePriceIds: {
+      monthly: env.VITE_PADDLE_PRICE_TEAMS_MONTHLY,
+      annual: env.VITE_PADDLE_PRICE_TEAMS_ANNUAL
     }
   }
 ]
@@ -140,12 +140,12 @@ export function getStripePriceId(plan: PricingPlan, cycle: BillingCycle): string
   return plan.stripePriceIds?.[cycle]
 }
 
-export function getPaddleCheckoutUrl(plan: PricingPlan, cycle: BillingCycle): string | undefined {
+export function getPaddlePriceId(plan: PricingPlan, cycle: BillingCycle): string | undefined {
   if (plan.price === 0) {
     return undefined
   }
 
-  return plan.paddleCheckoutUrls?.[cycle]
+  return plan.paddlePriceIds?.[cycle]
 }
 
 export function getCheckoutTarget(
@@ -156,7 +156,7 @@ export function getCheckoutTarget(
     return null
   }
 
-  const paddle = getPaddleCheckoutUrl(plan, cycle)
+  const paddle = getPaddlePriceId(plan, cycle)
   const stripe = getStripePriceId(plan, cycle)
 
   if (BILLING_PROVIDER === 'stripe') {
