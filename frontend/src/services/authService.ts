@@ -202,6 +202,9 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     
     // Provide more helpful error messages
     if (response.status === 401) {
+      if (error?.error === 'email_not_verified' || error?.code === 'EMAIL_NOT_VERIFIED') {
+        throw new Error('Your email is not verified yet. Please verify your email first, then sign in.')
+      }
       throw new Error('Invalid email or password. Please check your credentials and try again.')
     } else if (response.status === 500) {
       throw new Error('Server error. Please try again later.')
@@ -404,4 +407,3 @@ export async function verifyToken(token: string): Promise<boolean> {
 export function isAuthenticated(): boolean {
   return getToken() !== null
 }
-
