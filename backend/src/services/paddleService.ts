@@ -122,7 +122,7 @@ function normalizeSubscriptionStatus(status?: string): 'active' | 'cancelled' | 
 }
 
 function extractUserId(data: any): string | null {
-  const customData = data?.custom_data
+  const customData = data?.custom_data || data?.attributes?.custom_data
   if (!customData || typeof customData !== 'object') {
     return null
   }
@@ -144,7 +144,8 @@ function extractUserId(data: any): string | null {
 }
 
 function getFirstPriceId(data: any): string {
-  const firstItem = data?.items?.[0]
+  const items = data?.items || data?.attributes?.items
+  const firstItem = items?.[0]
   if (!firstItem) return 'paddle_unknown_price'
 
   if (typeof firstItem.price_id === 'string' && firstItem.price_id) {
@@ -156,6 +157,11 @@ function getFirstPriceId(data: any): string {
   }
 
   return 'paddle_unknown_price'
+}
+
+function getEventData(event: PaddleWebhookEvent): any {
+  const data = event.data || {}
+  return data?.attributes ? { ...data.attributes, id: data.id || data.attributes.id } : data
 }
 
 function toDate(input: string | undefined, fallback: Date): Date {
@@ -171,7 +177,7 @@ export async function handlePaddleWebhookEvent(event: PaddleWebhookEvent): Promi
   }
 
   const prisma = getPrismaClient()
-  const data = event.data || {}
+  const data = getEventData(event)
   const subscriptionId: string | undefined = data.id
 
   if (!subscriptionId || typeof subscriptionId !== 'string') {
@@ -183,8 +189,14 @@ export async function handlePaddleWebhookEvent(event: PaddleWebhookEvent): Promi
   const plan = resolvePlanFromPriceId(priceId)
   const tier = mapPlanToTier(plan)
   const occurredAt = toDate(event.occurred_at, new Date())
-  const periodStart = toDate(data?.current_billing_period?.starts_at || data?.started_at, occurredAt)
-  const periodEnd = toDate(data?.current_billing_period?.ends_at || data?.next_billed_at, new Date(occurredAt.getTime() + 30 * 24 * 60 * 60 * 1000))
+  const periodStart = toDate(
+    data?.current_billing_period?.starts_at || data?.billing_cycle?.starts_at || data?.started_at,
+    occurredAt
+  )
+  const periodEnd = toDate(
+    data?.current_billing_period?.ends_at || data?.billing_cycle?.ends_at || data?.next_billed_at,
+    new Date(occurredAt.getTime() + 30 * 24 * 60 * 60 * 1000)
+  )
   const cancelAtPeriodEnd = Boolean(data?.scheduled_change?.action === 'cancel')
 
   let userId = extractUserId(data)
