@@ -158,16 +158,17 @@ export function getCheckoutTarget(
 
   const paddle = getPaddlePriceId(plan, cycle)
   const stripe = getStripePriceId(plan, cycle)
+  const alias = `plan:${plan.id}:${cycle}`
 
   if (BILLING_PROVIDER === 'stripe') {
     if (stripe) return { provider: 'stripe', value: stripe }
     if (paddle) return { provider: 'paddle', value: paddle }
-    return null
+    return { provider: 'stripe', value: alias }
   }
 
   if (paddle) return { provider: 'paddle', value: paddle }
   if (stripe) return { provider: 'stripe', value: stripe }
-  return null
+  return { provider: 'paddle', value: alias }
 }
 
 export function getPlanMonthlyPrice(plan: PricingPlan, cycle: BillingCycle): string {

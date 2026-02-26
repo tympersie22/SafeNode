@@ -3,8 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import Logo from '../../components/Logo'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../../config/api'
 
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams()

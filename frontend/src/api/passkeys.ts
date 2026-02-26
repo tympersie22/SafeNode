@@ -1,6 +1,11 @@
 import type { PasskeyRecord } from '../types/passkeys';
 import { API_BASE } from '../config/api';
 
+const getAuthHeader = (): string => {
+  const token = localStorage.getItem('safenode_token');
+  return token ? `Bearer ${token}` : '';
+};
+
 const base64UrlToBuffer = (value: string): ArrayBuffer => {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
   const decoded = window.atob(padded);
@@ -22,7 +27,11 @@ const bufferToBase64Url = (buffer: ArrayBuffer): string => {
 };
 
 export const listPasskeys = async (): Promise<PasskeyRecord[]> => {
-  const res = await fetch(`${API_BASE}/api/passkeys`);
+  const res = await fetch(`${API_BASE}/api/passkeys`, {
+    headers: {
+      Authorization: getAuthHeader()
+    }
+  });
   if (!res.ok) {
     throw new Error('Failed to load passkeys');
   }
@@ -32,7 +41,10 @@ export const listPasskeys = async (): Promise<PasskeyRecord[]> => {
 
 export const deletePasskey = async (id: string): Promise<void> => {
   const res = await fetch(`${API_BASE}/api/passkeys/${encodeURIComponent(id)}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: {
+      Authorization: getAuthHeader()
+    }
   });
   if (!res.ok) {
     throw new Error('Failed to delete passkey');
@@ -41,7 +53,10 @@ export const deletePasskey = async (id: string): Promise<void> => {
 
 export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRecord> => {
   const optionsResponse = await fetch(`${API_BASE}/api/passkeys/register/options`, {
-    method: 'POST'
+    method: 'POST',
+    headers: {
+      Authorization: getAuthHeader()
+    }
   });
   if (!optionsResponse.ok) {
     throw new Error('Failed to begin passkey registration');
@@ -71,7 +86,10 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/register/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: getAuthHeader()
+    },
     body: JSON.stringify({
       credential: {
         id: credential.id,
@@ -98,7 +116,10 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
 
 export const authenticateWithPasskey = async (): Promise<void> => {
   const optionsResponse = await fetch(`${API_BASE}/api/passkeys/authenticate/options`, {
-    method: 'POST'
+    method: 'POST',
+    headers: {
+      Authorization: getAuthHeader()
+    }
   });
   if (!optionsResponse.ok) {
     throw new Error('Failed to request authentication options');
@@ -130,7 +151,10 @@ export const authenticateWithPasskey = async (): Promise<void> => {
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/authenticate/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: getAuthHeader()
+    },
     body: JSON.stringify({
       credential: {
         id: assertion.id,
@@ -150,4 +174,3 @@ export const authenticateWithPasskey = async (): Promise<void> => {
     throw new Error('Failed to verify passkey authentication');
   }
 };
-

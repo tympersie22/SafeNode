@@ -27,6 +27,24 @@ const portalSchema = z.object({
   returnUrl: z.string().url('Return URL must be a valid URL')
 })
 
+const PLAN_PRICE_ALIAS_MAP: Record<string, string | undefined> = {
+  'individual:monthly': process.env.PADDLE_PRICE_INDIVIDUAL_MONTHLY || process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY,
+  'individual:annual': process.env.PADDLE_PRICE_INDIVIDUAL_ANNUAL || process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL,
+  'family:monthly': process.env.PADDLE_PRICE_FAMILY_MONTHLY || process.env.STRIPE_PRICE_FAMILY_MONTHLY,
+  'family:annual': process.env.PADDLE_PRICE_FAMILY_ANNUAL || process.env.STRIPE_PRICE_FAMILY_ANNUAL,
+  'teams:monthly': process.env.PADDLE_PRICE_TEAMS_MONTHLY || process.env.STRIPE_PRICE_TEAMS_MONTHLY,
+  'teams:annual': process.env.PADDLE_PRICE_TEAMS_ANNUAL || process.env.STRIPE_PRICE_TEAMS_ANNUAL
+}
+
+function resolveCheckoutPriceId(raw: string): string {
+  if (!raw) return raw
+
+  // Supports frontend aliases like "plan:individual:monthly"
+  // and direct aliases like "individual:monthly".
+  const normalized = raw.startsWith('plan:') ? raw.slice('plan:'.length) : raw
+  return PLAN_PRICE_ALIAS_MAP[normalized] || raw
+}
+
 /**
  * Register billing routes
  */
@@ -53,10 +71,11 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       }
 
       const { priceId, successUrl, cancelUrl } = validation.data
+      const resolvedPriceId = resolveCheckoutPriceId(priceId)
 
       const session = config.billingProvider === 'paddle'
-        ? await createPaddleCheckoutSession(user.id, priceId, successUrl, cancelUrl)
-        : await createCheckoutSession(user.id, priceId, successUrl, cancelUrl)
+        ? await createPaddleCheckoutSession(user.id, resolvedPriceId, successUrl, cancelUrl)
+        : await createCheckoutSession(user.id, resolvedPriceId, successUrl, cancelUrl)
 
       return {
         success: true,
