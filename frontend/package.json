@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@sentry/react": "^10.26.0",
-    "@sentry/tracing": "^7.120.4",
     "@tensorflow/tfjs": "^4.22.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.24",

@@ -7,7 +7,7 @@
  * - VITE_SENTRY_ENV: Environment name (defaults to MODE)
  * 
  * To enable Sentry:
- * 1. Install: npm install --save @sentry/react @sentry/tracing
+ * 1. Install: npm install --save @sentry/react
  * 2. Set VITE_SENTRY_DSN in your .env file
  */
 
