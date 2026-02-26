@@ -48,6 +48,8 @@ import { pinManager } from './utils/pinManager';
 import { apiPost, apiPut, apiDelete } from './utils/apiClient';
 import PasswordGeneratorModal from './components/PasswordGeneratorModal';
 import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
+import { DashboardLayout } from './layout/DashboardLayout';
+import type { SidebarItem } from './ui/SaasSidebar';
 
 interface VaultData {
   entries: VaultEntry[];
@@ -1006,9 +1008,68 @@ const App: React.FC = () => {
     )
   }
 
+  const dashboardSidebarItems: SidebarItem[] = [
+    {
+      id: 'vault',
+      label: 'Vault',
+      icon: <span>🔐</span>,
+      active: true,
+      onClick: () => navigate('/vault')
+    },
+    {
+      id: 'security',
+      label: 'Security',
+      icon: <span>🛡️</span>,
+      onClick: () => setIsWatchtowerOpen(true)
+    },
+    {
+      id: 'passkeys',
+      label: 'Passkeys',
+      icon: <span>🔑</span>,
+      onClick: () => setIsPasskeysOpen(true)
+    },
+    {
+      id: 'team',
+      label: 'Teams',
+      icon: <span>👥</span>,
+      onClick: () => setIsTeamVaultsOpen(true)
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: <span>⚙️</span>,
+      onClick: () => navigate('/settings')
+    },
+    {
+      id: 'billing',
+      label: 'Billing',
+      icon: <span>💳</span>,
+      onClick: () => navigate('/billing')
+    }
+  ]
+
   // At this point: user && vaultStatus === 'UNLOCKED' - render vault UI
   // Wrap vault UI in page transition
   return (
+    <DashboardLayout
+      sidebarItems={dashboardSidebarItems}
+      activeSidebarItem="vault"
+      topbarTitle="SafeNode Vault"
+      topbarSubtitle={`${vault?.entries.length || 0} entries`}
+      topbarSearch={{
+        placeholder: 'Search vault...',
+        value: query,
+        onChange: setQuery
+      }}
+      topbarRightContent={
+        <div className="flex items-center gap-2">
+          <Button onClick={handleAddEntry} size="sm" variant="primary">+ Add</Button>
+          <Button onClick={() => navigate('/settings')} size="sm" variant="outline">Settings</Button>
+          <Button onClick={handleLock} size="sm" variant="outline">Lock</Button>
+          <Button onClick={handleLogout} size="sm" variant="outline">Logout</Button>
+        </div>
+      }
+    >
     <div className="min-h-screen bg-white dark:bg-slate-900">
       {/* Header */}
       <motion.header 
@@ -1016,6 +1077,7 @@ const App: React.FC = () => {
         initial={prefersReducedMotion ? undefined : { opacity: 0, y: -20 }}
         animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        style={{ display: 'none' }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16">
@@ -2108,6 +2170,7 @@ const App: React.FC = () => {
 
       {/* Toast notifications are now handled globally by ToastProvider in main.tsx */}
     </div>
+    </DashboardLayout>
   );
 };
 
