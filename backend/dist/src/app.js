@@ -21,6 +21,7 @@ const sso_1 = require("./routes/sso");
 const health_1 = require("./routes/health");
 const downloads_1 = require("./routes/downloads");
 const devices_1 = require("./routes/devices");
+const passkeys_1 = require("./routes/passkeys");
 const auth_2 = require("./middleware/auth");
 const vaultController_1 = require("./controllers/vaultController");
 const breachController_1 = require("./controllers/breachController");
@@ -91,6 +92,8 @@ async function createApp() {
     await (0, downloads_1.registerDownloadRoutes)(server);
     // Register device routes
     await (0, devices_1.registerDeviceRoutes)(server);
+    // Register passkey routes
+    await (0, passkeys_1.registerPasskeyRoutes)(server);
     server.post('/api/biometric/register/options', { preHandler: auth_2.requireAuth }, async (request, reply) => {
         try {
             const user = request.user;
@@ -162,9 +165,7 @@ async function createApp() {
             return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to verify biometric authentication' });
         }
     });
-    // Vault routes
-    // NOTE: For backward compatibility, these are NOT protected by default
-    // To enable JWT auth, uncomment the preHandler lines
+    // Vault routes (strictly authenticated)
     server.get('/api/vault/latest', { preHandler: auth_2.requireAuth }, vaultController_1.getLatestVault);
     server.post('/api/vault', { preHandler: auth_2.requireAuth }, vaultController_1.saveVault);
     server.post('/api/vault/save', { preHandler: auth_2.requireAuth }, vaultController_1.saveVaultAlias);

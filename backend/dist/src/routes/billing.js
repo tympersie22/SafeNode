@@ -53,6 +53,22 @@ const checkoutSchema = zod_1.z.object({
 const portalSchema = zod_1.z.object({
     returnUrl: zod_1.z.string().url('Return URL must be a valid URL')
 });
+const PLAN_PRICE_ALIAS_MAP = {
+    'individual:monthly': process.env.PADDLE_PRICE_INDIVIDUAL_MONTHLY || process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY,
+    'individual:annual': process.env.PADDLE_PRICE_INDIVIDUAL_ANNUAL || process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL,
+    'family:monthly': process.env.PADDLE_PRICE_FAMILY_MONTHLY || process.env.STRIPE_PRICE_FAMILY_MONTHLY,
+    'family:annual': process.env.PADDLE_PRICE_FAMILY_ANNUAL || process.env.STRIPE_PRICE_FAMILY_ANNUAL,
+    'teams:monthly': process.env.PADDLE_PRICE_TEAMS_MONTHLY || process.env.STRIPE_PRICE_TEAMS_MONTHLY,
+    'teams:annual': process.env.PADDLE_PRICE_TEAMS_ANNUAL || process.env.STRIPE_PRICE_TEAMS_ANNUAL
+};
+function resolveCheckoutPriceId(raw) {
+    if (!raw)
+        return raw;
+    // Supports frontend aliases like "plan:individual:monthly"
+    // and direct aliases like "individual:monthly".
+    const normalized = raw.startsWith('plan:') ? raw.slice('plan:'.length) : raw;
+    return PLAN_PRICE_ALIAS_MAP[normalized] || raw;
+}
 /**
  * Register billing routes
  */
@@ -77,9 +93,10 @@ async function registerBillingRoutes(server) {
                 });
             }
             const { priceId, successUrl, cancelUrl } = validation.data;
+            const resolvedPriceId = resolveCheckoutPriceId(priceId);
             const session = config_1.config.billingProvider === 'paddle'
-                ? await (0, paddleService_1.createPaddleCheckoutSession)(user.id, priceId, successUrl, cancelUrl)
-                : await (0, stripeService_1.createCheckoutSession)(user.id, priceId, successUrl, cancelUrl);
+                ? await (0, paddleService_1.createPaddleCheckoutSession)(user.id, resolvedPriceId, successUrl, cancelUrl)
+                : await (0, stripeService_1.createCheckoutSession)(user.id, resolvedPriceId, successUrl, cancelUrl);
             return {
                 success: true,
                 sessionId: session.sessionId,
