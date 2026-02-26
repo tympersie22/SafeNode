@@ -4,7 +4,6 @@
  */
 
 import Fastify from 'fastify'
-import { webcrypto } from 'crypto'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
@@ -23,6 +22,12 @@ import { requireAuth } from './middleware/auth'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
 import { getBreachRange, getCacheStats } from './controllers/breachController'
 import { updateVault } from './services/userService'
+import {
+  createAuthenticationOptions,
+  createRegistrationOptions,
+  verifyAuthentication,
+  verifyRegistration,
+} from './services/webauthnService'
 
 /**
  * Creates and configures the Fastify server instance
@@ -103,43 +108,10 @@ export async function createApp() {
   // Register device routes
   await registerDeviceRoutes(server)
 
-  // Biometric Authentication endpoints (WebAuthn)
-  // Temporary in-memory credential map for platform authenticators.
-  // Persist in DB for full production-grade passkey management.
-  const biometricCredentials: Map<string, any[]> = new Map()
-
   server.post('/api/biometric/register/options', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const user = (request as any).user
-      const challenge = webcrypto.getRandomValues(new Uint8Array(32))
-      const challengeB64 = Buffer.from(challenge).toString('base64url')
-      const rpId = process.env.SSO_CALLBACK_BASE_URL
-        ? new URL(process.env.SSO_CALLBACK_BASE_URL).hostname
-        : 'safe-node.app'
-
-      return {
-        challenge: challengeB64,
-        rp: {
-          name: 'SafeNode',
-          id: rpId
-        },
-        user: {
-          id: Buffer.from(user.id).toString('base64url'),
-          name: user.email,
-          displayName: user.email
-        },
-        pubKeyCredParams: [
-          { alg: -7, type: 'public-key' },
-          { alg: -257, type: 'public-key' }
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          requireResidentKey: false
-        },
-        timeout: 60000,
-        attestation: 'none'
-      }
+      return await createRegistrationOptions(user.id, user.email)
     } catch (error: any) {
       request.log.error(error)
       return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to generate biometric registration options' })
@@ -149,23 +121,22 @@ export async function createApp() {
   server.post('/api/biometric/register/verify', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const user = (request as any).user
-      const { credentialId, rawId, transports } = request.body as any
-
-      if (!credentialId) {
-        return reply.code(400).send({ error: 'invalid_payload', message: 'Credential ID is required' })
-      }
-
-      const credentials = biometricCredentials.get(user.id) || []
-      const withoutOld = credentials.filter((cred: any) => cred.id !== credentialId)
-      withoutOld.push({
-        id: credentialId,
-        rawId,
-        transports: transports || [],
-        createdAt: Date.now()
-      })
-      biometricCredentials.set(user.id, withoutOld)
-
-      return { success: true, credentialId }
+      const body = request.body as any
+      const registrationResponse = body?.type
+        ? body
+        : {
+            id: body?.credentialId,
+            rawId: body?.rawId,
+            type: 'public-key',
+            response: {
+              clientDataJSON: body?.clientDataJSON,
+              attestationObject: body?.attestationObject,
+              transports: body?.transports || [],
+            },
+            clientExtensionResults: body?.clientExtensionResults || {},
+          }
+      const result = await verifyRegistration(user.id, registrationResponse)
+      return { success: result.verified, message: result.message }
     } catch (error: any) {
       request.log.error(error)
       return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to verify biometric registration' })
@@ -175,24 +146,7 @@ export async function createApp() {
   server.post('/api/biometric/authenticate/options', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const user = (request as any).user
-      const credentials = (biometricCredentials.get(user.id) || []).map((cred: any) => ({
-        id: cred.id,
-        type: 'public-key',
-        transports: cred.transports
-      }))
-      const challenge = webcrypto.getRandomValues(new Uint8Array(32))
-      const challengeB64 = Buffer.from(challenge).toString('base64url')
-      const rpId = process.env.SSO_CALLBACK_BASE_URL
-        ? new URL(process.env.SSO_CALLBACK_BASE_URL).hostname
-        : 'safe-node.app'
-
-      return {
-        challenge: challengeB64,
-        rpId,
-        allowCredentials: credentials,
-        timeout: 60000,
-        userVerification: 'required'
-      }
+      return await createAuthenticationOptions(user.id)
     } catch (error: any) {
       request.log.error(error)
       return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to generate biometric authentication options' })
@@ -202,42 +156,35 @@ export async function createApp() {
   server.post('/api/biometric/authenticate/verify', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const user = (request as any).user
-      const { credentialId } = request.body as any
-
-      if (!credentialId) {
-        return reply.code(400).send({ error: 'invalid_payload', message: 'Credential ID is required' })
-      }
-
-      const credentials = biometricCredentials.get(user.id) || []
-      const credentialExists = credentials.some((cred: any) => cred.id === credentialId)
-      if (!credentialExists) {
-        return reply.code(401).send({ success: false, error: 'credential_not_found', message: 'Credential not found' })
-      }
-
-      return { success: true, credentialId }
+      const body = request.body as any
+      const authenticationResponse = body?.type
+        ? body
+        : {
+            id: body?.credentialId,
+            rawId: body?.rawId,
+            type: 'public-key',
+            response: {
+              clientDataJSON: body?.clientDataJSON,
+              authenticatorData: body?.authenticatorData,
+              signature: body?.signature,
+              userHandle: body?.userHandle,
+            },
+            clientExtensionResults: body?.clientExtensionResults || {},
+          }
+      const result = await verifyAuthentication(user.id, authenticationResponse)
+      return { success: result.verified, message: result.message }
     } catch (error: any) {
       request.log.error(error)
       return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to verify biometric authentication' })
     }
   })
 
-  // Vault routes
-  // NOTE: For backward compatibility, these are NOT protected by default
-  // To enable JWT auth, uncomment the preHandler lines
-  server.get('/api/vault/latest', 
-    // { preHandler: requireAuth }, // Uncomment to enable JWT auth
-    getLatestVault
-  )
+  // Vault routes (strictly authenticated)
+  server.get('/api/vault/latest', { preHandler: requireAuth }, getLatestVault)
 
-  server.post('/api/vault', 
-    // { preHandler: requireAuth }, // Uncomment to enable JWT auth
-    saveVault
-  )
+  server.post('/api/vault', { preHandler: requireAuth }, saveVault)
 
-  server.post('/api/vault/save', 
-    // { preHandler: requireAuth }, // Uncomment to enable JWT auth
-    saveVaultAlias
-  )
+  server.post('/api/vault/save', { preHandler: requireAuth }, saveVaultAlias)
 
   // Vault entry CRUD routes (required by frontend)
   // These work with the full encrypted vault blob

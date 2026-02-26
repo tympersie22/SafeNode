@@ -43,6 +43,7 @@ exports.createPortalSession = createPortalSession;
 exports.handleStripeWebhook = handleStripeWebhook;
 exports.syncUserSubscriptionFromStripe = syncUserSubscriptionFromStripe;
 exports.checkSubscriptionLimits = checkSubscriptionLimits;
+// Stripe will be imported dynamically to avoid dependency issues
 const userService_1 = require("./userService");
 const prisma_1 = require("../db/prisma");
 /**
@@ -68,15 +69,25 @@ async function getStripe() {
         return null;
     }
 }
-// Stripe Price IDs (set via environment variables or create in Stripe dashboard)
-const STRIPE_PRICES = {
-    individual: process.env.STRIPE_PRICE_INDIVIDUAL || 'price_individual_monthly',
-    family: process.env.STRIPE_PRICE_FAMILY || 'price_family_monthly',
-    teams: process.env.STRIPE_PRICE_TEAMS || 'price_teams_monthly',
-    business: process.env.STRIPE_PRICE_BUSINESS || 'price_business_monthly'
+const PLAN_PRICE_IDS = {
+    individual: [
+        process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY || '',
+        process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL || '',
+        process.env.STRIPE_PRICE_INDIVIDUAL || '' // backward compatibility
+    ].filter(Boolean),
+    family: [
+        process.env.STRIPE_PRICE_FAMILY_MONTHLY || '',
+        process.env.STRIPE_PRICE_FAMILY_ANNUAL || '',
+        process.env.STRIPE_PRICE_FAMILY || '' // backward compatibility
+    ].filter(Boolean),
+    teams: [
+        process.env.STRIPE_PRICE_TEAMS_MONTHLY || '',
+        process.env.STRIPE_PRICE_TEAMS_ANNUAL || '',
+        process.env.STRIPE_PRICE_TEAMS || '' // backward compatibility
+    ].filter(Boolean)
 };
-// Subscription tier limits
-exports.SUBSCRIPTION_LIMITS = {
+const ALL_PRICE_IDS = new Set(Object.values(PLAN_PRICE_IDS).flat());
+const PLAN_LIMITS = {
     free: {
         devices: 1,
         vaults: 1,
@@ -84,7 +95,7 @@ exports.SUBSCRIPTION_LIMITS = {
         storageMB: 100
     },
     individual: {
-        devices: 3,
+        devices: 5,
         vaults: 5,
         teamMembers: 0,
         storageMB: 1024
@@ -100,20 +111,56 @@ exports.SUBSCRIPTION_LIMITS = {
         vaults: 100,
         teamMembers: 50,
         storageMB: 10240
-    },
-    business: {
-        devices: 200,
-        vaults: 500,
-        teamMembers: 200,
-        storageMB: 51200
-    },
-    enterprise: {
-        devices: -1, // unlimited
-        vaults: -1,
-        teamMembers: -1,
-        storageMB: -1
     }
 };
+// Subscription limits keyed by legacy/current tier names used across the app.
+exports.SUBSCRIPTION_LIMITS = {
+    free: PLAN_LIMITS.free,
+    pro: PLAN_LIMITS.individual,
+    enterprise: PLAN_LIMITS.teams,
+    individual: PLAN_LIMITS.individual,
+    family: PLAN_LIMITS.family,
+    teams: PLAN_LIMITS.teams
+};
+function resolvePlanFromPriceId(priceId) {
+    if (!priceId) {
+        return null;
+    }
+    for (const [plan, ids] of Object.entries(PLAN_PRICE_IDS)) {
+        if (ids.includes(priceId)) {
+            return plan;
+        }
+    }
+    return null;
+}
+function mapPlanToSubscriptionTier(plan) {
+    if (plan === 'free')
+        return 'free';
+    if (plan === 'teams')
+        return 'enterprise';
+    return 'pro';
+}
+async function resolveUserPlan(userId, subscriptionTier) {
+    const prisma = (0, prisma_1.getPrismaClient)();
+    const activeSubscription = await prisma.subscription.findFirst({
+        where: {
+            userId,
+            status: {
+                in: ['active', 'trialing', 'past_due']
+            }
+        },
+        orderBy: [{ currentPeriodEnd: 'desc' }, { createdAt: 'desc' }]
+    });
+    const planFromPrice = resolvePlanFromPriceId(activeSubscription?.stripePriceId);
+    if (planFromPrice) {
+        return planFromPrice;
+    }
+    if (subscriptionTier === 'enterprise')
+        return 'teams';
+    if (subscriptionTier === 'pro')
+        return 'individual';
+    return 'free';
+}
 /**
  * Create Stripe checkout session
  */
@@ -121,6 +168,9 @@ async function createCheckoutSession(userId, priceId, successUrl, cancelUrl) {
     const stripe = await getStripe();
     if (!stripe) {
         throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    }
+    if (!ALL_PRICE_IDS.has(priceId)) {
+        throw new Error('Invalid Stripe price ID. Configure STRIPE_PRICE_* environment variables first.');
     }
     const user = await (0, userService_1.findUserById)(userId);
     if (!user) {
@@ -219,12 +269,11 @@ async function handleStripeWebhook(event) {
                 console.error('No price ID in subscription');
                 return;
             }
-            // Determine tier from price ID
-            const tier = Object.entries(STRIPE_PRICES).find(([_, pid]) => pid === priceId)?.[0] || 'individual';
-            const subscriptionTier = tier === 'individual' ? 'pro' : tier === 'teams' ? 'enterprise' : 'pro';
+            const plan = resolvePlanFromPriceId(priceId) || 'individual';
+            const subscriptionTier = mapPlanToSubscriptionTier(plan);
             // Update user subscription
             await (0, userService_1.updateUser)(userId, {
-                subscriptionTier: subscriptionTier,
+                subscriptionTier,
                 subscriptionStatus: 'active',
                 stripeSubscriptionId: subscriptionId
             });
@@ -253,10 +302,14 @@ async function handleStripeWebhook(event) {
                 console.error('Subscription not found in database:', subscription.id);
                 return;
             }
+            const updatedPriceId = subscription.items?.data?.[0]?.price?.id;
+            const updatedPlan = resolvePlanFromPriceId(updatedPriceId) || null;
+            const nextSubscriptionTier = updatedPlan ? mapPlanToSubscriptionTier(updatedPlan) : null;
             // Update subscription record
             await prisma.subscription.update({
                 where: { id: dbSubscription.id },
                 data: {
+                    stripePriceId: updatedPriceId || dbSubscription.stripePriceId,
                     status: subscription.status,
                     currentPeriodStart: new Date(subscription.current_period_start * 1000),
                     currentPeriodEnd: new Date(subscription.current_period_end * 1000),
@@ -270,7 +323,8 @@ async function handleStripeWebhook(event) {
             if (user) {
                 if (subscription.status === 'active') {
                     await (0, userService_1.updateUser)(user.id, {
-                        subscriptionStatus: 'active'
+                        subscriptionStatus: 'active',
+                        ...(nextSubscriptionTier ? { subscriptionTier: nextSubscriptionTier } : {})
                     });
                 }
                 else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
@@ -329,24 +383,8 @@ async function syncUserSubscriptionFromStripe(userId) {
     try {
         const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
         const priceId = subscription.items.data[0]?.price?.id;
-        // Map Stripe price ID to subscription tier
-        let tier = 'free';
-        if (priceId === STRIPE_PRICES.individual) {
-            tier = 'individual';
-        }
-        else if (priceId === STRIPE_PRICES.family) {
-            tier = 'family';
-        }
-        else if (priceId === STRIPE_PRICES.teams) {
-            tier = 'teams';
-        }
-        else if (priceId === STRIPE_PRICES.business) {
-            tier = 'business';
-        }
-        // Map Stripe tier to User subscription tier ('free' | 'pro' | 'enterprise')
-        const subscriptionTier = tier === 'free' ? 'free' :
-            tier === 'individual' || tier === 'family' ? 'pro' :
-                tier === 'teams' || tier === 'business' ? 'enterprise' : 'free';
+        const plan = resolvePlanFromPriceId(priceId) || 'free';
+        const subscriptionTier = mapPlanToSubscriptionTier(plan);
         // Update user subscription tier and status
         await (0, userService_1.updateUser)(userId, {
             subscriptionTier,
@@ -367,8 +405,8 @@ async function checkSubscriptionLimits(userId, resource) {
     if (!user) {
         return { allowed: false, current: 0, limit: 0 };
     }
-    const tier = user.subscriptionTier;
-    const limits = exports.SUBSCRIPTION_LIMITS[tier] || exports.SUBSCRIPTION_LIMITS.free;
+    const plan = await resolveUserPlan(userId, user.subscriptionTier);
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
     // Get current usage
     const prisma = (0, prisma_1.getPrismaClient)();
     let current = 0;
@@ -402,7 +440,7 @@ async function checkSubscriptionLimits(userId, resource) {
             current = 0;
             break;
     }
-    const limit = limits[resource] || 0;
+    const limit = resource === 'storage' ? limits.storageMB : limits[resource];
     const allowed = limit === -1 || current < limit;
     return {
         allowed,

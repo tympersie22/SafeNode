@@ -51,6 +51,8 @@ model User {
   auditLogs AuditLog[]
   teamMemberships TeamMember[]
   subscriptions Subscription[]
+  webAuthnCredentials WebAuthnCredential[]
+  webAuthnChallenges WebAuthnChallenge[]
   
   @@index([email])
   @@index([subscriptionTier])
@@ -213,3 +215,52 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// WebAuthn credential model (passkeys / platform authenticators)
+model WebAuthnCredential {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  credentialId String @unique @map("credential_id")
+  publicKey String @map("public_key")
+  counter BigInt @default(0)
+  transports String[] @default([])
+  deviceType String? @map("device_type")
+  backedUp Boolean? @map("backed_up")
+  createdAt DateTime @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, credentialId])
+  @@map("webauthn_credentials")
+}
+
+// Ephemeral WebAuthn challenges for registration/authentication verification
+model WebAuthnChallenge {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  challenge String
+  type String // registration | authentication
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([challenge])
+  @@index([expiresAt])
+  @@map("webauthn_challenges")
+}
+
+// Billing webhook idempotency log
+model BillingWebhookEvent {
+  id String @id @default(cuid())
+  provider String // stripe | paddle
+  eventId String @map("event_id")
+  payloadHash String @map("payload_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([provider, eventId])
+  @@index([provider, createdAt])
+  @@map("billing_webhook_events")
+}

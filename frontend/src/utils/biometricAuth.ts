@@ -214,10 +214,18 @@ class BiometricAuthService {
    */
   private async authenticateWithWebAuthn(prompt: string): Promise<BiometricAuthResult> {
     try {
+      const token = localStorage.getItem('safenode_token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
       // Request authentication options from backend
       const optionsResponse = await fetch(`${API_BASE}/api/biometric/authenticate/options`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ prompt })
       });
 
@@ -251,19 +259,27 @@ class BiometricAuthService {
       }
 
       const response = assertion.response as AuthenticatorAssertionResponse;
-
-      // Verify with backend
-      const verifyResponse = await fetch(`${API_BASE}/api/biometric/authenticate/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credentialId: assertion.id,
-          rawId: this.bufferToBase64Url(assertion.rawId),
+      const credentialPayload = {
+        id: assertion.id,
+        rawId: this.bufferToBase64Url(assertion.rawId),
+        type: assertion.type,
+        response: {
           clientDataJSON: this.bufferToBase64Url(response.clientDataJSON),
           authenticatorData: this.bufferToBase64Url(response.authenticatorData),
           signature: this.bufferToBase64Url(response.signature),
           userHandle: response.userHandle ? this.bufferToBase64Url(response.userHandle) : null
-        })
+        },
+        clientExtensionResults: assertion.getClientExtensionResults?.() || {}
+      };
+
+      // Verify with backend
+      const verifyResponse = await fetch(`${API_BASE}/api/biometric/authenticate/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(credentialPayload)
       });
 
       if (!verifyResponse.ok) {
@@ -294,10 +310,18 @@ class BiometricAuthService {
     }
 
     try {
+      const token = localStorage.getItem('safenode_token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
       // Request registration options from backend
       const optionsResponse = await fetch(`${API_BASE}/api/biometric/register/options`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ userId, userName, displayName })
       });
 
@@ -343,18 +367,26 @@ class BiometricAuthService {
       }
 
       const response = credential.response as AuthenticatorAttestationResponse;
+      const credentialPayload = {
+        id: credential.id,
+        rawId: this.bufferToBase64Url(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: this.bufferToBase64Url(response.clientDataJSON),
+          attestationObject: this.bufferToBase64Url(response.attestationObject),
+          transports: response.getTransports?.() || []
+        },
+        clientExtensionResults: credential.getClientExtensionResults?.() || {}
+      };
 
       // Verify with backend
       const verifyResponse = await fetch(`${API_BASE}/api/biometric/register/verify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credentialId: credential.id,
-          rawId: this.bufferToBase64Url(credential.rawId),
-          clientDataJSON: this.bufferToBase64Url(response.clientDataJSON),
-          attestationObject: this.bufferToBase64Url(response.attestationObject),
-          transports: response.getTransports?.() || []
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(credentialPayload)
       });
 
       if (!verifyResponse.ok) {
@@ -422,4 +454,3 @@ class BiometricAuthService {
 }
 
 export const biometricAuthService = new BiometricAuthService();
-

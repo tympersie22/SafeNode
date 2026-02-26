@@ -39,7 +39,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerBillingRoutes = registerBillingRoutes;
 const auth_1 = require("../middleware/auth");
+const config_1 = require("../config");
 const stripeService_1 = require("../services/stripeService");
+const paddleService_1 = require("../services/paddleService");
+const webhookIdempotencyService_1 = require("../services/webhookIdempotencyService");
 // Stripe will be imported dynamically
 const zod_1 = require("zod");
 const checkoutSchema = zod_1.z.object({
@@ -74,8 +77,9 @@ async function registerBillingRoutes(server) {
                 });
             }
             const { priceId, successUrl, cancelUrl } = validation.data;
-            // Create checkout session
-            const session = await (0, stripeService_1.createCheckoutSession)(user.id, priceId, successUrl, cancelUrl);
+            const session = config_1.config.billingProvider === 'paddle'
+                ? await (0, paddleService_1.createPaddleCheckoutSession)(user.id, priceId, successUrl, cancelUrl)
+                : await (0, stripeService_1.createCheckoutSession)(user.id, priceId, successUrl, cancelUrl);
             return {
                 success: true,
                 sessionId: session.sessionId,
@@ -84,6 +88,12 @@ async function registerBillingRoutes(server) {
         }
         catch (error) {
             request.log.error(error);
+            if (error?.message?.includes('Invalid Stripe price ID') || error?.message?.includes('Invalid Paddle price ID')) {
+                return reply.code(400).send({
+                    error: 'invalid_price_id',
+                    message: error.message
+                });
+            }
             return reply.code(500).send({
                 error: error?.message || 'server_error',
                 message: 'Failed to create checkout session'
@@ -166,16 +176,15 @@ async function registerBillingRoutes(server) {
             }
             // Verify webhook signature
             let event;
+            const rawBody = request.rawBody;
+            if (!rawBody) {
+                request.log.error('Raw body not available for webhook signature verification');
+                return reply.code(500).send({
+                    error: 'server_error',
+                    message: 'Raw body not available for webhook verification'
+                });
+            }
             try {
-                // Use raw body from fastify-raw-body plugin for accurate signature verification
-                const rawBody = request.rawBody;
-                if (!rawBody) {
-                    request.log.error('Raw body not available for webhook signature verification');
-                    return reply.code(500).send({
-                        error: 'server_error',
-                        message: 'Raw body not available for webhook verification'
-                    });
-                }
                 event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
             }
             catch (err) {
@@ -186,6 +195,10 @@ async function registerBillingRoutes(server) {
                 });
             }
             // Handle webhook event
+            const eventStatus = await (0, webhookIdempotencyService_1.recordWebhookEvent)('stripe', event.id, rawBody);
+            if (eventStatus === 'duplicate') {
+                return { received: true, duplicate: true };
+            }
             await (0, stripeService_1.handleStripeWebhook)(event);
             return { received: true };
         }
@@ -194,6 +207,55 @@ async function registerBillingRoutes(server) {
             return reply.code(500).send({
                 error: error?.message || 'server_error',
                 message: 'Failed to process webhook'
+            });
+        }
+    });
+    /**
+     * POST /api/billing/paddle/webhook
+     * Handle Paddle webhook events (public endpoint with signature verification)
+     */
+    server.post('/api/billing/paddle/webhook', {
+        config: { rawBody: true }
+    }, async (request, reply) => {
+        try {
+            const signature = (request.headers['paddle-signature'] || request.headers['Paddle-Signature']);
+            const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
+            if (!signature || !webhookSecret) {
+                return reply.code(400).send({
+                    error: 'missing_signature',
+                    message: 'Paddle signature or webhook secret is missing'
+                });
+            }
+            const rawBody = request.rawBody;
+            if (!rawBody) {
+                request.log.error('Raw body not available for Paddle webhook signature verification');
+                return reply.code(500).send({
+                    error: 'server_error',
+                    message: 'Raw body not available for webhook verification'
+                });
+            }
+            const isValid = (0, paddleService_1.verifyPaddleSignature)(rawBody, signature, webhookSecret);
+            if (!isValid) {
+                return reply.code(400).send({
+                    error: 'invalid_signature',
+                    message: 'Invalid Paddle webhook signature'
+                });
+            }
+            const event = JSON.parse(rawBody.toString('utf8'));
+            if (event?.event_id) {
+                const eventStatus = await (0, webhookIdempotencyService_1.recordWebhookEvent)('paddle', event.event_id, rawBody);
+                if (eventStatus === 'duplicate') {
+                    return { received: true, duplicate: true };
+                }
+            }
+            await (0, paddleService_1.handlePaddleWebhookEvent)(event);
+            return { received: true };
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({
+                error: error?.message || 'server_error',
+                message: 'Failed to process Paddle webhook'
             });
         }
     });

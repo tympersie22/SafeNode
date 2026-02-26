@@ -12,7 +12,6 @@ FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./backend/node_modules
-COPY backend ./backend
+COPY --from=builder /app/backend ./backend
 EXPOSE 4000
-CMD ["node", "backend/src/index.ts"]
-
+CMD ["node", "backend/dist/src/index.new.js"]

@@ -25,6 +25,7 @@ const auth_2 = require("./middleware/auth");
 const vaultController_1 = require("./controllers/vaultController");
 const breachController_1 = require("./controllers/breachController");
 const userService_1 = require("./services/userService");
+const webauthnService_1 = require("./services/webauthnService");
 /**
  * Creates and configures the Fastify server instance
  */
@@ -90,18 +91,83 @@ async function createApp() {
     await (0, downloads_1.registerDownloadRoutes)(server);
     // Register device routes
     await (0, devices_1.registerDeviceRoutes)(server);
+    server.post('/api/biometric/register/options', { preHandler: auth_2.requireAuth }, async (request, reply) => {
+        try {
+            const user = request.user;
+            return await (0, webauthnService_1.createRegistrationOptions)(user.id, user.email);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to generate biometric registration options' });
+        }
+    });
+    server.post('/api/biometric/register/verify', { preHandler: auth_2.requireAuth }, async (request, reply) => {
+        try {
+            const user = request.user;
+            const body = request.body;
+            const registrationResponse = body?.type
+                ? body
+                : {
+                    id: body?.credentialId,
+                    rawId: body?.rawId,
+                    type: 'public-key',
+                    response: {
+                        clientDataJSON: body?.clientDataJSON,
+                        attestationObject: body?.attestationObject,
+                        transports: body?.transports || [],
+                    },
+                    clientExtensionResults: body?.clientExtensionResults || {},
+                };
+            const result = await (0, webauthnService_1.verifyRegistration)(user.id, registrationResponse);
+            return { success: result.verified, message: result.message };
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to verify biometric registration' });
+        }
+    });
+    server.post('/api/biometric/authenticate/options', { preHandler: auth_2.requireAuth }, async (request, reply) => {
+        try {
+            const user = request.user;
+            return await (0, webauthnService_1.createAuthenticationOptions)(user.id);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to generate biometric authentication options' });
+        }
+    });
+    server.post('/api/biometric/authenticate/verify', { preHandler: auth_2.requireAuth }, async (request, reply) => {
+        try {
+            const user = request.user;
+            const body = request.body;
+            const authenticationResponse = body?.type
+                ? body
+                : {
+                    id: body?.credentialId,
+                    rawId: body?.rawId,
+                    type: 'public-key',
+                    response: {
+                        clientDataJSON: body?.clientDataJSON,
+                        authenticatorData: body?.authenticatorData,
+                        signature: body?.signature,
+                        userHandle: body?.userHandle,
+                    },
+                    clientExtensionResults: body?.clientExtensionResults || {},
+                };
+            const result = await (0, webauthnService_1.verifyAuthentication)(user.id, authenticationResponse);
+            return { success: result.verified, message: result.message };
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to verify biometric authentication' });
+        }
+    });
     // Vault routes
     // NOTE: For backward compatibility, these are NOT protected by default
     // To enable JWT auth, uncomment the preHandler lines
-    server.get('/api/vault/latest', 
-    // { preHandler: requireAuth }, // Uncomment to enable JWT auth
-    vaultController_1.getLatestVault);
-    server.post('/api/vault', 
-    // { preHandler: requireAuth }, // Uncomment to enable JWT auth
-    vaultController_1.saveVault);
-    server.post('/api/vault/save', 
-    // { preHandler: requireAuth }, // Uncomment to enable JWT auth
-    vaultController_1.saveVaultAlias);
+    server.get('/api/vault/latest', { preHandler: auth_2.requireAuth }, vaultController_1.getLatestVault);
+    server.post('/api/vault', { preHandler: auth_2.requireAuth }, vaultController_1.saveVault);
+    server.post('/api/vault/save', { preHandler: auth_2.requireAuth }, vaultController_1.saveVaultAlias);
     // Vault entry CRUD routes (required by frontend)
     // These work with the full encrypted vault blob
     // The frontend handles encryption/decryption locally

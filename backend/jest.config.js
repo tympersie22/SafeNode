@@ -17,7 +17,7 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
-    '!src/index.ts',
+    '!src/index.new.ts',
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts'
   ],
@@ -35,4 +35,3 @@ module.exports = {
     }
   }
 }
-

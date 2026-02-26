@@ -76,7 +76,8 @@ class EmailService {
      * Send verification email
      */
     async sendVerificationEmail(email, token, name) {
-        const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/verify?token=${token}`;
+        const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app';
+        const verificationUrl = `${frontendBaseUrl}/auth/verify?token=${token}`;
         const html = `
 <!DOCTYPE html>
 <html>
@@ -155,7 +156,8 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
      * Send password reset email
      */
     async sendPasswordResetEmail(email, token, name) {
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/reset-password?token=${token}`;
+        const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app';
+        const resetUrl = `${frontendBaseUrl}/auth/reset-password?token=${token}`;
         const html = `
 <!DOCTYPE html>
 <html>

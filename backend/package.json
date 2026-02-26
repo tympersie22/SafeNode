@@ -43,6 +43,7 @@
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.5",
     "@prisma/client": "^5.7.1",
+    "@simplewebauthn/server": "^13.2.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.19.25",
     "@types/qrcode": "^1.5.6",

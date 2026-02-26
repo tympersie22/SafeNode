@@ -13,6 +13,7 @@ import {
   checkSubscriptionLimits
 } from '../services/stripeService'
 import { createPaddleCheckoutSession, handlePaddleWebhookEvent, verifyPaddleSignature } from '../services/paddleService'
+import { recordWebhookEvent } from '../services/webhookIdempotencyService'
 // Stripe will be imported dynamically
 import { z } from 'zod'
 
@@ -165,17 +166,16 @@ export async function registerBillingRoutes(server: FastifyInstance) {
 
       // Verify webhook signature
       let event: any
-      try {
-        // Use raw body from fastify-raw-body plugin for accurate signature verification
-        const rawBody = (request as any).rawBody
-        if (!rawBody) {
-          request.log.error('Raw body not available for webhook signature verification')
-          return reply.code(500).send({
-            error: 'server_error',
-            message: 'Raw body not available for webhook verification'
-          })
-        }
+      const rawBody = (request as any).rawBody as Buffer | undefined
+      if (!rawBody) {
+        request.log.error('Raw body not available for webhook signature verification')
+        return reply.code(500).send({
+          error: 'server_error',
+          message: 'Raw body not available for webhook verification'
+        })
+      }
 
+      try {
         event = stripe.webhooks.constructEvent(
           rawBody,
           signature,
@@ -190,6 +190,11 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       }
 
       // Handle webhook event
+      const eventStatus = await recordWebhookEvent('stripe', event.id, rawBody)
+      if (eventStatus === 'duplicate') {
+        return { received: true, duplicate: true }
+      }
+
       await handleStripeWebhook(event)
 
       return { received: true }
@@ -238,6 +243,12 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       }
 
       const event = JSON.parse(rawBody.toString('utf8'))
+      if (event?.event_id) {
+        const eventStatus = await recordWebhookEvent('paddle', event.event_id, rawBody)
+        if (eventStatus === 'duplicate') {
+          return { received: true, duplicate: true }
+        }
+      }
       await handlePaddleWebhookEvent(event)
 
       return { received: true }

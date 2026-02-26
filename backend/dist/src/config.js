@@ -64,6 +64,9 @@ function getConfig() {
         // Stripe configuration
         stripeSecretKey: process.env.STRIPE_SECRET_KEY || null,
         stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
+        billingProvider: ((process.env.BILLING_PROVIDER || 'paddle').toLowerCase() === 'stripe' ? 'stripe' : 'paddle'),
+        paddleApiKey: process.env.PADDLE_API_KEY || null,
+        paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET || null,
         // CORS - in production, restrict to your frontend domain
         // Supports comma-separated URLs and automatically includes Vercel preview URLs
         corsOrigin: nodeEnv === 'production'
@@ -81,6 +84,17 @@ function getConfig() {
     };
 }
 exports.config = getConfig();
+function getMissingPaddlePriceVars() {
+    const required = [
+        'PADDLE_PRICE_INDIVIDUAL_MONTHLY',
+        'PADDLE_PRICE_INDIVIDUAL_ANNUAL',
+        'PADDLE_PRICE_FAMILY_MONTHLY',
+        'PADDLE_PRICE_FAMILY_ANNUAL',
+        'PADDLE_PRICE_TEAMS_MONTHLY',
+        'PADDLE_PRICE_TEAMS_ANNUAL'
+    ];
+    return required.filter((key) => !process.env[key]);
+}
 // Validate critical configuration
 if (exports.config.nodeEnv === 'production') {
     if (exports.config.jwtSecret === 'dev-secret-change-in-production-' || exports.config.jwtSecret.length < 32) {
@@ -89,10 +103,25 @@ if (exports.config.nodeEnv === 'production') {
     if (!exports.config.encryptionKey) {
         console.warn('WARNING: ENCRYPTION_KEY not set. Vault data will not be encrypted at rest.');
     }
-    if (!exports.config.stripeSecretKey) {
-        console.warn('WARNING: STRIPE_SECRET_KEY not set. Billing and subscriptions will not work.');
+    if (exports.config.billingProvider === 'stripe') {
+        if (!exports.config.stripeSecretKey) {
+            console.warn('WARNING: STRIPE_SECRET_KEY not set. Stripe billing will not work.');
+        }
+        if (!exports.config.stripeWebhookSecret) {
+            console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Stripe webhook verification will fail.');
+        }
     }
-    if (!exports.config.stripeWebhookSecret) {
-        console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Webhook signature verification will fail.');
+    if (exports.config.billingProvider === 'paddle') {
+        if (!exports.config.paddleApiKey) {
+            console.warn('WARNING: PADDLE_API_KEY not set. Paddle API-backed checkout creation will not work.');
+        }
+        if (!exports.config.paddleWebhookSecret) {
+            console.warn('WARNING: PADDLE_WEBHOOK_SECRET not set. Paddle webhook verification will fail.');
+        }
+        const missingPriceVars = getMissingPaddlePriceVars();
+        if (missingPriceVars.length > 0) {
+            console.warn(`WARNING: Missing Paddle price env vars: ${missingPriceVars.join(', ')}`);
+            console.warn('WARNING: Plan mapping and checkout may fail until all 6 PADDLE_PRICE_* values are set.');
+        }
     }
 }

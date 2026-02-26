@@ -23,10 +23,10 @@ setInterval(() => {
 // Rate limits per tier (requests per minute)
 const TIER_RATE_LIMITS = {
     free: 100,
+    pro: 500,
     individual: 500,
     family: 1000,
     teams: 5000,
-    business: 10000,
     enterprise: -1 // unlimited
 };
 /**
