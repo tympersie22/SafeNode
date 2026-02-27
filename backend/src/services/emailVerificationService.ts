@@ -70,6 +70,10 @@ export async function verifyEmailToken(token: string): Promise<{ success: boolea
   if (!verificationToken) {
     return { success: false, error: 'Invalid verification token' }
   }
+
+  if (verificationToken.user?.emailVerified) {
+    return { success: true, userId: verificationToken.userId }
+  }
   
   // Check if already used
   if (verificationToken.usedAt) {
@@ -115,4 +119,3 @@ export async function resendVerificationEmail(email: string): Promise<{ success:
   
   return { success: true }
 }
-

@@ -64,6 +64,9 @@ async function verifyEmailToken(token) {
     if (!verificationToken) {
         return { success: false, error: 'Invalid verification token' };
     }
+    if (verificationToken.user?.emailVerified) {
+        return { success: true, userId: verificationToken.userId };
+    }
     // Check if already used
     if (verificationToken.usedAt) {
         return { success: false, error: 'Verification token has already been used' };
