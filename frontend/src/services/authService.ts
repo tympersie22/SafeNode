@@ -144,7 +144,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     
     // Handle network errors
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to server. Please check if the backend is running on http://localhost:4000')
+        throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
     }
     // Re-throw other errors
     throw error
@@ -245,7 +245,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     
     // Handle network errors
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to server. Please check if the backend is running on http://localhost:4000')
+        throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
     }
     
     // Re-throw other errors

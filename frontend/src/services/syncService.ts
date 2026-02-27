@@ -2,8 +2,7 @@
  * Sync Service
  * Handles vault synchronization and conflict resolution
  */
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface ConflictData {
   entryId: string
@@ -114,4 +113,3 @@ export async function resolveConflicts(
 
   return await response.json()
 }
-

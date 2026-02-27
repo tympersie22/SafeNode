@@ -8,8 +8,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import Logo from '../../components/Logo'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../../config/api'
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('')

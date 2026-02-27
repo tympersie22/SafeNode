@@ -2,8 +2,7 @@
  * Device Service
  * Handles device registration and management
  */
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface Device {
   id: string
@@ -191,4 +190,3 @@ export async function removeDevice(deviceId: string): Promise<void> {
     throw new Error(error.message || 'Failed to remove device')
   }
 }
-

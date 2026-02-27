@@ -10,6 +10,7 @@
 const env = (import.meta as any).env || {}
 const mode = env.MODE || env.NODE_ENV || 'development'
 const viteApiUrl = env.VITE_API_URL
+const PROD_API_FALLBACK = 'https://safe-node-99hv-backend.vercel.app'
 
 /**
  * Get API base URL
@@ -22,9 +23,8 @@ export function getApiBase(): string {
   // In production, VITE_API_URL must be set
   if (mode === 'production' || mode === 'prod') {
     if (!viteApiUrl || viteApiUrl.trim() === '') {
-      console.error('[API Config] VITE_API_URL is required in production but not set')
-      // Fallback to empty string to prevent hardcoded localhost
-      return ''
+      console.error(`[API Config] VITE_API_URL is required in production but not set; falling back to ${PROD_API_FALLBACK}`)
+      return PROD_API_FALLBACK
     }
     return viteApiUrl.trim()
   }
@@ -48,4 +48,3 @@ if (typeof window !== 'undefined' && (mode === 'development' || mode === 'dev'))
     console.log('[API Config] withCredentials: true (cookies enabled)')
   }
 }
-

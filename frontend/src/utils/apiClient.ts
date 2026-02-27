@@ -4,8 +4,7 @@
  */
 
 import { captureException } from '../services/sentryService'
-
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 // Generate or retrieve correlation ID from session storage
 function getCorrelationId(): string {

@@ -2,8 +2,7 @@
  * Logs Service
  * Handles system and application log retrieval (admin-only)
  */
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface LogEntry {
   timestamp: number
@@ -95,4 +94,3 @@ export async function getApplicationLogs(query?: LogQuery): Promise<{
 
   return await response.json()
 }
-

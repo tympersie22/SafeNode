@@ -2,8 +2,7 @@
  * Two-Factor Authentication Service
  * Handles 2FA setup and management for account login
  */
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface TOTPSetup {
   secret: string
@@ -127,4 +126,3 @@ export async function resendEmailVerification(): Promise<void> {
     throw new Error(error.message || 'Failed to send verification email')
   }
 }
-

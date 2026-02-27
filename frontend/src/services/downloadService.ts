@@ -2,8 +2,7 @@
  * Download Service
  * Handles download metadata and platform detection
  */
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { API_BASE } from '../config/api'
 
 export interface DownloadPlatform {
   platform: 'macos' | 'windows' | 'linux' | 'ios' | 'android' | 'chrome' | 'firefox' | 'safari' | 'edge'
@@ -52,4 +51,3 @@ export async function getPlatformDownloadUrl(platform: string): Promise<string |
     return null
   }
 }
-
