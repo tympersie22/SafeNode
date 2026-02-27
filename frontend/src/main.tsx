@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { initSentry, captureException } from './services/sentryService';
 import AppRouter from './AppRouter';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -167,6 +168,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <ToastProvider />
       <AppRouter />
+      <SpeedInsights />
     </ErrorBoundary>
   </React.StrictMode>
 );
