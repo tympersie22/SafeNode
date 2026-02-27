@@ -19,6 +19,7 @@ import { registerHealthRoutes } from './routes/health'
 import { registerDownloadRoutes } from './routes/downloads'
 import { registerDeviceRoutes } from './routes/devices'
 import { registerPasskeyRoutes } from './routes/passkeys'
+import { registerResendWebhookRoutes } from './routes/resendWebhook'
 import { requireAuth } from './middleware/auth'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
 import { getBreachRange, getCacheStats } from './controllers/breachController'
@@ -111,6 +112,9 @@ export async function createApp() {
 
   // Register passkey routes
   await registerPasskeyRoutes(server)
+
+  // Register Resend webhook route
+  await registerResendWebhookRoutes(server)
 
   server.post('/api/biometric/register/options', { preHandler: requireAuth }, async (request, reply) => {
     try {

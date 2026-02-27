@@ -22,6 +22,7 @@ const health_1 = require("./routes/health");
 const downloads_1 = require("./routes/downloads");
 const devices_1 = require("./routes/devices");
 const passkeys_1 = require("./routes/passkeys");
+const resendWebhook_1 = require("./routes/resendWebhook");
 const auth_2 = require("./middleware/auth");
 const vaultController_1 = require("./controllers/vaultController");
 const breachController_1 = require("./controllers/breachController");
@@ -94,6 +95,8 @@ async function createApp() {
     await (0, devices_1.registerDeviceRoutes)(server);
     // Register passkey routes
     await (0, passkeys_1.registerPasskeyRoutes)(server);
+    // Register Resend webhook route
+    await (0, resendWebhook_1.registerResendWebhookRoutes)(server);
     server.post('/api/biometric/register/options', { preHandler: auth_2.requireAuth }, async (request, reply) => {
         try {
             const user = request.user;

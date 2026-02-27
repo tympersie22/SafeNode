@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { getPrismaClient } from '../db/prisma'
 
 export async function recordWebhookEvent(
-  provider: 'stripe' | 'paddle',
+  provider: 'stripe' | 'paddle' | 'resend',
   eventId: string,
   rawBody: Buffer,
 ): Promise<'new' | 'duplicate'> {
