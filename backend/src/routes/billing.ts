@@ -112,17 +112,25 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       }
     } catch (error: any) {
       request.log.error(error)
+      const providerMessage = error?.message || 'Failed to create checkout session'
 
       if (error?.message?.includes('Invalid Stripe price ID') || error?.message?.includes('Invalid Paddle price ID')) {
         return reply.code(400).send({
           error: 'invalid_price_id',
-          message: error.message
+          message: providerMessage
+        })
+      }
+
+      if (providerMessage.includes('Failed to create Paddle checkout session')) {
+        return reply.code(502).send({
+          error: 'paddle_checkout_error',
+          message: providerMessage
         })
       }
 
       return reply.code(500).send({
-        error: error?.message || 'server_error',
-        message: 'Failed to create checkout session'
+        error: providerMessage,
+        message: providerMessage
       })
     }
   })
