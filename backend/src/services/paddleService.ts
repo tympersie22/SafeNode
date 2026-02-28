@@ -33,6 +33,13 @@ export function isSupportedPaddlePriceId(priceId: string): boolean {
   return ALL_PADDLE_PRICE_IDS.has(priceId)
 }
 
+function normalizePaddleApiKey(rawKey?: string): string {
+  return (rawKey || '')
+    .trim()
+    .replace(/^Bearer\s+/i, '')
+    .replace(/^['"]+|['"]+$/g, '')
+}
+
 function parsePaddleSignatureHeader(header: string): { timestamp: string; signatures: string[] } {
   const parts = header
     .split(';')
@@ -272,7 +279,7 @@ export async function createPaddleCheckoutSession(
   successUrl: string,
   cancelUrl: string
 ): Promise<{ sessionId: string; url: string }> {
-  const apiKey = process.env.PADDLE_API_KEY
+  const apiKey = normalizePaddleApiKey(process.env.PADDLE_API_KEY)
   if (!apiKey) {
     throw new Error('Paddle is not configured. Set PADDLE_API_KEY.')
   }
