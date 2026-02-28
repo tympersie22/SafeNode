@@ -83,3 +83,6 @@ PRODUCTION_SECRETS.md
 
 # Generated TLS certs (local/proxy only)
 ssl/*.pem
+.vercel
+.env*.local
+.codex-backups/
