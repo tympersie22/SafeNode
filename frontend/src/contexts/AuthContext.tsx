@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { getToken, getCurrentUser, logout as authLogout, type User } from '../services/authService'
+import { isCurrentDeviceRegistered, registerCurrentDevice } from '../services/deviceService'
 
 interface AuthContextType {
   user: User | null
@@ -155,6 +156,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [])
 
+  useEffect(() => {
+    if (!user?.id || !isAuthInitialized || isCurrentDeviceRegistered(user.id)) {
+      return
+    }
+
+    registerCurrentDevice(user.id).catch((error) => {
+      console.warn('[AuthContext] Device registration failed:', error)
+    })
+  }, [user?.id, isAuthInitialized])
+
   const login = useCallback((userData: User, token: string) => {
     // CRITICAL: login() sets user state directly - NO API call
     // Token should already be stored by authService.login() or authService.register()
@@ -190,4 +201,3 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
-

@@ -36,6 +36,15 @@ const PLAN_PRICE_ALIAS_MAP: Record<string, string | undefined> = {
   'teams:annual': process.env.PADDLE_PRICE_TEAMS_ANNUAL || process.env.STRIPE_PRICE_TEAMS_ANNUAL
 }
 
+const PLAN_PRICE_ENV_MAP: Record<string, string> = {
+  'individual:monthly': 'PADDLE_PRICE_INDIVIDUAL_MONTHLY',
+  'individual:annual': 'PADDLE_PRICE_INDIVIDUAL_ANNUAL',
+  'family:monthly': 'PADDLE_PRICE_FAMILY_MONTHLY',
+  'family:annual': 'PADDLE_PRICE_FAMILY_ANNUAL',
+  'teams:monthly': 'PADDLE_PRICE_TEAMS_MONTHLY',
+  'teams:annual': 'PADDLE_PRICE_TEAMS_ANNUAL'
+}
+
 function resolveCheckoutPriceId(raw: string): string {
   if (!raw) return raw
 
@@ -43,6 +52,15 @@ function resolveCheckoutPriceId(raw: string): string {
   // and direct aliases like "individual:monthly".
   const normalized = raw.startsWith('plan:') ? raw.slice('plan:'.length) : raw
   return PLAN_PRICE_ALIAS_MAP[normalized] || raw
+}
+
+function getMissingPriceEnvForAlias(raw: string): string | null {
+  const normalized = raw.startsWith('plan:') ? raw.slice('plan:'.length) : raw
+  if (PLAN_PRICE_ALIAS_MAP[normalized]) {
+    return null
+  }
+
+  return PLAN_PRICE_ENV_MAP[normalized] || null
 }
 
 /**
@@ -72,6 +90,16 @@ export async function registerBillingRoutes(server: FastifyInstance) {
 
       const { priceId, successUrl, cancelUrl } = validation.data
       const resolvedPriceId = resolveCheckoutPriceId(priceId)
+
+      if (config.billingProvider === 'paddle') {
+        const missingEnv = getMissingPriceEnvForAlias(priceId)
+        if (missingEnv) {
+          return reply.code(503).send({
+            error: 'billing_not_configured',
+            message: `Paddle checkout is not configured for this plan yet. Missing ${missingEnv}.`
+          })
+        }
+      }
 
       const session = config.billingProvider === 'paddle'
         ? await createPaddleCheckoutSession(user.id, resolvedPriceId, successUrl, cancelUrl)

@@ -45,17 +45,6 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
 
       const { deviceId, name, platform } = validation.data
 
-      // Check device limit
-      const deviceLimit = await checkSubscriptionLimits(user.id, 'devices')
-      if (!deviceLimit.allowed && deviceLimit.limit !== -1) {
-        return reply.code(403).send({
-          error: 'device_limit_exceeded',
-          message: `Device limit exceeded. Your plan allows ${deviceLimit.limit} devices.`,
-          current: deviceLimit.current,
-          limit: deviceLimit.limit
-        })
-      }
-
       const prisma = getPrismaClient()
 
       // Check if device already exists
@@ -90,6 +79,17 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
             registeredAt: updated.registeredAt.getTime()
           }
         }
+      }
+
+      // Only enforce the subscription cap when creating a new device record.
+      const deviceLimit = await checkSubscriptionLimits(user.id, 'devices')
+      if (!deviceLimit.allowed && deviceLimit.limit !== -1) {
+        return reply.code(403).send({
+          error: 'device_limit_exceeded',
+          message: `Device limit exceeded. Your plan allows ${deviceLimit.limit} devices.`,
+          current: deviceLimit.current,
+          limit: deviceLimit.limit
+        })
       }
 
       // Create new device
@@ -308,4 +308,3 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
     }
   })
 }
-

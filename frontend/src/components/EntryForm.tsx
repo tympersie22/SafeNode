@@ -48,6 +48,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showOptionalFields, setShowOptionalFields] = useState(false);
 
+  const normalizeUrl = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  };
+
   // Close on ESC
   useEffect(() => {
     if (!isOpen) return
@@ -295,6 +301,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const normalizedUrl = normalizeUrl(formData.url || '');
     
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
@@ -304,10 +311,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
       newErrors.username = 'Username/Email is required';
     }
     
-    if (formData.url && formData.url.trim()) {
-      // Auto-prepend https:// if no protocol specified
-      if (!/^https?:\/\//.test(formData.url)) {
-        formData.url = 'https://' + formData.url.trim();
+    if (normalizedUrl) {
+      try {
+        new URL(normalizedUrl);
+      } catch {
+        newErrors.url = 'Enter a valid URL';
       }
     }
     
@@ -325,6 +333,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
     // Generate ID for new entries
     const entryData = {
       ...formData,
+      url: normalizeUrl(formData.url || ''),
       id: formData.id || `entry_${Date.now()}`,
       attachments,
       breachCount,
@@ -440,11 +449,17 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     URL
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={formData.url}
                     onChange={(e) => {
                       handleInputChange('url', e.target.value);
                       setErrors(prev => ({ ...prev, url: '' }));
+                    }}
+                    onBlur={(e) => {
+                      const normalized = normalizeUrl(e.target.value);
+                      if (normalized !== e.target.value) {
+                        handleInputChange('url', normalized);
+                      }
                     }}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition ${
                       errors.url 
@@ -452,6 +467,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         : 'border-slate-200 focus:ring-secondary-500 focus:border-secondary-500'
                     }`}
                     placeholder="https://example.com"
+                    inputMode="url"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                   {errors.url && (
                     <p className="mt-1 text-xs text-red-600">{errors.url}</p>

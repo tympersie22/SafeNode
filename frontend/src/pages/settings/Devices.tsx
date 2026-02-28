@@ -7,7 +7,15 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
-import { getDevices, removeDevice, Device, generateDeviceId, detectPlatform } from '../../services/deviceService'
+import {
+  getDevices,
+  removeDevice,
+  Device,
+  generateDeviceId,
+  detectPlatform,
+  registerCurrentDevice
+} from '../../services/deviceService'
+import { getCurrentUser } from '../../services/authService'
 import { checkResourceLimit } from '../../services/billingService'
 
 export const DevicesSettings: React.FC = () => {
@@ -18,9 +26,19 @@ export const DevicesSettings: React.FC = () => {
   const [limits, setLimits] = useState<{ current: number; limit: number } | null>(null)
 
   useEffect(() => {
-    loadDevices()
-    loadLimits()
+    void initializeDevices()
   }, [])
+
+  const initializeDevices = async () => {
+    try {
+      const user = await getCurrentUser().catch(() => null)
+      if (user?.id) {
+        await registerCurrentDevice(user.id).catch(() => undefined)
+      }
+    } finally {
+      await Promise.all([loadDevices(), loadLimits()])
+    }
+  }
 
   const loadDevices = async () => {
     try {
@@ -207,4 +225,3 @@ export const DevicesSettings: React.FC = () => {
     </div>
   )
 }
-

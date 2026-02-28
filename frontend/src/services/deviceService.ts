@@ -19,6 +19,8 @@ export interface RegisterDeviceInput {
   platform: 'web' | 'desktop' | 'mobile'
 }
 
+let currentDeviceRegistrationPromise: Promise<Device> | null = null
+
 /**
  * Generate a unique device ID for this browser/device
  */
@@ -27,8 +29,10 @@ export function generateDeviceId(): string {
   let deviceId = localStorage.getItem('safenode_device_id')
   
   if (!deviceId) {
-    // Generate a new device ID
-    deviceId = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const randomPart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+    deviceId = `device-${randomPart}`
     localStorage.setItem('safenode_device_id', deviceId)
   }
   
@@ -111,6 +115,30 @@ export async function registerDevice(
 
   const data = await response.json()
   return data.device
+}
+
+export async function registerCurrentDevice(userId?: string): Promise<Device> {
+  if (currentDeviceRegistrationPromise) {
+    return currentDeviceRegistrationPromise
+  }
+
+  currentDeviceRegistrationPromise = registerDevice().finally(() => {
+    currentDeviceRegistrationPromise = null
+  })
+
+  const device = await currentDeviceRegistrationPromise
+
+  if (userId) {
+    localStorage.setItem(`safenode_device_registered_for_${userId}`, device.deviceId)
+  }
+
+  return device
+}
+
+export function isCurrentDeviceRegistered(userId?: string): boolean {
+  if (!userId) return false
+  const deviceId = generateDeviceId()
+  return localStorage.getItem(`safenode_device_registered_for_${userId}`) === deviceId
 }
 
 /**
