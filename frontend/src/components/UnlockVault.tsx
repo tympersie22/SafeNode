@@ -8,6 +8,7 @@ import { auditLogStorage } from '../storage/auditLogs';
 import { biometricAuthService, type BiometricCapabilities } from '../utils/biometricAuth';
 import { keychainService } from '../utils/keychain';
 import { API_BASE } from '../config/api';
+import { getCurrentDeviceHeaders } from '../services/deviceService';
 import Logo from './Logo';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -150,7 +151,8 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
           const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              ...getCurrentDeviceHeaders()
             },
             credentials: 'include'
           });
@@ -202,7 +204,8 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
         const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...getCurrentDeviceHeaders()
           },
           credentials: 'include'
         });

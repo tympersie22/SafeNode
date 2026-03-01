@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
 import {
@@ -19,11 +20,13 @@ import { getCurrentUser } from '../../services/authService'
 import { checkResourceLimit } from '../../services/billingService'
 
 export const DevicesSettings: React.FC = () => {
+  const navigate = useNavigate()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [limits, setLimits] = useState<{ current: number; limit: number } | null>(null)
+  const [userPlan, setUserPlan] = useState<string>('free')
 
   useEffect(() => {
     void initializeDevices()
@@ -33,6 +36,7 @@ export const DevicesSettings: React.FC = () => {
     try {
       const user = await getCurrentUser().catch(() => null)
       if (user?.id) {
+        setUserPlan(user.subscriptionTier || 'free')
         await registerCurrentDevice(user.id).catch(() => undefined)
       }
     } finally {
@@ -113,6 +117,22 @@ export const DevicesSettings: React.FC = () => {
     return device.deviceId === currentDeviceId && device.platform === detectPlatform()
   }
 
+  const getUpgradePlan = () => {
+    switch (userPlan) {
+      case 'free':
+        return { id: 'individual', name: 'Personal', deviceLimit: 5 }
+      case 'pro':
+      case 'individual':
+        return { id: 'family', name: 'Family', deviceLimit: 10 }
+      case 'family':
+        return { id: 'teams', name: 'Teams', deviceLimit: 50 }
+      default:
+        return null
+    }
+  }
+
+  const upgradePlan = getUpgradePlan()
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -128,7 +148,7 @@ export const DevicesSettings: React.FC = () => {
       {/* Device Limits */}
       {limits && (
         <SaasCard>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 Active devices: <span className="font-semibold text-slate-900 dark:text-slate-100">{limits.current}</span>
@@ -143,6 +163,24 @@ export const DevicesSettings: React.FC = () => {
               </span>
             )}
           </div>
+          {limits.limit !== -1 && limits.current >= limits.limit && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
+              {upgradePlan ? (
+                <div className="flex items-center justify-between gap-4">
+                  <p>
+                    Your current plan is full at {limits.current}/{limits.limit} devices. Upgrade to {upgradePlan.name} to increase your device limit to {upgradePlan.deviceLimit}.
+                  </p>
+                  <SaasButton variant="primary" size="sm" onClick={() => navigate('/billing')}>
+                    Upgrade to {upgradePlan.name}
+                  </SaasButton>
+                </div>
+              ) : (
+                <p>
+                  Your current plan is full at {limits.current}/{limits.limit} devices. Remove an existing device before accessing your vault from another device.
+                </p>
+              )}
+            </div>
+          )}
         </SaasCard>
       )}
 

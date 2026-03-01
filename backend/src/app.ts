@@ -22,6 +22,7 @@ import { registerDeviceRoutes } from './routes/devices'
 import { registerPasskeyRoutes } from './routes/passkeys'
 import { registerResendWebhookRoutes } from './routes/resendWebhook'
 import { requireAuth } from './middleware/auth'
+import { requireRegisteredDevice } from './middleware/deviceAccess'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
 import { getBreachRange, getCacheStats } from './controllers/breachController'
 import { updateVault } from './services/userService'
@@ -205,16 +206,16 @@ export async function createApp() {
   })
 
   // Vault routes (strictly authenticated)
-  server.get('/api/vault/latest', { preHandler: requireAuth }, getLatestVault)
+  server.get('/api/vault/latest', { preHandler: [requireAuth, requireRegisteredDevice] }, getLatestVault)
 
-  server.post('/api/vault', { preHandler: requireAuth }, saveVault)
+  server.post('/api/vault', { preHandler: [requireAuth, requireRegisteredDevice] }, saveVault)
 
-  server.post('/api/vault/save', { preHandler: requireAuth }, saveVaultAlias)
+  server.post('/api/vault/save', { preHandler: [requireAuth, requireRegisteredDevice] }, saveVaultAlias)
 
   // Vault entry CRUD routes (required by frontend)
   // These work with the full encrypted vault blob
   // The frontend handles encryption/decryption locally
-  server.post('/api/vault/entry', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/vault/entry', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const body = request.body as any
@@ -251,7 +252,7 @@ export async function createApp() {
     }
   })
 
-  server.put('/api/vault/entry/:id', { preHandler: requireAuth }, async (request, reply) => {
+  server.put('/api/vault/entry/:id', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const { id } = request.params as { id: string }
@@ -289,7 +290,7 @@ export async function createApp() {
     }
   })
 
-  server.delete('/api/vault/entry/:id', { preHandler: requireAuth }, async (request, reply) => {
+  server.delete('/api/vault/entry/:id', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const { id } = request.params as { id: string }

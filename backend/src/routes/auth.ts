@@ -5,6 +5,7 @@
 
 import { FastifyInstance } from 'fastify'
 import { issueToken, requireAuth } from '../middleware/auth'
+import { requireRegisteredDevice } from '../middleware/deviceAccess'
 import { setUser, captureException, addBreadcrumb } from '../services/sentryService'
 import {
   createUser,
@@ -500,7 +501,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * Initialize vault with master password (first-time setup)
    * Creates encrypted vault and stores salt
    */
-  server.post('/api/auth/vault/init', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/auth/vault/init', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const body = request.body as any
@@ -546,7 +547,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * Get vault salt for master password derivation (requires authentication)
    * If no salt exists, generates one (32 bytes, base64 encoded)
    */
-  server.get('/api/auth/vault/salt', { preHandler: requireAuth }, async (request, reply) => {
+  server.get('/api/auth/vault/salt', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       
@@ -586,7 +587,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * POST /api/auth/vault/save
    * Save encrypted vault (requires authentication)
    */
-  server.post('/api/auth/vault/save', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/auth/vault/save', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const body = request.body as any
@@ -630,7 +631,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * GET /api/auth/vault/latest
    * Get latest encrypted vault (requires authentication)
    */
-  server.get('/api/auth/vault/latest', { preHandler: requireAuth }, async (request, reply) => {
+  server.get('/api/auth/vault/latest', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const query = request.query as { since?: string }

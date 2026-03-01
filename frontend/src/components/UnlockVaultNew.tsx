@@ -14,6 +14,7 @@ import { base64ToArrayBuffer } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
 import { listPasskeys, authenticateWithPasskey } from '../api/passkeys'
 import { keychainService } from '../utils/keychain'
+import { getCurrentDeviceHeaders } from '../services/deviceService'
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -158,7 +159,8 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       // Get salt from server
       const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`,
+          ...getCurrentDeviceHeaders()
         }
       })
       
@@ -198,7 +200,8 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       const vault = await unlockVault(storedPassword)
       const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`,
+          ...getCurrentDeviceHeaders()
         }
       })
 
@@ -255,7 +258,8 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       // Get salt from server for callback
       const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`,
+          ...getCurrentDeviceHeaders()
         }
       })
       

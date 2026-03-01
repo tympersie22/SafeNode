@@ -8,7 +8,71 @@ import { requireAuth } from '../middleware/auth'
 import { getPrismaClient } from '../db/prisma'
 import { checkSubscriptionLimits } from '../services/stripeService'
 import { createAuditLog } from '../services/auditLogService'
+import { findUserById } from '../services/userService'
 import { z } from 'zod'
+
+type EffectivePlan = 'free' | 'individual' | 'family' | 'teams'
+
+const PLAN_NAMES: Record<EffectivePlan, string> = {
+  free: 'Free',
+  individual: 'Personal',
+  family: 'Family',
+  teams: 'Teams'
+}
+
+const NEXT_PLAN: Record<EffectivePlan, EffectivePlan | null> = {
+  free: 'individual',
+  individual: 'family',
+  family: 'teams',
+  teams: null
+}
+
+function getPlanUpgradeGuidance(plan: EffectivePlan, current: number, limit: number) {
+  const recommendedPlan = NEXT_PLAN[plan]
+
+  if (!recommendedPlan) {
+    return {
+      recommendedPlan: null,
+      recommendedPlanName: null,
+      message: `${PLAN_NAMES[plan]} allows up to ${limit} registered devices and your account is already at ${current}/${limit}. Remove an existing device to register this one.`
+    }
+  }
+
+  return {
+    recommendedPlan,
+    recommendedPlanName: PLAN_NAMES[recommendedPlan],
+    message: `${PLAN_NAMES[plan]} allows up to ${limit} registered device${limit === 1 ? '' : 's'}. Your account is already at ${current}/${limit}. Upgrade to ${PLAN_NAMES[recommendedPlan]} to add more devices.`
+  }
+}
+
+async function resolveEffectivePlan(userId: string, subscriptionTier: string): Promise<EffectivePlan> {
+  const prisma = getPrismaClient()
+  const activeSubscription = await prisma.subscription.findFirst({
+    where: {
+      userId,
+      status: {
+        in: ['active', 'trialing', 'past_due']
+      }
+    },
+    orderBy: [{ currentPeriodEnd: 'desc' }, { createdAt: 'desc' }]
+  })
+
+  const priceId = activeSubscription?.stripePriceId || ''
+
+  const byPlan: Array<[EffectivePlan, string[]]> = [
+    ['individual', [process.env.PADDLE_PRICE_INDIVIDUAL_MONTHLY || '', process.env.PADDLE_PRICE_INDIVIDUAL_ANNUAL || '', process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY || '', process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL || '', process.env.STRIPE_PRICE_INDIVIDUAL || ''].filter(Boolean)],
+    ['family', [process.env.PADDLE_PRICE_FAMILY_MONTHLY || '', process.env.PADDLE_PRICE_FAMILY_ANNUAL || '', process.env.STRIPE_PRICE_FAMILY_MONTHLY || '', process.env.STRIPE_PRICE_FAMILY_ANNUAL || '', process.env.STRIPE_PRICE_FAMILY || ''].filter(Boolean)],
+    ['teams', [process.env.PADDLE_PRICE_TEAMS_MONTHLY || '', process.env.PADDLE_PRICE_TEAMS_ANNUAL || '', process.env.STRIPE_PRICE_TEAMS_MONTHLY || '', process.env.STRIPE_PRICE_TEAMS_ANNUAL || '', process.env.STRIPE_PRICE_TEAMS || ''].filter(Boolean)]
+  ]
+
+  for (const [plan, ids] of byPlan) {
+    if (ids.includes(priceId)) return plan
+  }
+
+  if (subscriptionTier === 'enterprise') return 'teams'
+  if (subscriptionTier === 'pro') return 'individual'
+  return 'free'
+}
 
 const registerDeviceSchema = z.object({
   deviceId: z.string().min(1, 'Device ID is required'),
@@ -84,9 +148,16 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
       // Only enforce the subscription cap when creating a new device record.
       const deviceLimit = await checkSubscriptionLimits(user.id, 'devices')
       if (!deviceLimit.allowed && deviceLimit.limit !== -1) {
+        const userRecord = await findUserById(user.id)
+        const currentPlan = await resolveEffectivePlan(user.id, userRecord?.subscriptionTier || 'free')
+        const guidance = getPlanUpgradeGuidance(currentPlan, deviceLimit.current, deviceLimit.limit)
         return reply.code(403).send({
           error: 'device_limit_exceeded',
-          message: `Device limit exceeded. Your plan allows ${deviceLimit.limit} devices.`,
+          message: guidance.message,
+          currentPlan,
+          currentPlanName: PLAN_NAMES[currentPlan],
+          recommendedPlan: guidance.recommendedPlan,
+          recommendedPlanName: guidance.recommendedPlanName,
           current: deviceLimit.current,
           limit: deviceLimit.limit
         })

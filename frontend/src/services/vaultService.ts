@@ -13,6 +13,7 @@ import {
 } from '../crypto/crypto'
 
 import { API_BASE } from '../config/api'
+import { getCurrentDeviceHeaders } from './deviceService'
 
 export interface VaultEntry {
   id: string
@@ -73,7 +74,8 @@ export async function getVaultSalt(): Promise<string> {
   const response = await fetch(`${API_BASE}/api/auth/vault/salt`, {
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...getCurrentDeviceHeaders()
     },
     credentials: 'include'
   })
@@ -137,7 +139,8 @@ export async function initializeVault(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
     },
     credentials: 'include',
     body: JSON.stringify({
@@ -179,7 +182,8 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   // Get encrypted vault from server
   const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
     }
   })
 
@@ -370,7 +374,8 @@ export async function saveVault(vault: Vault, masterPassword: string): Promise<n
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
     },
     body: JSON.stringify({
       encryptedVault: arrayBufferToBase64(encrypted.encrypted),
@@ -401,7 +406,8 @@ export async function vaultExists(): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        ...getCurrentDeviceHeaders()
       }
     })
 

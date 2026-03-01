@@ -7,6 +7,7 @@ import { Vault } from './vaultService'
 import { unlockVault, saveVault, getVaultSalt } from './vaultService'
 import { base64ToArrayBuffer } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
+import { getCurrentDeviceHeaders } from './deviceService'
 
 export interface SyncResult {
   success: boolean
@@ -37,7 +38,8 @@ export async function syncVault(
     // Get latest vault from server
     const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        ...getCurrentDeviceHeaders()
       }
     })
 

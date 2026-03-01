@@ -6,6 +6,7 @@
 import { vaultStorage, StoredVault } from '../storage/vaultStorage';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../crypto/crypto';
 import { API_BASE } from '../config/api';
+import { getCurrentDeviceHeaders } from '../services/deviceService';
 
 export interface ServerVaultResponse {
   encryptedVault: string;
@@ -40,6 +41,7 @@ export class VaultSync {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    Object.assign(headers, getCurrentDeviceHeaders());
     return headers;
   }
 

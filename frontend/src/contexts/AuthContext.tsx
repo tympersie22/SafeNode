@@ -174,6 +174,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('safenode_token', token)
     }
     setUser(userData)
+    if (userData?.id) {
+      registerCurrentDevice(userData.id).catch((error) => {
+        console.warn('[AuthContext] Immediate device registration failed:', error)
+      })
+    }
     // Ensure initialized flag is set (should already be true, but be safe)
     setIsAuthInitialized(true)
   }, [])

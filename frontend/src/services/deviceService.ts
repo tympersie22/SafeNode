@@ -39,6 +39,16 @@ export function generateDeviceId(): string {
   return deviceId
 }
 
+export function getCurrentDeviceId(): string {
+  return generateDeviceId()
+}
+
+export function getCurrentDeviceHeaders(): Record<string, string> {
+  return {
+    'X-Device-ID': getCurrentDeviceId()
+  }
+}
+
 /**
  * Get device name based on user agent
  */

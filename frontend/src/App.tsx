@@ -46,6 +46,7 @@ import { teamVaultStorage } from './storage/teamVaults';
 import { pinManager } from './utils/pinManager';
 // keychainService is dynamically imported where needed to reduce bundle size
 import { apiPost, apiPut, apiDelete } from './utils/apiClient';
+import { getCurrentDeviceHeaders } from './services/deviceService';
 import PasswordGeneratorModal from './components/PasswordGeneratorModal';
 import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
 import { DashboardLayout } from './layout/DashboardLayout';
@@ -401,7 +402,8 @@ const App: React.FC = () => {
         if (token) {
           const vaultResponse = await fetch(`${API_BASE}/api/auth/vault/latest`, {
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token}`,
+              ...getCurrentDeviceHeaders()
             }
           });
           

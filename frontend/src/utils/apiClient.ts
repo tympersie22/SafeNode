@@ -5,6 +5,7 @@
 
 import { captureException } from '../services/sentryService'
 import { API_BASE } from '../config/api'
+import { getCurrentDeviceId } from '../services/deviceService'
 
 // Generate or retrieve correlation ID from session storage
 function getCorrelationId(): string {
@@ -58,6 +59,10 @@ export async function apiRequest<T = any>(
   // Add auth token
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`
+  }
+
+  if (requireAuth) {
+    requestHeaders['X-Device-ID'] = getCurrentDeviceId()
   }
 
   try {
