@@ -50,6 +50,7 @@ class EmailService {
   async sendVerificationEmail(email: string, token: string, name?: string): Promise<void> {
     const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
     const verificationUrl = `${frontendBaseUrl}/auth/verify?token=${token}`
+    const logoUrl = `${frontendBaseUrl}/SafeNodelogo.png`
     
     const html = `
 <!DOCTYPE html>
@@ -62,11 +63,16 @@ class EmailService {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
   <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
     <div style="text-align: center; margin-bottom: 30px;">
-      <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        </svg>
-      </div>
+      <img
+        src="${logoUrl}"
+        alt="Safenode"
+        width="72"
+        height="72"
+        style="display: block; width: 72px; height: 72px; object-fit: contain; margin: 0 auto 16px;"
+      />
+      <p style="margin: 0 0 10px; color: #0f172a; font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">
+        Safenode
+      </p>
       <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600;">Verify Your Email</h1>
     </div>
     
@@ -134,6 +140,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
   async sendPasswordResetEmail(email: string, token: string, name?: string): Promise<void> {
     const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
     const resetUrl = `${frontendBaseUrl}/auth/reset-password?token=${token}`
+    const logoUrl = `${frontendBaseUrl}/SafeNodelogo.png`
     
     const html = `
 <!DOCTYPE html>
@@ -146,11 +153,16 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
   <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
     <div style="text-align: center; margin-bottom: 30px;">
-      <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        </svg>
-      </div>
+      <img
+        src="${logoUrl}"
+        alt="Safenode"
+        width="72"
+        height="72"
+        style="display: block; width: 72px; height: 72px; object-fit: contain; margin: 0 auto 16px;"
+      />
+      <p style="margin: 0 0 10px; color: #0f172a; font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">
+        Safenode
+      </p>
       <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600;">Reset Your Password</h1>
     </div>
     
