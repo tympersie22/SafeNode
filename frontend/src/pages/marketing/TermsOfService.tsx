@@ -1,137 +1,115 @@
-/**
- * Terms of Service Page
- * Public-facing terms of service for SafeNode
- */
-
 import React from 'react'
-import { Link } from 'react-router-dom'
-import Logo from '../../components/Logo'
-import Footer from '../../components/marketing/Footer'
+import LegalPageShell from '../../components/marketing/LegalPageShell'
 
 export const TermsOfServicePage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900">SafeNode</span>
-          </Link>
-          <Link to="/" className="text-sm text-gray-600 hover:text-gray-900 font-medium">
-            Home
-          </Link>
-        </div>
-      </nav>
+    <LegalPageShell
+      eyebrow="Terms"
+      title="Terms of Service"
+      summary="These terms govern access to SafeNode’s applications, infrastructure, and subscription plans. They describe account responsibilities, billing behavior, and the boundaries of the service."
+      lastUpdated="March 2026"
+    >
+      <section>
+        <h2>1. Acceptance</h2>
+        <p>
+          By creating an account, accessing the website, or using the SafeNode applications, you agree to these Terms
+          of Service. If you do not accept these terms, do not use the service.
+        </p>
+      </section>
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Terms of Service</h1>
-        <p className="text-gray-500 mb-10">Last updated: February 2026</p>
+      <section>
+        <h2>2. Service description</h2>
+        <p>
+          SafeNode is a subscription SaaS password manager and encrypted vault service for individuals, families, and
+          teams. The service includes account management, encrypted vault storage, device management, passkey support,
+          security alerts, and billing workflows.
+        </p>
+      </section>
 
-        <div className="prose prose-gray max-w-none space-y-8">
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">1. Acceptance of Terms</h2>
-            <p className="text-gray-600 leading-relaxed">
-              By creating an account or using SafeNode, you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the service. SafeNode reserves the right to update these terms at any time. Continued use after changes constitutes acceptance.
-            </p>
-          </section>
+      <section>
+        <h2>3. Account responsibilities</h2>
+        <ul>
+          <li>You are responsible for your credentials, devices, and all activity under your account.</li>
+          <li>You must provide accurate registration and billing information.</li>
+          <li>You must protect your master password and recovery material.</li>
+          <li>You must notify SafeNode promptly if you suspect unauthorized access.</li>
+        </ul>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">2. Description of Service</h2>
-            <p className="text-gray-600 leading-relaxed">
-              SafeNode is a zero-knowledge password management service that stores your passwords and sensitive data in an encrypted vault. All encryption and decryption occurs on your device. SafeNode cannot access, read, or recover your vault data.
-            </p>
-          </section>
+      <section>
+        <h2>4. Acceptable use</h2>
+        <p>You agree not to misuse the service.</p>
+        <ul>
+          <li>No unauthorized access attempts, reverse engineering, or abuse of service limits.</li>
+          <li>No unlawful, fraudulent, or harmful use of the platform.</li>
+          <li>No attempts to degrade availability, bypass product security boundaries, or exploit billing flows.</li>
+        </ul>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">3. Account Responsibilities</h2>
-            <ul className="list-disc list-inside text-gray-600 space-y-2">
-              <li>You are responsible for maintaining the security of your master password.</li>
-              <li>You must provide accurate information during registration.</li>
-              <li>You are responsible for all activity under your account.</li>
-              <li>You must notify us immediately of any unauthorized access.</li>
-              <li>SafeNode cannot recover your data if you lose your master password.</li>
-            </ul>
-          </section>
+      <section>
+        <h2>5. Subscriptions and billing</h2>
+        <p>
+          SafeNode offers both free and paid subscription tiers. Paid subscriptions are processed through Paddle as the
+          merchant of record. Billing terms, taxes, and invoices may be handled through Paddle-hosted flows.
+        </p>
+        <ul>
+          <li>Subscriptions renew according to the selected monthly or annual cycle unless canceled.</li>
+          <li>Plan changes, cancellations, and renewals may take effect at the next applicable billing boundary.</li>
+          <li>Feature access and resource limits depend on the current subscription tier.</li>
+          <li>Refund handling is described in the SafeNode Refund Policy.</li>
+        </ul>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">4. Acceptable Use</h2>
-            <p className="text-gray-600 leading-relaxed mb-2">You agree not to:</p>
-            <ul className="list-disc list-inside text-gray-600 space-y-1">
-              <li>Use the service for illegal purposes</li>
-              <li>Attempt to gain unauthorized access to other accounts or systems</li>
-              <li>Reverse engineer, decompile, or disassemble the software</li>
-              <li>Distribute malware or harmful content through the service</li>
-              <li>Abuse API rate limits or attempt denial-of-service attacks</li>
-              <li>Violate any applicable laws or regulations</li>
-            </ul>
-          </section>
+      <section>
+        <h2>6. Data ownership</h2>
+        <p>
+          You retain ownership of the data you store in SafeNode. SafeNode does not claim ownership of your vault
+          contents. Because the service uses a zero-knowledge design for vault data, SafeNode cannot generally decrypt
+          or recover user vault contents.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">5. Subscriptions & Billing</h2>
-            <p className="text-gray-600 leading-relaxed mb-2">
-              SafeNode offers free and paid subscription plans. For paid plans:
-            </p>
-            <ul className="list-disc list-inside text-gray-600 space-y-1">
-              <li>Billing is processed through Stripe on a recurring basis.</li>
-              <li>You may cancel your subscription at any time.</li>
-              <li>Cancellations take effect at the end of the current billing period.</li>
-              <li>Refunds are handled on a case-by-case basis.</li>
-              <li>Downgrading to Free may limit feature access but your data is preserved.</li>
-              <li>Prices may change with 30 days notice.</li>
-            </ul>
-          </section>
+      <section>
+        <h2>7. Availability</h2>
+        <p>
+          SafeNode aims for reliable availability but does not guarantee uninterrupted service. Maintenance, third-party
+          provider outages, abuse mitigation, or other operational events may affect availability.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">6. Data Ownership</h2>
-            <p className="text-gray-600 leading-relaxed">
-              You own all data you store in SafeNode. We do not claim any ownership over your vault contents, passwords, notes, or any other data you store. Since your data is encrypted with your master password, only you can access it.
-            </p>
-          </section>
+      <section>
+        <h2>8. Disclaimers and limitation of liability</h2>
+        <p>
+          The service is provided on an “as is” and “as available” basis to the maximum extent permitted by law.
+          SafeNode is not liable for indirect, incidental, consequential, special, or punitive damages, including loss
+          of profits, business interruption, or loss of access to encrypted data resulting from credential loss.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">7. Service Availability</h2>
-            <p className="text-gray-600 leading-relaxed">
-              We strive to maintain high availability but do not guarantee uninterrupted service. We may perform maintenance that temporarily affects availability. We will provide reasonable notice for scheduled maintenance when possible.
-            </p>
-          </section>
+      <section>
+        <h2>9. Suspension and termination</h2>
+        <p>
+          SafeNode may suspend or terminate accounts that violate these terms, create operational risk, or are required
+          to be disabled for compliance reasons. You may stop using the service and request deletion of your account at
+          any time.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">8. Limitation of Liability</h2>
-            <p className="text-gray-600 leading-relaxed">
-              SafeNode is provided "as is" without warranties of any kind, express or implied. To the fullest extent permitted by law, SafeNode shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, revenue, or profits, arising from your use of the service.
-            </p>
-          </section>
+      <section>
+        <h2>10. Changes</h2>
+        <p>
+          We may update these terms as the product, billing model, or legal obligations change. Updated terms will be
+          posted here with a revised effective date.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">9. Account Termination</h2>
-            <p className="text-gray-600 leading-relaxed">
-              You may delete your account at any time. We may suspend or terminate accounts that violate these terms. Upon termination, your encrypted data will be permanently deleted. We are not responsible for preserving data after account deletion.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">10. Intellectual Property</h2>
-            <p className="text-gray-600 leading-relaxed">
-              SafeNode and its original content, features, and functionality are owned by SafeNode and are protected by international copyright, trademark, and other intellectual property laws. Your data remains your intellectual property.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">11. Contact</h2>
-            <p className="text-gray-600 leading-relaxed">
-              Questions about these Terms of Service should be directed to{' '}
-              <a href="mailto:support@safe-node.app" className="text-gray-950 font-medium hover:underline">
-                support@safe-node.app
-              </a>.
-            </p>
-          </section>
-        </div>
-      </main>
-
-      <Footer />
-    </div>
+      <section>
+        <h2>11. Contact</h2>
+        <p>
+          Questions about these terms can be sent to <a href="mailto:support@safe-node.app">support@safe-node.app</a>.
+        </p>
+      </section>
+    </LegalPageShell>
   )
 }
 

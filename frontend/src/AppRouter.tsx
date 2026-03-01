@@ -27,6 +27,7 @@ import { ResetPasswordPage } from './pages/auth/ResetPassword'
 import VerifyEmailPage from './pages/auth/VerifyEmail'
 import { PrivacyPolicyPage } from './pages/marketing/PrivacyPolicy'
 import { TermsOfServicePage } from './pages/marketing/TermsOfService'
+import { RefundPolicyPage } from './pages/marketing/RefundPolicy'
 
 /**
  * Router wrapper that handles marketing pages separately from the main app
@@ -49,6 +50,7 @@ export const AppRouter: React.FC = () => {
           {/* Legal Pages */}
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/refunds" element={<RefundPolicyPage />} />
 
           {/* Auth Pages (public) */}
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
