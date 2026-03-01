@@ -19,6 +19,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://safe-node-99hv-backend.vercel.app/api/$1"
+    },
+    {
       "source": "/manifest.webmanifest",
       "destination": "/manifest.webmanifest"
     },
