@@ -122,6 +122,13 @@ export async function registerBillingRoutes(server: FastifyInstance) {
       }
 
       if (providerMessage.includes('Failed to create Paddle checkout session')) {
+        if (providerMessage.includes('transaction_checkout_not_enabled')) {
+          return reply.code(503).send({
+            error: 'billing_pending_activation',
+            message: 'Safenode billing is not live yet. Please use the Free plan for now while Paddle completes account activation.'
+          })
+        }
+
         return reply.code(502).send({
           error: 'paddle_checkout_error',
           message: providerMessage
