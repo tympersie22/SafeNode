@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import Button from '../../ui/Button'
 import Input from '../../ui/Input'
 import PasswordInput from '../ui/PasswordInput'
+import SocialAuthButtons from './SocialAuthButtons'
 
 interface SignupFormProps {
   onSignup: (userData: SignupData) => void
@@ -209,6 +210,8 @@ const SignupForm: React.FC<SignupFormProps> = ({
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </Button>
       </form>
+
+      <SocialAuthButtons mode="signup" disabled={isLoading} />
 
       <div className="mt-8 pt-6 border-t border-gray-200">
         <div className="text-center space-y-4">

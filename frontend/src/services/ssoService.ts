@@ -1,5 +1,5 @@
 /** * SSO Service
- * Handles OAuth2 SSO login flows (Google, Microsoft, GitHub)
+ * Handles OAuth2 SSO login flows for configured providers
  */
 
 import { setUser as setSentryUser, captureException } from './sentryService'
@@ -40,7 +40,7 @@ export async function getSSOProviders(): Promise<SSOProvider[]> {
  * Initiate SSO login flow
  * Redirects user to OAuth provider
  */
-export function initiateSSOLogin(provider: 'google' | 'microsoft' | 'github'): void {
+export function initiateSSOLogin(provider: string): void {
   try {
     const apiBase = API_BASE || ''
     // Frontend callback URL used after backend completes OAuth code exchange

@@ -12,6 +12,8 @@ import { SaasButton, SaasInput, SaasCard } from '../ui'
 import { Vault, Lock, Eye, EyeOff, LogOut } from 'lucide-react'
 import { base64ToArrayBuffer } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
+import { listPasskeys, authenticateWithPasskey } from '../api/passkeys'
+import { keychainService } from '../utils/keychain'
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -36,6 +38,8 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
   const [biometricEnabled, setBiometricEnabled] = useState(false)
   const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false)
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false)
 
   useEffect(() => {
     // Check if vault exists only once per user
@@ -67,7 +71,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
       const checkBiometric = async () => {
         try {
         const { biometricAuthService } = await import('../utils/biometricAuth')
-        const { keychainService } = await import('../utils/keychain')
         
         const caps = await biometricAuthService.isAvailable()
         setBiometricAvailable(caps.available)
@@ -85,6 +88,31 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
     
     checkBiometric()
   }, [])
+
+  useEffect(() => {
+    const checkPasskeys = async () => {
+      if (!user?.id || typeof window === 'undefined' || !('PublicKeyCredential' in window)) {
+        setPasskeyAvailable(false)
+        setPasskeyEnabled(false)
+        return
+      }
+
+      try {
+        const [storedPassword, passkeys] = await Promise.all([
+          keychainService.get('safenode', 'master_password'),
+          listPasskeys().catch(() => [])
+        ])
+        setPasskeyAvailable(true)
+        setPasskeyEnabled(Boolean(storedPassword) && passkeys.length > 0)
+      } catch (error) {
+        console.warn('Passkey check failed:', error)
+        setPasskeyAvailable(true)
+        setPasskeyEnabled(false)
+      }
+    }
+
+    checkPasskeys()
+  }, [user?.id])
 
   // Check lockout status
   useEffect(() => {
@@ -106,7 +134,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
 
     try {
       const { biometricAuthService } = await import('../utils/biometricAuth')
-      const { keychainService } = await import('../utils/keychain')
       
       // Authenticate with biometric
       const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
@@ -150,6 +177,45 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
     } catch (err: any) {
       console.error('Biometric unlock failed:', err)
       setError(err.message || 'Biometric authentication failed. Please use your master password.')
+      setIsLoading(false)
+    }
+  }
+
+  const handlePasskeyUnlock = async () => {
+    if (!passkeyEnabled) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await authenticateWithPasskey()
+
+      const storedPassword = await keychainService.get('safenode', 'master_password')
+      if (!storedPassword) {
+        throw new Error('Unlock with your master password once on this device before using passkeys.')
+      }
+
+      const vault = await unlockVault(storedPassword)
+      const saltResponse = await fetch(`${API_BASE}/api/auth/vault/salt`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('safenode_token')}`
+        }
+      })
+
+      if (!saltResponse.ok) {
+        throw new Error('Failed to get vault salt')
+      }
+
+      const saltData = await saltResponse.json()
+      const salt = base64ToArrayBuffer(saltData.salt)
+
+      setUnlockAttempts(0)
+      setLockoutUntil(null)
+      setIsLoading(false)
+      onVaultUnlocked(vault, storedPassword, salt)
+    } catch (err: any) {
+      console.error('Passkey unlock failed:', err)
+      setError(err.message || 'Passkey authentication failed. Please use your master password.')
       setIsLoading(false)
     }
   }
@@ -364,27 +430,47 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
             </motion.div>
           )}
 
-          {/* Biometric Unlock Button - Primary if enabled */}
-          {biometricEnabled && (
+          {/* Passkey/Biometric Unlock Buttons */}
+          {(passkeyEnabled || biometricEnabled) && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-6"
             >
-              <SaasButton
-                type="button"
-                variant="gradient"
-                size="lg"
-                className="w-full min-h-[48px] touch-manipulation"
-                onClick={handleBiometricUnlock}
-                loading={isLoading}
-                disabled={isLoading || (lockoutUntil !== null && Date.now() < lockoutUntil)}
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.44l.054-.054A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                {isLoading ? 'Authenticating...' : 'Unlock with Biometric'}
-              </SaasButton>
+              <div className="space-y-3">
+                {passkeyEnabled && (
+                  <SaasButton
+                    type="button"
+                    variant="gradient"
+                    size="lg"
+                    className="w-full min-h-[48px] touch-manipulation"
+                    onClick={handlePasskeyUnlock}
+                    loading={isLoading}
+                    disabled={isLoading || (lockoutUntil !== null && Date.now() < lockoutUntil)}
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a5 5 0 00-10 0v3a2 2 0 00-2 2v2a5 5 0 0010 0v-2a2 2 0 00-2-2V7a1 1 0 112 0v2h2V7z" />
+                    </svg>
+                    {isLoading ? 'Authenticating...' : 'Unlock with Passkey'}
+                  </SaasButton>
+                )}
+                {biometricEnabled && (
+                  <SaasButton
+                    type="button"
+                    variant={passkeyEnabled ? "outline" : "gradient"}
+                    size="lg"
+                    className="w-full min-h-[48px] touch-manipulation"
+                    onClick={handleBiometricUnlock}
+                    loading={isLoading}
+                    disabled={isLoading || (lockoutUntil !== null && Date.now() < lockoutUntil)}
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.44l.054-.054A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {isLoading ? 'Authenticating...' : 'Unlock with Biometric'}
+                  </SaasButton>
+                )}
+              </div>
               
               <div className="mt-4 text-center">
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">or</p>
@@ -410,7 +496,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
                 }}
                 placeholder="Enter your master password"
                 required
-                autoFocus={!biometricEnabled}
+                autoFocus={!biometricEnabled && !passkeyEnabled}
                 className={error && error.includes('Incorrect') ? 'border-red-500 focus:ring-red-500' : ''}
                 rightIcon={
                   <button
@@ -436,7 +522,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
 
             <SaasButton
               type="button"
-              variant={biometricEnabled ? "outline" : "gradient"}
+              variant={biometricEnabled || passkeyEnabled ? "outline" : "gradient"}
               size="lg"
               className="w-full min-h-[48px] touch-manipulation"
               onClick={handleUnlock}
@@ -461,4 +547,3 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
 }
 
 export default UnlockVault
-
