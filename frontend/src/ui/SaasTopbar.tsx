@@ -28,7 +28,7 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
 }) => {
   return (
     <motion.header
-      className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3 sm:py-4 ${className}`}
+      className={`border-b border-slate-200/70 bg-white/70 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4 dark:border-slate-800 dark:bg-slate-950/65 ${className}`}
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -52,12 +52,12 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
           {(title || subtitle) && (
             <div className="min-w-0">
               {title && (
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-slate-900 sm:text-[2rem] dark:text-slate-100">
                   {title}
                 </h1>
               )}
               {subtitle && (
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                <p className="mt-1 truncate text-xs uppercase tracking-[0.22em] text-slate-500 sm:text-[11px] dark:text-slate-400">
                   {subtitle}
                 </p>
               )}
@@ -79,8 +79,12 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
                 placeholder={search.placeholder || 'Search...'}
                 value={search.value}
                 onChange={(e) => search.onChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all text-sm"
+                className="w-full rounded-2xl border border-slate-200 bg-[#f5f6f1] py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 transition-all focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
               />
+              <div className="absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-500 lg:flex">
+                <span>Cmd</span>
+                <span>K</span>
+              </div>
             </div>
           </div>
         )}
@@ -107,7 +111,7 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
               placeholder={search.placeholder || 'Search...'}
               value={search.value}
               onChange={(e) => search.onChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all"
+              className="w-full rounded-2xl border border-slate-200 bg-[#f5f6f1] py-2.5 pl-10 pr-4 text-slate-900 placeholder-slate-400 transition-all focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
           </div>
         </div>

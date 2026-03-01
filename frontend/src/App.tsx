@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, startTransition, useRef } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
+import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
@@ -10,15 +10,12 @@ import { vaultStorage } from './storage/vaultStorage';
 import { vaultSync } from './sync/vaultSync';
 import { enhancedCopyToClipboard, isTauri, DesktopVault } from './desktop/integration';
 import KeyRotation from './components/KeyRotation';
-import SecurityAdvisor from './components/SecurityAdvisor';
-import { HealthDashboard } from './components/HealthDashboard';
 import SharingKeys from './components/SharingKeys';
 import ShareEntryModal from './components/ShareEntryModal';
 import ImportSharedModal from './components/ImportSharedModal';
 import Button from './components/ui/Button';
 import { showToast } from './components/ui/Toast';
 import { Spinner } from './components/ui/Spinner';
-import { LockIcon, SearchIcon } from './components/icons';
 import { Logout } from './icons/Logout';
 import Logo from './components/Logo';
 import Home from './pages/Home';
@@ -32,7 +29,7 @@ import { API_BASE } from './config/api';
 import type { VaultEntry, VaultAttachment } from './types/vault';
 import { evaluatePasswordHealth, type PasswordHealthSummary } from './health/passwordHealth';
 import PasskeysModal from './components/PasskeysModal';
-import WatchtowerModal, { WatchtowerBanner, watchtowerIssueKey } from './components/WatchtowerModal';
+import WatchtowerModal, { watchtowerIssueKey } from './components/WatchtowerModal';
 import { useTravelMode } from './utils/travelMode';
 import { useDarkMode } from './utils/darkMode';
 import AccountSwitcher from './components/AccountSwitcher';
@@ -49,6 +46,7 @@ import { apiPost, apiPut, apiDelete } from './utils/apiClient';
 import { getCurrentDeviceHeaders } from './services/deviceService';
 import PasswordGeneratorModal from './components/PasswordGeneratorModal';
 import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
+import VaultDashboard from './components/dashboard/VaultDashboard';
 import { DashboardLayout } from './layout/DashboardLayout';
 import type { SidebarItem } from './ui/SaasSidebar';
 
@@ -115,7 +113,6 @@ const App: React.FC = () => {
   const [showMasterPasswordSetup, setShowMasterPasswordSetup] = useState(false);
   const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
   const [isStrengthenPasswordsOpen, setIsStrengthenPasswordsOpen] = useState(false);
-  const [securityFilter, setSecurityFilter] = useState<'weak' | 'breached' | 'reused' | null>(null);
   const [selectedEntryDetail, setSelectedEntryDetail] = useState<VaultEntry | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionTimeoutMinutes] = useState(30); // 30 minute session timeout
@@ -315,15 +312,6 @@ const App: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMoreMenuOpen]);
-
-  const watchtowerIssues = healthSummary?.issues ?? [];
-  const unresolvedHighAlerts = useMemo(
-    () =>
-      watchtowerIssues.filter(
-        (issue) => issue.severity === 'high' && !dismissedAlerts.includes(watchtowerIssueKey(issue))
-      ),
-    [watchtowerIssues, dismissedAlerts]
-  );
 
   const handleVaultUnlocked = (unlockedVault: VaultData, password: string, salt: ArrayBuffer) => {
     // CRITICAL: Vault unlock is NOT authentication - it's local state only
@@ -855,64 +843,6 @@ const App: React.FC = () => {
   const topTags = allTags.slice(0, 5);
   const [showAllTags, setShowAllTags] = useState(false);
 
-  // Page transition variants
-  const pageVariants = prefersReducedMotion ? undefined : {
-    initial: { opacity: 0, y: 20 },
-    animate: { 
-      opacity: 1, 
-      y: 0,
-      transition: { 
-        type: "spring" as const,
-        stiffness: 300,
-        damping: 30,
-        duration: 0.5
-      }
-    },
-    exit: { 
-      opacity: 0, 
-      y: -20,
-      transition: { duration: 0.2 }
-    }
-  }
-
-  const containerVariants = prefersReducedMotion ? undefined : {
-    hidden: { opacity: 0, y: 12 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: {
-        type: "spring" as const,
-        stiffness: 300,
-        damping: 30,
-        staggerChildren: 0.05
-      }
-    }
-  }
-
-  const listParent = prefersReducedMotion ? undefined : {
-    hidden: {},
-    visible: { 
-      transition: { 
-        staggerChildren: 0.05,
-        delayChildren: 0.1
-      } 
-    }
-  }
-
-  const listItem = prefersReducedMotion ? undefined : {
-    hidden: { opacity: 0, y: 10, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      scale: 1,
-      transition: {
-        type: "spring" as const,
-        stiffness: 400,
-        damping: 25
-      }
-    }
-  }
-
   // ============================================================================
   // ARCHITECTURE RULES:
   // 1. App.tsx renders UI based on auth state and vault state
@@ -1016,865 +946,225 @@ const App: React.FC = () => {
   const dashboardSidebarItems: SidebarItem[] = [
     {
       id: 'vault',
-      label: 'Vault',
-      icon: <span>🔐</span>,
+      label: 'Dashboard',
+      description: 'Overview and recent credentials',
+      section: 'Operations',
+      icon: <span>⌘</span>,
       active: true,
       onClick: () => navigate('/vault')
     },
     {
-      id: 'security',
-      label: 'Security',
-      icon: <span>🛡️</span>,
+      id: 'watchtower',
+      label: 'Watchtower',
+      description: 'Risk, breach, and password posture',
+      section: 'Operations',
+      icon: <span>🛡</span>,
       onClick: () => setIsWatchtowerOpen(true)
     },
     {
       id: 'passkeys',
       label: 'Passkeys',
+      description: 'WebAuthn and biometric access',
+      section: 'Security',
       icon: <span>🔑</span>,
       onClick: () => setIsPasskeysOpen(true)
     },
     {
-      id: 'team',
-      label: 'Teams',
-      icon: <span>👥</span>,
-      onClick: () => setIsTeamVaultsOpen(true)
+      id: 'audit',
+      label: 'Audit Trail',
+      description: 'Sessions, blocked devices, events',
+      section: 'Security',
+      icon: <span>⎘</span>,
+      onClick: () => setIsAuditLogsOpen(true)
     },
     {
-      id: 'settings',
-      label: 'Settings',
-      icon: <span>⚙️</span>,
-      onClick: () => navigate('/settings')
+      id: 'teams',
+      label: 'Teams',
+      description: 'Shared vaults and org controls',
+      section: 'Workspace',
+      icon: <span>◫</span>,
+      onClick: () => setIsTeamVaultsOpen(true)
     },
     {
       id: 'billing',
       label: 'Billing',
-      icon: <span>💳</span>,
+      description: 'Plan limits and upgrade path',
+      section: 'Workspace',
+      icon: <span>◔</span>,
       onClick: () => navigate('/billing')
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      description: 'Vault preferences and account',
+      section: 'Workspace',
+      icon: <span>⚙</span>,
+      onClick: () => navigate('/settings')
     }
   ]
 
-  // At this point: user && vaultStatus === 'UNLOCKED' - render vault UI
-  // Wrap vault UI in page transition
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'SafeNode Operator'
+  const userPlan = user?.subscriptionTier === 'pro' ? 'personal' : user?.subscriptionTier === 'enterprise' ? 'teams' : 'free'
+  const sessionCountdownLabel =
+    remainingSessionTime !== null && remainingSessionTime > 0 ? formatSessionTime(remainingSessionTime) : 'Secure session active'
+  const lastBreachScanLabel = lastBreachScanAt ? formatLastSynced(lastBreachScanAt) : null
+  const syncLastSyncedLabel =
+    syncState.status === 'syncing'
+      ? 'Syncing encrypted changes'
+      : syncState.status === 'error' || syncError
+        ? 'Sync channel degraded'
+        : syncState.lastSyncedAt
+          ? formatLastSynced(syncState.lastSyncedAt)
+          : 'No remote sync yet'
+
   return (
     <DashboardLayout
       sidebarItems={dashboardSidebarItems}
       activeSidebarItem="vault"
-      topbarTitle="SafeNode Vault"
-      topbarSubtitle={`${vault?.entries.length || 0} entries`}
+      sidebarBrand={{
+        logo: <Logo variant="header" />,
+        title: 'Safenode',
+        subtitle: 'Encrypted operations center',
+        badge: 'Zero-knowledge'
+      }}
+      sidebarFooter={{
+        title: userName,
+        subtitle: user?.email || 'Signed in',
+        meta: <span className="capitalize">{userPlan}</span>,
+        avatar: <span className="text-sm font-semibold">{userName.slice(0, 2).toUpperCase()}</span>
+      }}
+      topbarTitle="Dashboard"
+      topbarSubtitle="Vault command center"
       topbarSearch={{
         placeholder: 'Search vault...',
         value: query,
         onChange: setQuery
       }}
+      topbarLeftContent={
+        <div className="flex flex-wrap items-center gap-2">
+          <AccountSwitcher
+            onAccountChange={(account) => {
+              if (currentAccount?.id !== account.id) {
+                setCurrentAccount(account);
+                handleLock();
+              } else {
+                setCurrentAccount(account);
+              }
+            }}
+            currentAccountId={currentAccount?.id}
+          />
+          <Button
+            onClick={toggleDarkMode}
+            variant="ghost"
+            size="sm"
+            className="min-h-[42px] rounded-xl px-3"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+          </Button>
+          <Button
+            onClick={() => isTravelModeEnabled ? disableTravelMode() : enableTravelMode()}
+            variant={isTravelModeEnabled ? 'primary' : 'ghost'}
+            size="sm"
+            className="min-h-[42px] rounded-xl px-3"
+          >
+            ✈ Travel Mode
+          </Button>
+        </div>
+      }
       topbarRightContent={
         <div className="flex items-center gap-2">
           <Button onClick={handleAddEntry} size="sm" variant="primary">+ Add</Button>
-          <Button onClick={() => navigate('/settings')} size="sm" variant="outline">Settings</Button>
+          <div className="relative more-menu-container">
+            <Button
+              onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+              variant="outline"
+              size="sm"
+              className="min-h-[42px] rounded-xl px-3"
+              title="More actions"
+            >
+              More
+            </Button>
+            <AnimatePresence>
+              {isMoreMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+                >
+                  {[
+                    { label: 'Sharing Keys', action: () => setIsSharingKeysOpen(true) },
+                    { label: 'Import Entry', action: () => setIsImportOpen(true) },
+                    { label: 'Backups', action: () => setIsBackupModalOpen(true) },
+                    { label: 'PIN Setup', action: () => setIsPINSetupOpen(true) },
+                    { label: 'Biometric Setup', action: () => setIsBiometricSetupOpen(true) },
+                    { label: 'Rotate Master Password', action: () => setIsKeyRotationOpen(true) },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => {
+                        item.action();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <Button onClick={handleLock} size="sm" variant="outline">Lock</Button>
           <Button onClick={handleLogout} size="sm" variant="outline">Logout</Button>
         </div>
       }
     >
-    <div className="min-h-screen bg-white dark:bg-slate-900">
-      {/* Header */}
-      <motion.header 
-        className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50"
-        initial={prefersReducedMotion ? undefined : { opacity: 0, y: -20 }}
-        animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        style={{ display: 'none' }}
-      >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
-          <div className="flex justify-between items-center h-14 sm:h-16">
-            {/* Logo & Brand */}
-            <motion.div 
-              className="flex items-center space-x-3"
-              initial={prefersReducedMotion ? undefined : { opacity: 0, x: -20 }}
-              animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <Logo variant="header" />
-              <div>
-                <Link to="/" className="cursor-pointer hover:opacity-80 transition-opacity">
-                  <h1 className="text-lg font-semibold bg-gradient-to-r from-slate-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">
-                    SafeNode
-                  </h1>
-                </Link>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <motion.span 
-                    className="text-xs text-slate-500 dark:text-slate-400 font-medium"
-                    initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-                    animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    {vault?.entries.length || 0} entries
-                  </motion.span>
-                  <span className="text-slate-300 dark:text-slate-600">•</span>
-                  
-                  {/* Vault Lock Status */}
-                  {vaultStatus === 'UNLOCKED' ? (
-                    <motion.div 
-                      className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400"
-                      initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-                      animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-                      transition={{ delay: 0.25 }}
-                      title="Vault is unlocked"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                      </svg>
-                      <span>Unlocked</span>
-                      {remainingSessionTime !== null && remainingSessionTime > 0 && (
-                        <span className="text-slate-400 dark:text-slate-500">
-                          | {formatSessionTime(remainingSessionTime)}
-                        </span>
-                      )}
-                    </motion.div>
-                  ) : (
-                    <motion.div 
-                      className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
-                      initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-                      animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-                      transition={{ delay: 0.25 }}
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      <span>Locked</span>
-                    </motion.div>
-                  )}
-                  
-                  <span className="text-slate-300 dark:text-slate-600">•</span>
-                  
-                  {/* Enhanced Sync Status */}
-                  <motion.div 
-                    className="flex items-center text-xs"
-                    initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-                    animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-                    transition={{ delay: 0.25 }}
-                  >
-                    {syncState.status === 'syncing' ? (
-                      <span className="flex items-center gap-1.5 text-secondary-600 dark:text-secondary-400">
-                        <motion.span 
-                            className="h-1.5 w-1.5 rounded-full bg-secondary-500"
-                          animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        />
-                        Syncing...
-                      </span>
-                    ) : syncState.status === 'error' || syncError ? (
-                      <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400" title={syncError || 'Sync error'}>
-                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                        <span>Sync failed</span>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await syncManager.syncOnce();
-                              showToast.success('Sync retried successfully');
-                            } catch (error) {
-                              showToast.error('Sync retry failed. Check your connection.');
-                            }
-                          }}
-                          className="ml-1 text-xs underline hover:no-underline"
-                        >
-                          Retry
-                        </button>
-                      </span>
-                    ) : syncState.lastSyncedAt ? (
-                      <span className="text-slate-500 dark:text-slate-400" title={`Last synced: ${new Date(syncState.lastSyncedAt).toLocaleString()}`}>
-                        <span className="text-green-600 dark:text-green-400">✓</span> {formatLastSynced(syncState.lastSyncedAt)}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 dark:text-slate-500">Not synced</span>
-                    )}
-                  </motion.div>
-                  
-                  {/* Encryption Status */}
-                  <span className="text-slate-300 dark:text-slate-600">•</span>
-                  <motion.span 
-                    className="text-xs text-slate-500 dark:text-slate-400"
-                    initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-                    animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    title="AES-256-GCM End-to-end encryption"
-                  >
-                    🔐 Encrypted
-                  </motion.span>
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Actions */}
-            <motion.div 
-              className="flex items-center gap-2"
-              initial={prefersReducedMotion ? undefined : { opacity: 0, x: 20 }}
-              animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-            >
-              {/* Primary Actions */}
-              <div className="flex items-center gap-1.5 pr-2 border-r border-slate-200 dark:border-slate-700">
-                <AccountSwitcher
-                  onAccountChange={(account) => {
-                    if (currentAccount?.id !== account.id) {
-                      setCurrentAccount(account);
-                      handleLock();
-                    } else {
-                      setCurrentAccount(account);
-                    }
-                  }}
-                  currentAccountId={currentAccount?.id}
-                />
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    onClick={toggleDarkMode}
-                    variant="ghost"
-                    size="sm"
-                    className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 touch-manipulation"
-                    title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                  >
-                    {isDarkMode ? '☀️' : '🌙'}
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    onClick={() => isTravelModeEnabled ? disableTravelMode() : enableTravelMode()}
-                    variant={isTravelModeEnabled ? "primary" : "ghost"}
-                    size="sm"
-                    className={`h-11 sm:h-9 px-3 rounded-lg touch-manipulation ${isTravelModeEnabled ? '' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    title={isTravelModeEnabled ? "Disable Travel Mode" : "Enable Travel Mode"}
-                    aria-label={isTravelModeEnabled ? "Disable Travel Mode" : "Enable Travel Mode"}
-                  >
-                    <span className="text-sm">{isTravelModeEnabled ? '✈️' : '✈️'}</span>
-                    <span className="ml-1.5 text-xs font-medium hidden sm:inline">Travel</span>
-                  </Button>
-                </motion.div>
-              </div>
-
-              {/* More Menu */}
-              <div className="relative more-menu-container">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-                    variant="ghost"
-                    size="sm"
-                    className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 touch-manipulation"
-                    title="More options"
-                    aria-label="More options"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </Button>
-                </motion.div>
-
-                <AnimatePresence>
-                  {isMoreMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50"
-                    >
-                      <div className="px-2 space-y-0.5">
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsSharingKeysOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          🔑 Sharing Keys
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsImportOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          📥 Import Entry
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsBackupModalOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          💾 Backups
-                        </motion.button>
-                        {passkeySupported && (
-                          <motion.button
-                            whileHover={{ x: 4 }}
-                            onClick={() => { setIsPasskeysOpen(true); setIsMoreMenuOpen(false); }}
-                            className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                          >
-                            🔐 Passkeys
-                          </motion.button>
-                        )}
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsAuditLogsOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          📋 Audit Logs
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsTeamVaultsOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          👥 Teams & Organizations
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsPINSetupOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          🔢 PIN Setup
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsBiometricSetupOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          👆 Biometric Setup
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { setIsKeyRotationOpen(true); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          🔄 Change Master Password
-                        </motion.button>
-                        <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { navigate('/settings'); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          ⚙️ Settings
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { navigate('/billing'); setIsMoreMenuOpen(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          💳 Billing
-                        </motion.button>
-                        <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          onClick={() => { 
-                            setIsMoreMenuOpen(false);
-                            handleLogout();
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
-                        >
-                          <Logout className="w-4 h-4" />
-                          <span>Logout</span>
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Lock Button */}
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  onClick={handleLock}
-                  variant="outline"
-                  size="sm"
-                  className="h-11 sm:h-9 px-3 rounded-lg border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 touch-manipulation"
-                  title="Lock vault"
-                  aria-label="Lock vault"
-                >
-                  <LockIcon className="w-4 h-4 mr-1.5" />
-                  <span className="text-xs font-medium hidden sm:inline">Lock</span>
-                </Button>
-              </motion.div>
-            </motion.div>
-          </div>
-        </div>
-      </motion.header>
-
-      {/* Main Content */}
-      <AnimatePresence mode="wait">
-        <motion.main 
-          key="vault-main"
-          className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6"
-          variants={pageVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-        >
-          {vault && vault.entries.length > 0 ? (
-            <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
-            {/* Password Health */}
-            {healthSummary && (
-              <motion.div
-                className="card card-hover"
-                variants={listItem}
-              >
-                <div className="card-body space-y-4">
-                  {unresolvedHighAlerts.length > 0 && (
-                    <WatchtowerBanner
-                      issues={unresolvedHighAlerts}
-                      onReview={() => setIsWatchtowerOpen(true)}
-                      onDismiss={(issueId) =>
-                        setDismissedAlerts((prev) => (prev.includes(issueId) ? prev : [...prev, issueId]))
-                      }
-                    />
-                  )}
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="text-xs uppercase tracking-wider text-slate-500">Vault Health</p>
-                      <div className="flex items-baseline gap-3 mt-1">
-                        <span className="text-3xl font-semibold text-slate-900">{healthSummary.score}</span>
-                        <span className="text-sm text-slate-500">/ 100</span>
-                      </div>
-                      <div className="mt-2">
-                        <div className="flex items-center gap-4 text-xs text-slate-600">
-                          <span>Strong: {healthSummary.strongCount}</span>
-                          <span>Weak: {healthSummary.weakCount}</span>
-                          <span>Reused: {healthSummary.reusedCount}</span>
-                          <span>Compromised: {healthSummary.compromisedCount}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-slate-600 mb-1">Priority issues</p>
-                      {healthSummary.issues.length === 0 ? (
-                        <p className="text-xs text-slate-500">All clear. No outstanding problems detected.</p>
-                      ) : (
-                        <ul className="space-y-1">
-                          {healthSummary.issues.slice(0, 4).map(issue => (
-                            <li key={`${issue.entryId}-${issue.type}`} className="text-xs text-slate-600">
-                              <span className="font-medium text-slate-800">{issue.entryName}</span>: {issue.message}
-                            </li>
-                          ))}
-                          {healthSummary.issues.length > 4 && (
-                            <li className="text-xs text-slate-500">
-                              +{healthSummary.issues.length - 4} more issues
-                            </li>
-                          )}
-                        </ul>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        onClick={handleBreachScan}
-                        variant="outline"
-                        size="sm"
-                        disabled={isScanningBreaches || !vault}
-                      >
-                        {isScanningBreaches ? 'Scanning…' : 'Run breach scan'}
-                      </Button>
-                      <Button
-                        onClick={() => setIsWatchtowerOpen(true)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Open Watchtower
-                      </Button>
-                      {isScanningBreaches && (
-                        <p className="text-[11px] text-safenode-primary flex items-center gap-1">
-                          <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Checking for compromised passwords...
-                        </p>
-                      )}
-                      {!isScanningBreaches && lastBreachScanAt && (
-                        <p className="text-[11px] text-slate-500">
-                          Last scan {formatLastSynced(lastBreachScanAt)}
-                        </p>
-                      )}
-                      {breachScanError && (
-                        <p className="text-[11px] text-red-600">{breachScanError}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Security Advisor */}
-            <div id="security-advisor">
-            <SecurityAdvisor 
-              entries={(vault?.entries || []).map(e => ({
-              id: e.id,
-              name: e.name,
-              username: e.username,
-              password: e.password,
-              url: e.url
-              }))}
-              onStrengthenWeakPasswords={() => {
-                setIsStrengthenPasswordsOpen(true)
-              }}
-              onChangeBreachedPasswords={() => {
-                setSecurityFilter('breached')
-                setQuery('')
-                setActiveTag(null)
-                showToast.error('Showing breached passwords. Please change these immediately.');
-              }}
-              onGenerateUniquePasswords={() => {
-                setIsPasswordGeneratorOpen(true)
-                showToast.info('Generate a strong password and update your entries.');
-              }}
-              onReviewSecurityRecommendations={() => {
-                setSecurityFilter(null)
-                // Scroll to security advisor
-                const element = document.getElementById('security-advisor')
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-                showToast.info('Review the security recommendations above.');
-              }}
-              onEnable2FA={() => {
-                navigate('/settings/security')
-                showToast.info('Navigate to Security settings to enable 2FA.');
-              }}
-              onRotateOldPasswords={() => {
-                setSecurityFilter(null)
-                setIsPasswordGeneratorOpen(true)
-                showToast.info('Generate new passwords for entries that haven\'t been updated recently.');
-              }}
-            />
-            </div>
-            {/* Search + Tags + Add Button */}
-            <motion.div className="card card-hover" variants={listItem}>
-              <div className="card-body">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                {securityFilter && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                      Filtering: {securityFilter === 'weak' ? 'Weak passwords' : securityFilter === 'breached' ? 'Breached passwords' : 'Reused passwords'}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSecurityFilter(null)
-                        showToast.info('Filter cleared');
-                      }}
-                      className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
-                      title="Clear filter"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-                <div className="relative">
-                  <input
-                    className="w-full md:w-80 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 text-sm transition-all duration-200"
-                    placeholder="Search vault..."
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    role="searchbox"
-                    aria-label="Search vault entries"
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <SearchIcon className="w-4 h-4 text-slate-400" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {allTags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <motion.button
-                      onClick={() => setActiveTag(null)}
-                      className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
-                        activeTag === null 
-                          ? 'bg-gradient-to-r from-secondary-600 to-secondary-500 dark:from-secondary-500 dark:to-secondary-400 text-white border-secondary-500 shadow-safenode-secondary' 
-                            : 'bg-white/80 backdrop-blur-sm text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
-                      }`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      aria-pressed={activeTag === null}
-                    >All</motion.button>
-                      {(showAllTags ? allTags : topTags).map(tag => (
-                      <motion.button
-                        key={tag}
-                        onClick={() => setActiveTag(tag)}
-                        className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
-                          activeTag === tag 
-                            ? 'bg-gradient-to-r from-secondary-600 to-secondary-500 dark:from-secondary-500 dark:to-secondary-400 text-white border-secondary-500 shadow-safenode-secondary' 
-                              : 'bg-white/80 backdrop-blur-sm text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
-                        }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        aria-pressed={activeTag === tag}
-                          title={`${tagUsage[tag]} ${tagUsage[tag] === 1 ? 'entry' : 'entries'}`}
-                        >
-                          {tag}
-                          <span className="ml-1.5 text-[10px] opacity-70">({tagUsage[tag]})</span>
-                        </motion.button>
-                      ))}
-                      {allTags.length > 5 && (
-                        <motion.button
-                          onClick={() => setShowAllTags(!showAllTags)}
-                          className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white/80 backdrop-blur-sm text-slate-600 dark:text-slate-400 text-xs font-medium hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          {showAllTags ? (
-                            <>
-                              <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                              Show Less
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                              +{allTags.length - 5} More
-                            </>
-                          )}
-                        </motion.button>
-                      )}
-                  </div>
-                  )}
-                  <Button
-                    onClick={handleAddEntry}
-                    disabled={isSaving}
-                    variant="primary"
-                    size="sm"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Add Entry
-                  </Button>
-                </div>
-              </div>
-              </div>
-            </motion.div>
-            {/* Stats Cards */}
-            {!isTravelModeEnabled && (
-            <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={listParent} initial="hidden" animate="visible">
-              <motion.div 
-                className="card card-hover" 
-                variants={listItem}
-                whileHover={{ scale: 1.02, y: -2 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="card-body">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/10">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-slate-600">Total Entries</p>
-                      <p className="text-2xl font-bold text-slate-900">{vault.entries.length}</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="card card-hover" 
-                variants={listItem}
-                whileHover={{ scale: 1.02, y: -2 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="card-body">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/10">
-                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-slate-600">Secure</p>
-                      <p className="text-2xl font-bold text-slate-900">100%</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="card card-hover" 
-                variants={listItem}
-                whileHover={{ scale: 1.02, y: -2 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="card-body">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-secondary-100 to-secondary-200 dark:from-secondary-900/30 dark:to-secondary-800/30 rounded-xl flex items-center justify-center shadow-lg shadow-secondary-500/10">
-                        <svg className="w-5 h-5 text-secondary-600 dark:text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-slate-600">Encrypted</p>
-                      <p className="text-2xl font-bold text-slate-900">AES-256</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-            )}
-
-            {/* Entries List */}
-            <motion.div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden" variants={listItem}>
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-400 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-              </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900">Password Entries</h2>
-                      <p className="text-xs text-slate-500">Your encrypted password vault</p>
-                    </div>
-                  </div>
-                  {!isTravelModeEnabled && vault && (
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-slate-900">{filteredEntries.length}</div>
-                      <div className="text-xs text-slate-500">
-                        {filteredEntries.length === 1 ? 'entry' : 'entries'}
-                        {query || activeTag ? ' found' : ''}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Stats Bar */}
-              {!isTravelModeEnabled && vault && vault.entries.length > 0 && (
-                <div className="px-6 py-3 bg-slate-50 border-b border-slate-200">
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-slate-900">{vault.entries.length}</div>
-                      <div className="text-xs text-slate-600">Total</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-blue-600">{vault.entries.filter(e => e.category).length}</div>
-                      <div className="text-xs text-slate-600">Categorized</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-green-600">{vault.entries.filter(e => e.totpSecret).length}</div>
-                      <div className="text-xs text-slate-600">2FA Enabled</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-purple-600">{allTags.length}</div>
-                      <div className="text-xs text-slate-600">Tags</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="p-0">
-                {isTravelModeEnabled ? (
-                  <div className="p-12 text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Travel Mode Active</h3>
-                    <p className="text-slate-600 mb-4 max-w-md mx-auto">
-                      Your vault entries are hidden for security. Disable Travel Mode to view your passwords.
-                    </p>
-                    <Button
-                      onClick={disableTravelMode}
-                      variant="primary"
-                      size="md"
-                    >
-                      Disable Travel Mode
-                    </Button>
-                  </div>
-                ) : filteredEntries.length === 0 ? (
-                  <div className="p-12 text-center">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                      </svg>
-                    </div>
-                    <h3 className="text-base font-semibold text-slate-900 mb-1">No entries found</h3>
-                    <p className="text-sm text-slate-500 mb-4">
-                      {query || activeTag 
-                        ? 'Try adjusting your search or filter'
-                        : 'Get started by adding your first password entry'}
-                    </p>
-                    {!query && !activeTag && (
-                      <Button
-                        onClick={handleAddEntry}
-                        variant="primary"
-                        size="sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Add Your First Entry
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 max-h-[600px] overflow-y-auto relative">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-1">
-                    <AnimatePresence mode="popLayout">
-                {filteredEntries.map((entry, index) => (
-                  <EntryCard 
-                    key={entry.id} 
-                    entry={entry} 
-                    index={index}
-                          onClick={() => setSelectedEntryDetail(entry)}
-                    onCopyPassword={() => enhancedCopyToClipboard(entry.password)}
-                    onShare={() => setShareEntry(entry)}
-                    onEdit={() => handleEditEntry(entry)}
-                    onDelete={() => handleDeleteEntry(entry.id)}
-                    isSaving={isSaving}
-                    variants={listItem}
-                  />
-                ))}
-                    </AnimatePresence>
-                  </div>
-                </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : (
-          <div className="text-center py-12">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-4">
-                <svg className="w-8 h-8 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No entries found</h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-6">Your vault is empty. Add some password entries to get started.</p>
-              <Button
-                onClick={handleAddEntry}
-                disabled={isSaving}
-                variant="primary"
-                size="lg"
-                className="inline-flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Add Your First Entry
-              </Button>
-            </motion.div>
-        </div>
-      )}
-        </motion.main>
-      </AnimatePresence>
+      <VaultDashboard
+        entries={vault?.entries || []}
+        filteredEntries={filteredEntries}
+        activeTag={activeTag}
+        onTagChange={setActiveTag}
+        allTags={allTags}
+        topTags={topTags}
+        tagUsage={tagUsage}
+        showAllTags={showAllTags}
+        onToggleShowAllTags={() => setShowAllTags((prev) => !prev)}
+        healthSummary={healthSummary}
+        isScanningBreaches={isScanningBreaches}
+        onRunBreachScan={handleBreachScan}
+        breachScanError={breachScanError}
+        lastBreachScanLabel={lastBreachScanLabel}
+        syncState={{
+          status: syncState.status,
+          lastSyncedLabel: syncLastSyncedLabel
+        }}
+        sessionCountdownLabel={sessionCountdownLabel}
+        isTravelModeEnabled={isTravelModeEnabled}
+        onDisableTravelMode={disableTravelMode}
+        onAddEntry={handleAddEntry}
+        onOpenWatchtower={() => setIsWatchtowerOpen(true)}
+        onOpenPasskeys={() => setIsPasskeysOpen(true)}
+        onOpenTeams={() => setIsTeamVaultsOpen(true)}
+        onOpenAudit={() => setIsAuditLogsOpen(true)}
+        onOpenBilling={() => navigate('/billing')}
+        onOpenSettings={() => navigate('/settings')}
+        onOpenPasswordGenerator={() => setIsPasswordGeneratorOpen(true)}
+        onStrengthenPasswords={() => setIsStrengthenPasswordsOpen(true)}
+        onSelectEntry={setSelectedEntryDetail}
+        onCopyPassword={(entry) => {
+          enhancedCopyToClipboard(entry.password);
+          showToast.success(`Password copied for ${entry.name}`);
+        }}
+        onShare={setShareEntry}
+        onEdit={handleEditEntry}
+        userName={userName}
+        userEmail={user?.email || 'signed-in account'}
+        userPlan={userPlan}
+        passkeySupported={passkeySupported}
+      />
 
       {/* Entry Form Modal */}
       <EntryForm
@@ -2174,7 +1464,6 @@ const App: React.FC = () => {
       />
 
       {/* Toast notifications are now handled globally by ToastProvider in main.tsx */}
-    </div>
     </DashboardLayout>
   );
 };

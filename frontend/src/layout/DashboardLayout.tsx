@@ -18,6 +18,18 @@ export interface DashboardLayoutProps {
     onChange: (value: string) => void
   }
   sidebarCollapsed?: boolean
+  sidebarBrand?: {
+    logo?: ReactNode
+    title: string
+    subtitle?: string
+    badge?: string
+  }
+  sidebarFooter?: {
+    title: string
+    subtitle?: string
+    meta?: ReactNode
+    avatar?: ReactNode
+  }
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -31,11 +43,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   topbarRightContent,
   topbarSearch,
   sidebarCollapsed = false,
+  sidebarBrand,
+  sidebarFooter,
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(215,228,214,0.55),_transparent_32%),linear-gradient(180deg,_#f3f4f0_0%,_#eef0eb_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(21,58,41,0.28),_transparent_28%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)]">
       {/* Mobile Sidebar Backdrop */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -61,11 +75,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           collapsed={sidebarCollapsed}
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
+          brand={sidebarBrand}
+          footer={sidebarFooter}
         />
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden p-2 sm:p-3">
+        <div className="flex h-full flex-col overflow-hidden rounded-[32px] border border-white/70 bg-white/65 shadow-[0_30px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/75">
         {/* Topbar */}
         {(topbarTitle || topbarSubtitle || topbarLeftContent || topbarRightContent || topbarSearch) && (
           <SaasTopbar
@@ -81,13 +98,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
         {/* Page Content */}
         <motion.main
-          className="flex-1 overflow-y-auto p-4 sm:p-6"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
           {children}
         </motion.main>
+        </div>
       </div>
     </div>
   )
