@@ -27,6 +27,11 @@ export type AuditAction =
   | 'vault_imported'
   | 'device_registered'
   | 'device_removed'
+  | 'device_reapproved'
+  | 'device_reapproval_required'
+  | 'device_access_denied'
+  | 'session_replaced'
+  | 'session_revoked'
   | '2fa_enabled'
   | '2fa_disabled'
   | 'password_changed'
@@ -134,6 +139,7 @@ export async function getUserAuditLogs(
     limit?: number
     offset?: number
     action?: string
+    actions?: string[]
     startDate?: Date
     endDate?: Date
   }
@@ -144,7 +150,11 @@ export async function getUserAuditLogs(
     userId
   }
 
-  if (options?.action) {
+  if (options?.actions?.length) {
+    where.action = {
+      in: options.actions
+    }
+  } else if (options?.action) {
     where.action = options.action
   }
 
@@ -196,6 +206,7 @@ export async function getBulkAuditLogs(
     limit?: number
     offset?: number
     action?: string
+    actions?: string[]
     startDate?: Date
     endDate?: Date
   }
@@ -208,7 +219,11 @@ export async function getBulkAuditLogs(
     }
   }
 
-  if (options?.action) {
+  if (options?.actions?.length) {
+    where.action = {
+      in: options.actions
+    }
+  } else if (options?.action) {
     where.action = options.action
   }
 
@@ -338,4 +353,3 @@ export async function getAuditLogStats(userId: string, days: number = 30): Promi
     logsByDate
   }
 }
-

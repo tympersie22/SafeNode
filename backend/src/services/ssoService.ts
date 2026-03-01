@@ -1,13 +1,15 @@
 /**
  * SSO Service
  * Handles Enterprise SSO integrations (SAML, OAuth2/OIDC)
- * Supports Google, Microsoft, GitHub, and generic SAML providers
+ * Supports Google, Microsoft, GitHub, Apple, and generic SAML providers
  */
 
 import { randomBytes, createHash } from 'crypto'
+import jwt from 'jsonwebtoken'
 import { db } from './database'
 import { createUser } from './userService'
 import { issueToken } from '../middleware/auth'
+import { createDeviceSession } from './deviceSessionService'
 import type { User } from '../models/User'
 
 function getFetch(): typeof globalThis.fetch {
@@ -38,6 +40,12 @@ export interface SSOConfig {
   github?: {
     clientId: string
     clientSecret: string
+  }
+  apple?: {
+    clientId: string
+    teamId: string
+    keyId: string
+    privateKey: string
   }
   okta?: {
     clientId: string
@@ -74,7 +82,80 @@ const PROVIDER_CONFIGS = {
     tokenUrl: 'https://github.com/login/oauth/access_token',
     userInfoUrl: 'https://api.github.com/user',
     scopes: ['read:user', 'user:email']
+  },
+  apple: {
+    authUrl: 'https://appleid.apple.com/auth/authorize',
+    tokenUrl: 'https://appleid.apple.com/auth/token',
+    scopes: ['name', 'email']
   }
+}
+
+interface AppleCallbackUser {
+  email?: string
+  name?: {
+    firstName?: string
+    lastName?: string
+  }
+}
+
+function getApplePrivateKey(privateKey: string): string {
+  return privateKey.includes('-----BEGIN')
+    ? privateKey.replace(/\\n/g, '\n')
+    : privateKey.replace(/\\n/g, '\n')
+}
+
+function createAppleClientSecret(config: NonNullable<SSOConfig['apple']>): string {
+  const now = Math.floor(Date.now() / 1000)
+
+  return jwt.sign(
+    {
+      iss: config.teamId,
+      iat: now,
+      exp: now + 60 * 60 * 24 * 180,
+      aud: 'https://appleid.apple.com',
+      sub: config.clientId
+    },
+    getApplePrivateKey(config.privateKey),
+    {
+      algorithm: 'ES256',
+      header: {
+        alg: 'ES256',
+        kid: config.keyId
+      }
+    }
+  )
+}
+
+function parseAppleIdentityToken(idToken: string, clientId: string): { sub: string; email?: string; email_verified?: boolean | string; iss?: string; aud?: string | string[]; exp?: number } {
+  const decoded = jwt.decode(idToken)
+
+  if (!decoded || typeof decoded !== 'object') {
+    throw new Error('Invalid Apple identity token')
+  }
+
+  const payload = decoded as Record<string, any>
+  const issuer = payload.iss
+  const audience = payload.aud
+  const expiry = typeof payload.exp === 'number' ? payload.exp : 0
+  const audienceMatches = Array.isArray(audience) ? audience.includes(clientId) : audience === clientId
+
+  if (issuer !== 'https://appleid.apple.com') {
+    throw new Error('Apple identity token issuer mismatch')
+  }
+
+  if (!audienceMatches) {
+    throw new Error('Apple identity token audience mismatch')
+  }
+
+  if (!expiry || expiry * 1000 <= Date.now()) {
+    throw new Error('Apple identity token expired')
+  }
+
+  if (!payload.sub || typeof payload.sub !== 'string') {
+    throw new Error('Apple identity token missing subject')
+  }
+
+  return payload as any
 }
 
 /**
@@ -101,7 +182,7 @@ function generatePKCE(): { codeVerifier: string; codeChallenge: string } {
  * @param config - SSO configuration
  */
 export async function getSSOLoginUrl(
-  provider: 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
+  provider: 'google' | 'microsoft' | 'github' | 'apple' | 'okta' | 'saml',
   oauthRedirectUri: string,
   frontendRedirectUri: string | undefined,
   config: SSOConfig
@@ -136,10 +217,15 @@ export async function getSSOLoginUrl(
     redirect_uri: oauthRedirectUri, // Use backend callback URL for OAuth
     response_type: 'code',
     scope: providerConfig.scopes.join(' '),
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256'
+    state
   })
+
+  if (provider !== 'apple') {
+    params.set('code_challenge', codeChallenge)
+    params.set('code_challenge_method', 'S256')
+  } else {
+    params.set('response_mode', 'form_post')
+  }
 
   let authUrl = providerConfig.authUrl
   if (provider === 'microsoft' && 'tenantId' in providerConfigObj && providerConfigObj.tenantId) {
@@ -155,13 +241,14 @@ export async function getSSOLoginUrl(
  * Exchange OAuth code for access token and get user info
  */
 async function exchangeCodeForToken(
-  provider: 'google' | 'microsoft' | 'github',
+  provider: 'google' | 'microsoft' | 'github' | 'apple',
   code: string,
   redirectUri: string,
   config: SSOConfig,
-  codeVerifier?: string
+  codeVerifier?: string,
+  profileHint?: AppleCallbackUser
 ): Promise<{ accessToken: string; userInfo: any }> {
-  const providerConfig = PROVIDER_CONFIGS[provider]
+  const providerConfig = PROVIDER_CONFIGS[provider] as any
   const providerConfigObj = config[provider as keyof SSOConfig] as any
   
   if (!providerConfigObj || !providerConfigObj.clientId || !providerConfigObj.clientSecret) {
@@ -177,14 +264,19 @@ async function exchangeCodeForToken(
 
   const tokenParams: any = {
     client_id: providerConfigObj.clientId,
-    client_secret: providerConfigObj.clientSecret,
     code,
     redirect_uri: redirectUri,
     grant_type: 'authorization_code'
   }
 
+  if (provider === 'apple') {
+    tokenParams.client_secret = createAppleClientSecret(providerConfigObj)
+  } else {
+    tokenParams.client_secret = providerConfigObj.clientSecret
+  }
+
   // Add PKCE code verifier if available (required for PKCE flow)
-  if (codeVerifier) {
+  if (codeVerifier && provider !== 'apple') {
     tokenParams.code_verifier = codeVerifier
   }
 
@@ -210,8 +302,35 @@ async function exchangeCodeForToken(
   const tokenData = await tokenResponse.json() as any
   const accessToken = tokenData.access_token
 
-  if (!accessToken) {
+  if (!accessToken && provider !== 'apple') {
     throw new Error('No access token received')
+  }
+
+  if (provider === 'apple') {
+    if (!tokenData.id_token) {
+      throw new Error('No Apple identity token received')
+    }
+
+    const appleClaims = parseAppleIdentityToken(tokenData.id_token, providerConfigObj.clientId)
+    const displayName = [profileHint?.name?.firstName, profileHint?.name?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
+
+    const normalizedAppleUser = {
+      email: appleClaims.email || profileHint?.email,
+      name: displayName || (appleClaims.email ? appleClaims.email.split('@')[0] : 'Apple User'),
+      id: appleClaims.sub
+    }
+
+    if (!normalizedAppleUser.email) {
+      throw new Error('Apple did not return an email address for this account')
+    }
+
+    return {
+      accessToken: accessToken || tokenData.id_token,
+      userInfo: normalizedAppleUser
+    }
   }
 
   // Fetch user info
@@ -275,10 +394,16 @@ async function exchangeCodeForToken(
  * Handle SSO callback and create/link user account
  */
 export async function handleSSOCallback(
-  provider: 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
+  provider: 'google' | 'microsoft' | 'github' | 'apple' | 'okta' | 'saml',
   code: string,
   state: string,
-  config: SSOConfig
+  config: SSOConfig,
+  profileHint?: AppleCallbackUser,
+  sessionContext?: {
+    deviceId?: string | null
+    ipAddress?: string
+    userAgent?: string
+  }
 ): Promise<{ user: User; token: string }> {
   // Verify state
   const storedState = oauthStates.get(state)
@@ -304,8 +429,8 @@ export async function handleSSOCallback(
   const codeVerifier = (oauthStates as any).verifiers?.get(state)
 
   // Handle OAuth providers
-  if (provider === 'google' || provider === 'microsoft' || provider === 'github') {
-    const { userInfo } = await exchangeCodeForToken(provider, code, redirectUri, config, codeVerifier)
+  if (provider === 'google' || provider === 'microsoft' || provider === 'github' || provider === 'apple') {
+    const { userInfo } = await exchangeCodeForToken(provider, code, redirectUri, config, codeVerifier, profileHint)
     
     // Check if user exists by email
     let user = await db.users.findByEmail(userInfo.email.toLowerCase().trim())
@@ -329,11 +454,19 @@ export async function handleSSOCallback(
       })
     }
 
+    const session = await createDeviceSession({
+      userId: user.id,
+      deviceId: sessionContext?.deviceId,
+      ipAddress: sessionContext?.ipAddress,
+      userAgent: sessionContext?.userAgent
+    })
+
     // Generate JWT token with tokenVersion
     const token = issueToken({
       id: user.id,
       email: user.email,
-      tokenVersion: (user as any).tokenVersion || 1
+      tokenVersion: (user as any).tokenVersion || 1,
+      sessionId: session.id
     })
 
     // Clean up state and verifier
@@ -374,13 +507,17 @@ export async function handleSSOCallback(
  * Initialize SSO provider configuration
  */
 export async function initializeSSOProvider(
-  provider: 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
+  provider: 'google' | 'microsoft' | 'github' | 'apple' | 'okta' | 'saml',
   config: any
 ): Promise<SSOProvider> {
   // Validate configuration based on provider
   if (provider === 'google' || provider === 'microsoft' || provider === 'github') {
     if (!config.clientId || !config.clientSecret) {
       throw new Error(`${provider} requires clientId and clientSecret`)
+    }
+  } else if (provider === 'apple') {
+    if (!config.clientId || !config.teamId || !config.keyId || !config.privateKey) {
+      throw new Error('apple requires clientId, teamId, keyId, and privateKey')
     }
   } else if (provider === 'saml') {
     if (!config.entityId || !config.ssoUrl || !config.x509Cert) {

@@ -5,6 +5,7 @@
 
 import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth'
+import { requireRegisteredDevice } from '../middleware/deviceAccess'
 import { getUserAuditLogs, exportAuditLogsCSV, getAuditLogStats } from '../services/auditLogService'
 import { z } from 'zod'
 
@@ -19,6 +20,7 @@ const auditQuerySchema = z.object({
     return Math.max(1, parsed)
   }),
   action: z.string().optional(),
+  actions: z.string().optional().transform(val => val ? val.split(',').map(action => action.trim()).filter(Boolean) : undefined),
   startDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().optional().transform(val => val ? new Date(val) : undefined)
 })
@@ -32,7 +34,7 @@ export async function registerAuditRoutes(server: FastifyInstance) {
    * Get audit logs for current user (requires authentication)
    */
   server.get('/api/audit/logs', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user
@@ -93,7 +95,7 @@ export async function registerAuditRoutes(server: FastifyInstance) {
    * Export audit logs as CSV (requires authentication)
    */
   server.get('/api/audit/export', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user
@@ -129,7 +131,7 @@ export async function registerAuditRoutes(server: FastifyInstance) {
    * Get audit log statistics (requires authentication)
    */
   server.get('/api/audit/stats', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user
@@ -156,4 +158,3 @@ export async function registerAuditRoutes(server: FastifyInstance) {
     }
   })
 }
-

@@ -5,10 +5,12 @@
 
 import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth'
+import { requireRegisteredDevice } from '../middleware/deviceAccess'
 import { getPrismaClient } from '../db/prisma'
 import { checkSubscriptionLimits } from '../services/stripeService'
 import { createAuditLog } from '../services/auditLogService'
 import { findUserById } from '../services/userService'
+import { bindSessionToDevice, revokeDeviceSessions } from '../services/deviceSessionService'
 import { z } from 'zod'
 
 type EffectivePlan = 'free' | 'individual' | 'family' | 'teams'
@@ -122,15 +124,38 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
       })
 
       if (existing) {
+        if (existing.requiresReapproval) {
+          createAuditLog({
+            userId: user.id,
+            action: 'device_reapproval_required',
+            resourceType: 'device',
+            resourceId: existing.id,
+            metadata: { deviceId: existing.deviceId, deviceName: existing.name },
+            ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+            userAgent: request.headers['user-agent'] || undefined
+          }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
+
+          return reply.code(403).send({
+            error: 'device_reapproval_required',
+            code: 'DEVICE_REAPPROVAL_REQUIRED',
+            message: 'This device was previously removed and must be re-approved from a trusted device before it can be used again.'
+          })
+        }
+
         // Update last seen
         const updated = await prisma.device.update({
           where: { id: existing.id },
           data: {
             lastSeen: new Date(),
             isActive: true,
-            name: name || existing.name
+            name: name || existing.name,
+            removedAt: null
           }
         })
+
+        if (user.sessionId) {
+          await bindSessionToDevice(user.sessionId, user.id, updated.deviceId)
+        }
 
         return {
           success: true,
@@ -172,9 +197,15 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
           platform,
           lastSeen: new Date(),
           registeredAt: new Date(),
-          isActive: true
+          isActive: true,
+          requiresReapproval: false,
+          removedAt: null
         }
       })
+
+      if (user.sessionId) {
+        await bindSessionToDevice(user.sessionId, user.id, device.deviceId)
+      }
 
       // Log device registration
       createAuditLog({
@@ -213,7 +244,7 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
    * Supports pagination with ?page=1&limit=20
    */
   server.get('/api/devices', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user
@@ -246,6 +277,18 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
         take: limitNum
       })
 
+      const pendingApprovals = await prisma.device.findMany({
+        where: {
+          userId: user.id,
+          isActive: false,
+          requiresReapproval: true
+        },
+        orderBy: {
+          removedAt: 'desc'
+        },
+        take: 20
+      })
+
       // Add pagination headers
       const totalPages = Math.ceil(total / limitNum)
       reply.header('X-Pagination-Page', pageNum.toString())
@@ -262,7 +305,18 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
           name: device.name,
           platform: device.platform,
           lastSeen: device.lastSeen.getTime(),
-          registeredAt: device.registeredAt.getTime()
+          registeredAt: device.registeredAt.getTime(),
+          requiresReapproval: device.requiresReapproval
+        })),
+        pendingApprovals: pendingApprovals.map(device => ({
+          id: device.id,
+          deviceId: device.deviceId,
+          name: device.name,
+          platform: device.platform,
+          lastSeen: device.lastSeen.getTime(),
+          registeredAt: device.registeredAt.getTime(),
+          removedAt: device.removedAt?.getTime() || null,
+          requiresReapproval: device.requiresReapproval
         })),
         pagination: {
           page: pageNum,
@@ -287,7 +341,7 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
    * Remove a device (requires authentication)
    */
   server.delete('/api/devices/:id', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user
@@ -309,13 +363,24 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
         })
       }
 
+      if (device.deviceId === user.sessionDeviceId) {
+        return reply.code(400).send({
+          error: 'cannot_remove_current_device',
+          message: 'You cannot remove the device tied to your current active session. Sign in from another device first if you need to revoke this one.'
+        })
+      }
+
       // Deactivate device (soft delete)
       await prisma.device.update({
         where: { id },
         data: {
-          isActive: false
+          isActive: false,
+          requiresReapproval: true,
+          removedAt: new Date()
         }
       })
+
+      const revokedSessions = await revokeDeviceSessions(user.id, device.deviceId, 'device_removed')
 
       // Log device removal
       createAuditLog({
@@ -323,10 +388,26 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
         action: 'device_removed',
         resourceType: 'device',
         resourceId: device.id,
-        metadata: { deviceName: device.name },
+        metadata: { deviceName: device.name, revokedSessions },
         ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
         userAgent: request.headers['user-agent'] || undefined
       }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
+
+      if (revokedSessions > 0) {
+        createAuditLog({
+          userId: user.id,
+          action: 'session_revoked',
+          resourceType: 'session',
+          resourceId: device.deviceId,
+          metadata: {
+            reason: 'device_removed',
+            revokedSessions,
+            deviceId: device.deviceId
+          },
+          ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+          userAgent: request.headers['user-agent'] || undefined
+        }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
+      }
 
       return {
         success: true,
@@ -346,7 +427,7 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
    * Check device limit for current user (requires authentication)
    */
   server.get('/api/devices/check-limit', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user
@@ -375,6 +456,80 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to check device limit'
+      })
+    }
+  })
+
+  server.post('/api/devices/:id/approve', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const { id } = request.params as { id: string }
+      const prisma = getPrismaClient()
+
+      if (!user.sessionDeviceId) {
+        return reply.code(403).send({
+          error: 'device_access_denied',
+          code: 'CURRENT_SESSION_NOT_TRUSTED',
+          message: 'Approve this device from a currently trusted session.'
+        })
+      }
+
+      const device = await prisma.device.findFirst({
+        where: {
+          id,
+          userId: user.id
+        }
+      })
+
+      if (!device) {
+        return reply.code(404).send({
+          error: 'device_not_found',
+          message: 'Device not found'
+        })
+      }
+
+      if (!device.requiresReapproval) {
+        return {
+          success: true,
+          message: 'Device is already approved'
+        }
+      }
+
+      await prisma.device.update({
+        where: { id: device.id },
+        data: {
+          isActive: true,
+          requiresReapproval: false,
+          removedAt: null,
+          lastSeen: new Date()
+        }
+      })
+
+      createAuditLog({
+        userId: user.id,
+        action: 'device_reapproved',
+        resourceType: 'device',
+        resourceId: device.id,
+        metadata: {
+          approvedFromDeviceId: user.sessionDeviceId,
+          reapprovedDeviceId: device.deviceId,
+          reapprovedDeviceName: device.name
+        },
+        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+        userAgent: request.headers['user-agent'] || undefined
+      }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
+
+      return {
+        success: true,
+        message: 'Device approved successfully'
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to approve device'
       })
     }
   })

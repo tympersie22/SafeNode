@@ -21,6 +21,7 @@ import { createVerificationToken, verifyEmailToken, resendVerificationEmail } fr
 import { createPasswordResetToken, resetPassword } from '../services/passwordResetService'
 import { generateTOTPSecret, verifyTOTP, generateBackupCodes, verifyBackupCode } from '../lib/totp'
 import { createAuditLog } from '../services/auditLogService'
+import { createDeviceSession, getRequestAuditContext, getRequestDeviceId } from '../services/deviceSessionService'
 import { config } from '../config'
 import { User } from '../models/User'
 import { z } from 'zod'
@@ -197,10 +198,17 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       })
 
               // Generate JWT token with tokenVersion
+              const session = await createDeviceSession({
+                userId: verifiedUser.id,
+                deviceId: getRequestDeviceId(request),
+                ...getRequestAuditContext(request)
+              })
+
               const token = issueToken({
                 id: verifiedUser.id,
                 email: verifiedUser.email,
-                tokenVersion: (verifiedUser as any).tokenVersion || 1
+                tokenVersion: (verifiedUser as any).tokenVersion || 1,
+                sessionId: session.id
               })
 
               // Set HTTP-only cookie (optional, controlled by USE_COOKIE_AUTH env var)
@@ -387,10 +395,17 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       // Generate JWT token (no 2FA required) with tokenVersion
+      const session = await createDeviceSession({
+        userId: user.id,
+        deviceId: getRequestDeviceId(request),
+        ...getRequestAuditContext(request)
+      })
+
       const token = issueToken({
         id: user.id,
         email: user.email,
-        tokenVersion: (user as any).tokenVersion || 1
+        tokenVersion: (user as any).tokenVersion || 1,
+        sessionId: session.id
       })
 
       // Set HTTP-only cookie (optional, controlled by USE_COOKIE_AUTH env var)
@@ -740,7 +755,8 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const newToken = issueToken({
         id: userData.id,
         email: userData.email,
-        tokenVersion: (userData as any).tokenVersion || 1
+        tokenVersion: (userData as any).tokenVersion || 1,
+        sessionId: user.sessionId
       })
 
       return {
@@ -819,7 +835,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * POST /api/auth/send-verification
    * Resend email verification (requires authentication)
    */
-  server.post('/api/auth/send-verification', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/auth/send-verification', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       
@@ -896,7 +912,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * POST /api/auth/2fa/setup
    * Generate 2FA secret and QR code (requires authentication)
    */
-  server.post('/api/auth/2fa/setup', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/auth/2fa/setup', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       
@@ -952,7 +968,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * POST /api/auth/2fa/verify
    * Verify 2FA code and enable 2FA (requires authentication)
    */
-  server.post('/api/auth/2fa/verify', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/auth/2fa/verify', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const body = request.body as { code: string }
@@ -1012,7 +1028,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * POST /api/auth/2fa/disable
    * Disable 2FA (requires authentication)
    */
-  server.post('/api/auth/2fa/disable', { preHandler: requireAuth }, async (request, reply) => {
+  server.post('/api/auth/2fa/disable', { preHandler: [requireAuth, requireRegisteredDevice] }, async (request, reply) => {
     try {
       const user = (request as any).user
       const body = request.body as { password: string; code?: string; backupCode?: string }
@@ -1164,10 +1180,17 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       // Generate JWT token
+      const session = await createDeviceSession({
+        userId: user.id,
+        deviceId: getRequestDeviceId(request),
+        ...getRequestAuditContext(request)
+      })
+
       const token = issueToken({
         id: user.id,
         email: user.email,
-        tokenVersion: user.tokenVersion || 1
+        tokenVersion: user.tokenVersion || 1,
+        sessionId: session.id
       })
 
       // Return user data
@@ -1287,7 +1310,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
    * Requires password confirmation for safety
    */
   server.delete('/api/auth/account', {
-    preHandler: requireAuth
+    preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
     try {
       const user = (request as any).user

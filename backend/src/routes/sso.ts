@@ -12,10 +12,11 @@ import {
 } from '../services/ssoService'
 import { z } from 'zod'
 import { config } from '../config'
+import { getRequestAuditContext, getRequestDeviceId } from '../services/deviceSessionService'
 
 // SSO Configuration Schema
 const SSOSetupSchema = z.object({
-  provider: z.enum(['google', 'microsoft', 'github', 'okta', 'saml']),
+  provider: z.enum(['google', 'microsoft', 'github', 'apple', 'okta', 'saml']),
   config: z.record(z.any())
 })
 
@@ -35,6 +36,12 @@ function getSSOConfig(): any {
     github: process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? {
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET
+    } : undefined,
+    apple: process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY ? {
+      clientId: process.env.APPLE_CLIENT_ID,
+      teamId: process.env.APPLE_TEAM_ID,
+      keyId: process.env.APPLE_KEY_ID,
+      privateKey: process.env.APPLE_PRIVATE_KEY
     } : undefined
   }
 }
@@ -43,6 +50,89 @@ function getSSOConfig(): any {
  * Register SSO routes
  */
 export async function registerSSORoutes(server: FastifyInstance) {
+  async function finishOAuthCallback(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    provider: string,
+    params: {
+      code?: string
+      state?: string
+      error?: string
+      error_description?: string
+      user?: string | Record<string, any>
+    }
+  ) {
+    try {
+      const { code, state, error, error_description, user } = params
+
+      if (!['google', 'microsoft', 'github', 'apple', 'okta', 'saml'].includes(provider)) {
+        return reply.code(400).send({
+          error: 'invalid_provider',
+          message: `Provider ${provider} is not supported`
+        })
+      }
+
+      if (error) {
+        return reply.code(400).send({
+          error: 'oauth_error',
+          message: error_description || error || 'OAuth authorization failed'
+        })
+      }
+
+      if (!code || !state) {
+        return reply.code(400).send({
+          error: 'missing_parameters',
+          message: 'code and state are required'
+        })
+      }
+
+      let parsedUser: Record<string, any> | undefined
+      if (provider === 'apple' && user) {
+        try {
+          parsedUser = typeof user === 'string' ? JSON.parse(user) : user
+        } catch {
+          request.log.warn({ provider }, 'Failed to parse Apple user payload from callback')
+        }
+      }
+
+      const ssoConfig = getSSOConfig()
+      const result = await handleSSOCallback(
+        provider as 'google' | 'microsoft' | 'github' | 'apple' | 'okta' | 'saml',
+        code,
+        state,
+        ssoConfig,
+        parsedUser,
+        {
+          deviceId: getRequestDeviceId(request),
+          ...getRequestAuditContext(request)
+        }
+      )
+
+      const { getStoredFrontendRedirectUri } = await import('../services/ssoService')
+      const frontendRedirectUri = getStoredFrontendRedirectUri(state) ||
+        (config.nodeEnv === 'production'
+          ? process.env.FRONTEND_URL || 'https://safe-node.app'
+          : 'http://localhost:5173') + '/auth/sso/callback'
+
+      const redirectUrl = new URL(frontendRedirectUri)
+      redirectUrl.searchParams.set('token', result.token)
+      redirectUrl.searchParams.set('user_id', result.user.id)
+
+      return reply.redirect(redirectUrl.toString())
+    } catch (error: any) {
+      request.log.error(error)
+
+      const frontendUrl = config.nodeEnv === 'production'
+        ? process.env.FRONTEND_URL || 'https://safe-node.app'
+        : 'http://localhost:5173'
+
+      const errorUrl = new URL(`${frontendUrl}/auth/sso/error`)
+      errorUrl.searchParams.set('error', error?.message || 'SSO callback failed')
+
+      return reply.redirect(errorUrl.toString())
+    }
+  }
+
   /**
    * POST /api/sso/setup
    * Setup SSO provider (requires authentication - admin only in production)
@@ -86,10 +176,10 @@ export async function registerSSORoutes(server: FastifyInstance) {
       const { provider } = request.params as { provider: string }
       const { redirect_uri } = request.query as { redirect_uri?: string }
 
-      if (!['google', 'microsoft', 'github', 'okta', 'saml'].includes(provider)) {
+      if (!['google', 'microsoft', 'github', 'apple', 'okta', 'saml'].includes(provider)) {
         return reply.code(400).send({
           error: 'invalid_provider',
-          message: `Provider ${provider} is not supported. Supported: google, microsoft, github, okta, saml`
+          message: `Provider ${provider} is not supported. Supported: google, microsoft, github, apple, okta, saml`
         })
       }
 
@@ -138,7 +228,7 @@ export async function registerSSORoutes(server: FastifyInstance) {
 
       // Pass both: backend callback URL for OAuth, frontend redirect URI for final redirect
       const loginUrl = await getSSOLoginUrl(
-        provider as 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
+        provider as 'google' | 'microsoft' | 'github' | 'apple' | 'okta' | 'saml',
         backendCallbackUrl, // OAuth redirect URI (backend callback)
         redirect_uri, // Frontend redirect URI (stored in state for later)
         ssoConfig
@@ -161,71 +251,29 @@ export async function registerSSORoutes(server: FastifyInstance) {
    * Creates or links user account and returns JWT token
    */
   server.get('/api/sso/callback/:provider', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const { provider } = request.params as { provider: string }
-      const { code, state, error, error_description } = request.query as {
-        code?: string
-        state?: string
-        error?: string
-        error_description?: string
-      }
-
-      if (!['google', 'microsoft', 'github', 'okta', 'saml'].includes(provider)) {
-        return reply.code(400).send({
-          error: 'invalid_provider',
-          message: `Provider ${provider} is not supported`
-        })
-      }
-
-      // Check for OAuth errors
-      if (error) {
-        return reply.code(400).send({
-          error: 'oauth_error',
-          message: error_description || error || 'OAuth authorization failed'
-        })
-      }
-
-      if (!code || !state) {
-        return reply.code(400).send({
-          error: 'missing_parameters',
-          message: 'code and state query parameters are required'
-        })
-      }
-
-      const ssoConfig = getSSOConfig()
-      const result = await handleSSOCallback(
-        provider as 'google' | 'microsoft' | 'github' | 'okta' | 'saml',
-        code,
-        state,
-        ssoConfig
-      )
-
-      // Get frontend redirect URI from state (stored during login initiation)
-      const { getStoredFrontendRedirectUri } = await import('../services/ssoService')
-      const frontendRedirectUri = getStoredFrontendRedirectUri(state) || 
-        (config.nodeEnv === 'production' 
-          ? process.env.FRONTEND_URL || 'https://safe-node.app'
-          : 'http://localhost:5173') + '/auth/sso/callback'
-
-      // Redirect to frontend with token
-      const redirectUrl = new URL(frontendRedirectUri)
-      redirectUrl.searchParams.set('token', result.token)
-      redirectUrl.searchParams.set('user_id', result.user.id)
-
-      return reply.redirect(redirectUrl.toString())
-    } catch (error: any) {
-      request.log.error(error)
-      
-      // Redirect to frontend error page
-      const frontendUrl = config.nodeEnv === 'production'
-        ? process.env.FRONTEND_URL || 'https://safe-node.app'
-        : 'http://localhost:5173'
-      
-      const errorUrl = new URL(`${frontendUrl}/auth/sso/error`)
-      errorUrl.searchParams.set('error', error?.message || 'SSO callback failed')
-
-      return reply.redirect(errorUrl.toString())
+    const { provider } = request.params as { provider: string }
+    const params = request.query as {
+      code?: string
+      state?: string
+      error?: string
+      error_description?: string
+      user?: string
     }
+
+    return finishOAuthCallback(request, reply, provider, params)
+  })
+
+  server.post('/api/sso/callback/:provider', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { provider } = request.params as { provider: string }
+    const params = (request.body || {}) as {
+      code?: string
+      state?: string
+      error?: string
+      error_description?: string
+      user?: string
+    }
+
+    return finishOAuthCallback(request, reply, provider, params)
   })
 
   /**
@@ -259,6 +307,15 @@ export async function registerSSORoutes(server: FastifyInstance) {
         providers.push({
           id: 'github',
           name: 'GitHub',
+          type: 'oauth',
+          enabled: true
+        })
+      }
+
+      if (ssoConfig.apple) {
+        providers.push({
+          id: 'apple',
+          name: 'Apple',
           type: 'oauth',
           enabled: true
         })

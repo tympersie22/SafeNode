@@ -3,6 +3,7 @@
  * Handles 2FA setup and management for account login
  */
 import { API_BASE } from '../config/api'
+import { getCurrentDeviceId } from './deviceService'
 
 export interface TOTPSetup {
   secret: string
@@ -29,7 +30,8 @@ export async function setup2FA(): Promise<TOTPSetup> {
   const response = await fetch(`${API_BASE}/api/auth/2fa/setup`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     }
   })
 
@@ -56,7 +58,8 @@ export async function verify2FACode(code: string): Promise<Verify2FAResult> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     },
     body: JSON.stringify({ code })
   })
@@ -87,7 +90,8 @@ export async function disable2FA(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     },
     body: JSON.stringify({
       password,
@@ -117,7 +121,8 @@ export async function resendEmailVerification(): Promise<void> {
   const response = await fetch(`${API_BASE}/api/auth/send-verification`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     }
   })
 

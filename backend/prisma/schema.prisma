@@ -53,6 +53,7 @@ model User {
   subscriptions Subscription[]
   webAuthnCredentials WebAuthnCredential[]
   webAuthnChallenges WebAuthnChallenge[]
+  deviceSessions DeviceSession[]
   
   @@index([email])
   @@index([subscriptionTier])
@@ -105,6 +106,8 @@ model Device {
   lastSeen DateTime @default(now()) @map("last_seen")
   registeredAt DateTime @default(now()) @map("registered_at")
   isActive Boolean @default(true) @map("is_active")
+  requiresReapproval Boolean @default(false) @map("requires_reapproval")
+  removedAt DateTime? @map("removed_at")
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
@@ -113,6 +116,30 @@ model Device {
   @@index([userId, isActive])
   @@index([lastSeen])
   @@map("devices")
+}
+
+model DeviceSession {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  deviceId String? @map("device_id")
+  status String @default("active") // active | revoked | replaced
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  revokedAt DateTime? @map("revoked_at")
+  revokedReason String? @map("revoked_reason")
+  replacedBySessionId String? @map("replaced_by_session_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, deviceId, status])
+  @@index([deviceId, status])
+  @@index([lastSeenAt])
+  @@map("device_sessions")
 }
 
 // Team Model

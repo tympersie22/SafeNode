@@ -11,12 +11,19 @@ export interface Device {
   platform: 'web' | 'desktop' | 'mobile'
   lastSeen: number
   registeredAt: number
+  requiresReapproval?: boolean
+  removedAt?: number | null
 }
 
 export interface RegisterDeviceInput {
   deviceId: string
   name: string
   platform: 'web' | 'desktop' | 'mobile'
+}
+
+export interface DevicesOverview {
+  devices: Device[]
+  pendingApprovals: Device[]
 }
 
 let currentDeviceRegistrationPromise: Promise<Device> | null = null
@@ -113,7 +120,8 @@ export async function registerDevice(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': deviceData.deviceId
     },
     body: JSON.stringify(deviceData)
   })
@@ -154,7 +162,7 @@ export function isCurrentDeviceRegistered(userId?: string): boolean {
 /**
  * Get all devices for current user
  */
-export async function getDevices(): Promise<Device[]> {
+export async function getDevices(): Promise<DevicesOverview> {
   const token = localStorage.getItem('safenode_token')
   
   if (!token) {
@@ -163,7 +171,8 @@ export async function getDevices(): Promise<Device[]> {
 
   const response = await fetch(`${API_BASE}/api/devices`, {
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     }
   })
 
@@ -173,7 +182,10 @@ export async function getDevices(): Promise<Device[]> {
   }
 
   const data = await response.json()
-  return data.devices
+  return {
+    devices: data.devices || [],
+    pendingApprovals: data.pendingApprovals || []
+  }
 }
 
 /**
@@ -194,7 +206,8 @@ export async function checkDeviceLimit(): Promise<{
 
   const response = await fetch(`${API_BASE}/api/devices/check-limit`, {
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     }
   })
 
@@ -219,12 +232,34 @@ export async function removeDevice(deviceId: string): Promise<void> {
   const response = await fetch(`${API_BASE}/api/devices/${deviceId}`, {
     method: 'DELETE',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
     }
   })
 
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.message || 'Failed to remove device')
+  }
+}
+
+export async function approveDevice(deviceId: string): Promise<void> {
+  const token = localStorage.getItem('safenode_token')
+
+  if (!token) {
+    throw new Error('Not authenticated')
+  }
+
+  const response = await fetch(`${API_BASE}/api/devices/${deviceId}/approve`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-Device-ID': getCurrentDeviceId()
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to approve device')
   }
 }

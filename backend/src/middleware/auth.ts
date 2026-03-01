@@ -17,6 +17,7 @@ export interface JWTPayload {
   userId: string
   email: string
   tokenVersion?: number // Token version for invalidation
+  sessionId?: string
   iat?: number
   exp?: number
 }
@@ -26,11 +27,12 @@ export interface JWTPayload {
  * @param user - User object with id, email, and optional tokenVersion
  * @returns JWT token string
  */
-export function issueToken(user: { id: string; email: string; tokenVersion?: number }): string {
+export function issueToken(user: { id: string; email: string; tokenVersion?: number; sessionId?: string }): string {
   const payload: JWTPayload = {
     userId: user.id,
     email: user.email,
-    tokenVersion: user.tokenVersion || 1
+    tokenVersion: user.tokenVersion || 1,
+    sessionId: user.sessionId
   }
   
   // Token expires in 24 hours (configurable via JWT_EXPIRES_IN env var)
@@ -108,6 +110,7 @@ export async function requireAuth(
     
     // Verify user exists and check token version
     const { db } = await import('../services/database')
+    const { getActiveSession, touchDeviceSession } = await import('../services/deviceSessionService')
     
     // For new users, there can be propagation delay in serverless + managed DB setups.
     // Retry with exponential backoff to reduce false USER_NOT_FOUND responses.
@@ -157,11 +160,32 @@ export async function requireAuth(
         message: 'Token has been invalidated. Please log in again.'
       })
     }
+
+    if (!payload.sessionId) {
+      return reply.code(401).send({
+        error: 'unauthorized',
+        code: 'SESSION_REQUIRED',
+        message: 'Your session is outdated. Please sign in again.'
+      })
+    }
+
+    const session = await getActiveSession(payload.sessionId)
+    if (!session || session.userId !== user.id) {
+      return reply.code(401).send({
+        error: 'unauthorized',
+        code: 'SESSION_INVALIDATED',
+        message: 'This session is no longer active. Please sign in again.'
+      })
+    }
+
+    void touchDeviceSession(session.id)
     
     // Attach user info to request for use in handlers
     ;(request as any).user = {
       id: user.id,
-      email: user.email
+      email: user.email,
+      sessionId: session.id,
+      sessionDeviceId: session.deviceId
     }
     
     request.log.debug({ userId: user.id, path: request.url }, 'Authentication successful')

@@ -4,6 +4,7 @@
  */
 
 import { setUser as setSentryUser, clearUser as clearSentryUser, captureException } from './sentryService'
+import { getCurrentDeviceId } from './deviceService'
 
 export interface User {
   id: string
@@ -92,7 +93,8 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
       response = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Device-ID': getCurrentDeviceId()
       },
       credentials: 'include',
       body: JSON.stringify(credentials),
@@ -173,7 +175,8 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': getAuthHeader() || '' // Include existing token if available
+          'Authorization': getAuthHeader() || '', // Include existing token if available
+          'X-Device-ID': getCurrentDeviceId()
         },
         credentials: 'include',
         body: JSON.stringify(credentials),

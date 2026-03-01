@@ -14,17 +14,22 @@ import {
   Device,
   generateDeviceId,
   detectPlatform,
-  registerCurrentDevice
+  registerCurrentDevice,
+  approveDevice
 } from '../../services/deviceService'
 import { getCurrentUser } from '../../services/authService'
 import { checkResourceLimit } from '../../services/billingService'
+import { getAuditLogs, type RemoteAuditLog } from '../../services/auditService'
 
 export const DevicesSettings: React.FC = () => {
   const navigate = useNavigate()
   const [devices, setDevices] = useState<Device[]>([])
+  const [pendingApprovals, setPendingApprovals] = useState<Device[]>([])
+  const [securityEvents, setSecurityEvents] = useState<RemoteAuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
   const [limits, setLimits] = useState<{ current: number; limit: number } | null>(null)
   const [userPlan, setUserPlan] = useState<string>('free')
 
@@ -40,19 +45,32 @@ export const DevicesSettings: React.FC = () => {
         await registerCurrentDevice(user.id).catch(() => undefined)
       }
     } finally {
-      await Promise.all([loadDevices(), loadLimits()])
+      await Promise.all([loadDevices(), loadLimits(), loadSecurityEvents()])
     }
   }
 
   const loadDevices = async () => {
     try {
       setLoading(true)
-      const deviceList = await getDevices()
-      setDevices(deviceList)
+      const overview = await getDevices()
+      setDevices(overview.devices)
+      setPendingApprovals(overview.pendingApprovals)
     } catch (err: any) {
       setError(err.message || 'Failed to load devices')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadSecurityEvents = async () => {
+    try {
+      const logs = await getAuditLogs({
+        actions: ['device_access_denied', 'device_reapproval_required', 'device_reapproved', 'session_replaced', 'session_revoked'],
+        limit: 10
+      })
+      setSecurityEvents(logs)
+    } catch (err) {
+      console.error('Failed to load security events:', err)
     }
   }
 
@@ -75,12 +93,25 @@ export const DevicesSettings: React.FC = () => {
 
     try {
       await removeDevice(deviceId)
-      await loadDevices()
-      await loadLimits()
+      await Promise.all([loadDevices(), loadLimits(), loadSecurityEvents()])
     } catch (err: any) {
       setError(err.message || 'Failed to remove device')
     } finally {
       setRemovingId(null)
+    }
+  }
+
+  const handleApproveDevice = async (deviceId: string) => {
+    setApprovingId(deviceId)
+    setError(null)
+
+    try {
+      await approveDevice(deviceId)
+      await Promise.all([loadDevices(), loadSecurityEvents()])
+    } catch (err: any) {
+      setError(err.message || 'Failed to approve device')
+    } finally {
+      setApprovingId(null)
     }
   }
 
@@ -110,6 +141,23 @@ export const DevicesSettings: React.FC = () => {
     if (diffHours < 24) return `${diffHours}h ago`
     if (diffDays < 7) return `${diffDays}d ago`
     return date.toLocaleDateString()
+  }
+
+  const formatSecurityAction = (action: string) => {
+    switch (action) {
+      case 'device_access_denied':
+        return 'Vault access blocked'
+      case 'device_reapproval_required':
+        return 'Re-approval required'
+      case 'device_reapproved':
+        return 'Device re-approved'
+      case 'session_replaced':
+        return 'Older session ended'
+      case 'session_revoked':
+        return 'Session revoked'
+      default:
+        return action.replace(/_/g, ' ')
+    }
   }
 
   const isCurrentDevice = (device: Device) => {
@@ -196,6 +244,39 @@ export const DevicesSettings: React.FC = () => {
       )}
 
       {/* Devices List */}
+      {pendingApprovals.length > 0 && (
+        <SaasCard>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Pending Device Re-approval</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                Removed devices stay blocked until you explicitly re-approve them from a trusted session.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
+            {pendingApprovals.map((device) => (
+              <div key={device.id} className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-900/10">
+                <div>
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{device.name}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {device.platform} • Removed {device.removedAt ? formatDate(device.removedAt) : 'recently'}
+                  </p>
+                </div>
+                <SaasButton
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleApproveDevice(device.id)}
+                  isLoading={approvingId === device.id}
+                >
+                  Approve Again
+                </SaasButton>
+              </div>
+            ))}
+          </div>
+        </SaasCard>
+      )}
+
       {loading ? (
         <SaasCard>
           <div className="text-center py-8">
@@ -260,6 +341,36 @@ export const DevicesSettings: React.FC = () => {
           </AnimatePresence>
         </div>
       )}
+
+      <SaasCard>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Device Security Events</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              Device access denials, forced sign-outs, and re-approval events from the server audit log.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          {securityEvents.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">No recent device security events.</p>
+          ) : (
+            securityEvents.map((event) => (
+              <div key={event.id} className="rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{formatSecurityAction(event.action)}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      {event.metadata?.message || event.metadata?.deviceName || event.metadata?.deviceId || 'Security policy event'}
+                    </p>
+                  </div>
+                  <span className="text-xs text-slate-500 dark:text-slate-500">{formatDate(event.createdAt)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </SaasCard>
     </div>
   )
 }
