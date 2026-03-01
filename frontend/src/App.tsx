@@ -730,6 +730,9 @@ const App: React.FC = () => {
         if (operation === 'UPDATE' && entryId) {
           return apiPut(`/api/vault/entry/${entryId}`, payload, { requireAuth: true });
         }
+        if (operation === 'UPDATE') {
+          return apiPost('/api/vault/save', payload, { requireAuth: true });
+        }
         if (operation === 'DELETE' && entryId) {
           return apiDelete(`/api/vault/entry/${entryId}`, { requireAuth: true });
         }

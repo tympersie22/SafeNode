@@ -4,6 +4,7 @@
  */
 
 import Fastify from 'fastify'
+import { parse as parseQueryString } from 'node:querystring'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
@@ -44,6 +45,19 @@ export async function createApp() {
     }
   })
 
+  server.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (request, body, done) => {
+      try {
+        const raw = typeof body === 'string' ? body : body.toString('utf8')
+        done(null, parseQueryString(raw))
+      } catch (error) {
+        done(error as Error)
+      }
+    }
+  )
+
   // Register CORS
   await server.register(cors, {
     origin: config.corsOrigin,
@@ -51,10 +65,13 @@ export async function createApp() {
     credentials: true
   })
 
-  // Register compression (gzip)
-  await server.register(compress, {
-    encodings: ['gzip', 'deflate']
-  })
+  // Vercel handles response compression at the edge. Enabling Fastify compression
+  // inside the inject()-based serverless adapter can corrupt encoded responses.
+  if (!process.env.VERCEL) {
+    await server.register(compress, {
+      encodings: ['gzip', 'deflate']
+    })
+  }
 
   // Register raw body support for Stripe webhook signature verification
   await server.register(rawBody, {
