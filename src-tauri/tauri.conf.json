@@ -4,7 +4,7 @@
     "beforeBuildCommand": "bash src-tauri/scripts/build-frontend.sh",
     "devPath": "http://localhost:5173",
     "distDir": "../frontend/dist",
-    "withGlobalTauri": false
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "SafeNode",

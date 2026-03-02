@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import App from './App'
 import PricingPage from './pages/marketing/Pricing'
@@ -34,9 +34,15 @@ import { RefundPolicyPage } from './pages/marketing/RefundPolicy'
  * The main App component handles its own internal routing (home/auth/vault)
  */
 export const AppRouter: React.FC = () => {
+  const RouterComponent =
+    typeof window !== 'undefined' &&
+    ((window as any).__TAURI__ || !/^https?:$/.test(window.location.protocol))
+      ? HashRouter
+      : BrowserRouter
+
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <RouterComponent>
         <Routes>
           {/* Marketing Pages - accessible without authentication */}
           <Route path="/pricing" element={<PricingPage />} />
@@ -82,7 +88,7 @@ export const AppRouter: React.FC = () => {
           {/* Main App - handles home/auth/vault routing internally */}
           <Route path="/*" element={<App />} />
         </Routes>
-      </BrowserRouter>
+      </RouterComponent>
     </AuthProvider>
   )
 }
