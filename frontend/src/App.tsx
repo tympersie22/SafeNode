@@ -1032,7 +1032,6 @@ const App: React.FC = () => {
         ),
         menuItems: [
           { label: 'Open settings', onClick: () => navigate('/settings') },
-          { label: 'Account & security', onClick: () => navigate('/settings') },
           { label: 'Passkeys', onClick: () => setIsPasskeysOpen(true) },
           { label: 'Audit trail', onClick: () => setIsAuditLogsOpen(true) },
           { label: 'Lock vault', onClick: handleLock },
@@ -1203,14 +1202,28 @@ const App: React.FC = () => {
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
             className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+            aria-describedby="logout-confirm-description"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-xl flex items-center justify-center">
                 <Logout className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Confirm Logout</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Are you sure you want to log out?</p>
+                <h3
+                  id="logout-confirm-title"
+                  className="text-lg font-semibold text-slate-900 dark:text-slate-100"
+                >
+                  Confirm Logout
+                </h3>
+                <p
+                  id="logout-confirm-description"
+                  className="text-sm text-slate-500 dark:text-slate-400"
+                >
+                  Are you sure you want to log out?
+                </p>
               </div>
             </div>
             
@@ -1617,6 +1630,7 @@ const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="entry-detail-title"
+            aria-describedby="entry-detail-description"
           >
           <motion.div 
               className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 max-w-lg w-full max-h-[85vh] shadow-xl overflow-hidden flex flex-col"
@@ -1645,8 +1659,11 @@ const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
                       >
                         {entry.name}
                       </h2>
-              {entry.category && (
-                        <span className="text-xs text-white/80">
+                      {entry.category && (
+                        <span
+                          id="entry-detail-description"
+                          className="text-xs text-white/80"
+                        >
                   {entry.category}
                 </span>
               )}

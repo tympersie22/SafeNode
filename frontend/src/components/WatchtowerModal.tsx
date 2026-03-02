@@ -114,6 +114,7 @@ const WatchtowerModal: React.FC<WatchtowerModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="watchtower-title"
+            aria-describedby="watchtower-description"
           >
             <div className="bg-white rounded-2xl border border-slate-200 max-w-4xl w-full shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
@@ -131,7 +132,7 @@ const WatchtowerModal: React.FC<WatchtowerModalProps> = ({
                       </div>
                       <div>
                         <h3 id="watchtower-title" className="text-lg font-semibold text-slate-900">Watchtower</h3>
-                        <p className="text-xs text-slate-500">Security monitoring & breach detection</p>
+                        <p id="watchtower-description" className="text-xs text-slate-500">Security monitoring and breach detection for stored vault credentials.</p>
                       </div>
                     </div>
                   </div>
@@ -293,4 +294,3 @@ const WatchtowerModal: React.FC<WatchtowerModalProps> = ({
 };
 
 export default WatchtowerModal;
-

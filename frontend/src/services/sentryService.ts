@@ -13,6 +13,7 @@
 
 // Direct import - Vite will resolve these at build time
 import * as Sentry from '@sentry/react'
+import { devLog } from '../utils/debug'
 // Note: BrowserTracing removed due to version mismatch
 // Performance monitoring can be added later when packages are aligned
 
@@ -110,7 +111,7 @@ export function initSentry(): void {
     })
 
     isInitialized = true
-    console.log('✅ Sentry initialized for frontend')
+    devLog('Sentry initialized for frontend')
   } catch (error) {
     console.error('❌ Failed to initialize Sentry:', error)
     // Continue without Sentry - app should still work

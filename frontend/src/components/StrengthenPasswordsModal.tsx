@@ -167,6 +167,7 @@ const StrengthenPasswordsModal: React.FC<StrengthenPasswordsModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="strengthen-passwords-title"
+            aria-describedby="strengthen-passwords-description"
           >
             <div 
               className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full max-h-[85vh] shadow-xl overflow-hidden"
@@ -184,7 +185,7 @@ const StrengthenPasswordsModal: React.FC<StrengthenPasswordsModalProps> = ({
                     <h2 id="strengthen-passwords-title" className="text-lg font-semibold text-slate-900 dark:text-white">
                       Strengthen Weak Passwords
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p id="strengthen-passwords-description" className="text-xs text-slate-500 dark:text-slate-400">
                       {weakEntries.length} password{weakEntries.length !== 1 ? 's' : ''} need attention
                     </p>
                   </div>

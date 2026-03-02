@@ -106,6 +106,7 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="passkeys-title"
+            aria-describedby="passkeys-description"
           >
             <div className="bg-white rounded-2xl border border-slate-200 max-w-xl w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -121,7 +122,7 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
               </div>
 
               <div className="px-6 py-4 space-y-4">
-                <p className="text-sm text-slate-600">
+                <p id="passkeys-description" className="text-sm text-slate-600">
                   Register passkeys to unlock your SafeNode vault with Face ID, Touch ID, or Windows Hello.
                   Passkeys are synced securely with your vault.
                 </p>
@@ -174,4 +175,3 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
 };
 
 export default PasskeysModal;
-

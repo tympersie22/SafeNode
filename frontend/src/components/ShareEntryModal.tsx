@@ -126,6 +126,7 @@ const ShareEntryModal: React.FC<ShareEntryModalProps> = ({ isOpen, onClose, entr
             role="dialog"
             aria-modal="true"
             aria-labelledby="share-entry-title"
+            aria-describedby="share-entry-description"
           >
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200 max-w-2xl w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -141,6 +142,9 @@ const ShareEntryModal: React.FC<ShareEntryModalProps> = ({ isOpen, onClose, entr
         </div>
 
         <div className="p-6 space-y-4">
+          <p id="share-entry-description" className="text-sm text-slate-600">
+            Encrypt this credential for another SafeNode user using their public sharing key and your chosen role.
+          </p>
           <div>
             <div className="text-sm font-medium text-slate-700 mb-2">Recipient Public Key (JWK JSON)</div>
             <textarea
@@ -226,5 +230,4 @@ const ShareEntryModal: React.FC<ShareEntryModalProps> = ({ isOpen, onClose, entr
 }
 
 export default ShareEntryModal
-
 

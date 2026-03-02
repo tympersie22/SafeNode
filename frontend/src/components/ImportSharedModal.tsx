@@ -84,6 +84,7 @@ const ImportSharedModal: React.FC<ImportSharedModalProps> = ({ isOpen, onClose, 
             role="dialog"
             aria-modal="true"
             aria-labelledby="import-shared-title"
+            aria-describedby="import-shared-description"
           >
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200 max-w-2xl w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -99,6 +100,9 @@ const ImportSharedModal: React.FC<ImportSharedModalProps> = ({ isOpen, onClose, 
         </div>
 
         <div className="p-6 space-y-4">
+          <p id="import-shared-description" className="text-sm text-slate-600">
+            Import a shared SafeNode credential envelope using your previously generated sharing keys.
+          </p>
           <div>
             <div className="text-sm font-medium text-slate-700 mb-2">Encrypted Envelope (JSON)</div>
             <textarea
@@ -142,5 +146,4 @@ const ImportSharedModal: React.FC<ImportSharedModalProps> = ({ isOpen, onClose, 
 }
 
 export default ImportSharedModal
-
 

@@ -369,6 +369,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="entry-form-title"
+            aria-describedby="entry-form-description"
           >
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] shadow-2xl overflow-hidden mx-1 sm:mx-4" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
@@ -388,7 +389,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         <h2 id="entry-form-title" className="text-lg font-semibold text-slate-900">
                           {entry ? 'Edit Entry' : 'Add New Entry'}
                         </h2>
-                        <p className="text-xs text-slate-500">
+                        <p id="entry-form-description" className="text-xs text-slate-500">
                           {entry ? 'Update your password entry' : 'Create a new password entry'}
                         </p>
                       </div>

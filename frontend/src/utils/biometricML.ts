@@ -15,13 +15,15 @@
 
 // Optional TensorFlow.js import - gracefully falls back if not available
 let tf: any = null;
+const env = (import.meta as any).env || {};
+const isDev = env.DEV || env.MODE === 'development' || env.NODE_ENV === 'development';
 try {
   // Dynamic import to allow graceful degradation
   import('@tensorflow/tfjs').then(module => {
     tf = module;
-    console.log('TensorFlow.js loaded successfully');
+    if (isDev) console.log('TensorFlow.js loaded successfully');
   }).catch(() => {
-    console.warn('TensorFlow.js not available - using heuristic fallbacks');
+    if (isDev) console.warn('TensorFlow.js not available - using heuristic fallbacks');
   });
 } catch {
   // TensorFlow.js not available - will use fallback methods
@@ -99,13 +101,13 @@ class BiometricMLService {
             
             if (this.livenessModel || this.spoofingModel) {
               this.useTensorFlow = true;
-              console.log('TensorFlow.js models loaded successfully');
+              if (isDev) console.log('TensorFlow.js models loaded successfully');
             }
           } catch (modelError) {
-            console.warn('ML models not found - using heuristic fallbacks:', modelError);
+            if (isDev) console.warn('ML models not found - using heuristic fallbacks:', modelError);
           }
         } catch (tfError) {
-          console.warn('TensorFlow.js not available - using heuristic fallbacks');
+          if (isDev) console.warn('TensorFlow.js not available - using heuristic fallbacks');
         }
       }
       
@@ -113,7 +115,7 @@ class BiometricMLService {
       await this.loadBehavioralProfiles();
       
       this.isInitialized = true;
-      console.log('Biometric ML service initialized', {
+      if (isDev) console.log('Biometric ML service initialized', {
         tensorflow: this.useTensorFlow,
         livenessModel: !!this.livenessModel,
         spoofingModel: !!this.spoofingModel
@@ -158,7 +160,7 @@ class BiometricMLService {
         const livenessScore = Array.isArray(scores) ? scores[1] || scores[0] : 0.5;
         return Math.max(0, Math.min(1, livenessScore));
       } catch (error) {
-        console.warn('TensorFlow.js liveness detection failed, using fallback:', error);
+        if (isDev) console.warn('TensorFlow.js liveness detection failed, using fallback:', error);
         // Fall through to heuristic method
       }
     }
@@ -204,7 +206,7 @@ class BiometricMLService {
         
         return Math.max(0, Math.min(1, spoofingRisk));
       } catch (error) {
-        console.warn('TensorFlow.js spoofing detection failed, using fallback:', error);
+        if (isDev) console.warn('TensorFlow.js spoofing detection failed, using fallback:', error);
         // Fall through to heuristic method
       }
     }
@@ -627,4 +629,3 @@ class BiometricMLService {
 }
 
 export const biometricMLService = new BiometricMLService();
-

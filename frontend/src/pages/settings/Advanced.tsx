@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
 import { Code, FileText, Settings } from 'lucide-react'
+import { devLog } from '../../utils/debug'
 
 export const AdvancedSettings: React.FC = () => {
   const [developerMode, setDeveloperMode] = useState(false)
@@ -23,11 +24,7 @@ export const AdvancedSettings: React.FC = () => {
     setDeveloperMode(newValue)
     localStorage.setItem('safenode_developer_mode', newValue.toString())
     
-    if (newValue) {
-      console.log('Developer mode enabled')
-    } else {
-      console.log('Developer mode disabled')
-    }
+    devLog(`Developer mode ${newValue ? 'enabled' : 'disabled'}`)
   }
 
   const handleExportLogs = () => {

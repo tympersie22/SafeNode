@@ -13,6 +13,7 @@ import Logo from './Logo';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import { devLog, devWarn } from '../utils/debug';
 
 interface VaultData {
   entries: Array<{
@@ -92,7 +93,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
 
       // Log ML analysis results if available
       if (result.mlResult) {
-        console.log('ML Analysis:', {
+        devLog('ML Analysis:', {
           confidence: result.mlResult.confidence,
           livenessScore: result.mlResult.livenessScore,
           spoofingRisk: result.mlResult.spoofingRisk,
@@ -122,17 +123,17 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
   };
 
   const performUnlock = async (passwordToUse: string, pinToUse: string | null) => {
-    console.log('[UnlockVault] performUnlock called');
+    devLog('[UnlockVault] performUnlock called');
     
     // Initialize storage
     await vaultStorage.init();
-    console.log('[UnlockVault] Storage initialized');
+    devLog('[UnlockVault] Storage initialized');
 
     // Step 1: Try to sync vault (will use local if offline)
     setSyncStatus('syncing');
-    console.log('[UnlockVault] Attempting to sync vault...');
+    devLog('[UnlockVault] Attempting to sync vault...');
     const syncResult = await vaultSync.syncVault();
-    console.log('[UnlockVault] Sync result:', { success: syncResult.success, hasVault: !!syncResult.vault, error: syncResult.error });
+    devLog('[UnlockVault] Sync result:', { success: syncResult.success, hasVault: !!syncResult.vault, error: syncResult.error });
     
     let storedVault = syncResult.vault;
     let vault: VaultData;
@@ -141,7 +142,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
 
     // If no vault exists (new user), create an empty one
     if (!syncResult.success || !storedVault) {
-      console.log('[UnlockVault] No vault found, creating new empty vault...');
+      devLog('[UnlockVault] No vault found, creating new empty vault...');
       isNewVault = true;
       
       // Get or create salt
@@ -168,7 +169,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
           saltBuffer = crypto.getRandomValues(new Uint8Array(32)).buffer;
         }
       } catch (error) {
-        console.warn('[UnlockVault] Failed to fetch salt, generating locally:', error);
+        devWarn('[UnlockVault] Failed to fetch salt, generating locally:', error);
         saltBuffer = crypto.getRandomValues(new Uint8Array(32)).buffer;
       }
 
@@ -187,7 +188,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
       );
 
       await vaultStorage.storeVault(storedVault);
-      console.log('[UnlockVault] New empty vault created and stored');
+      devLog('[UnlockVault] New empty vault created and stored');
     } else {
       // Existing vault - need to decrypt it
       // Update sync status based on result
@@ -263,48 +264,48 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
     } catch {}
 
     // Pass vault, password, and salt to parent
-    console.log('[UnlockVault] Calling onVaultUnlocked with vault:', vault);
+    devLog('[UnlockVault] Calling onVaultUnlocked with vault:', vault);
     onVaultUnlocked(vault, passwordToUse, saltBuffer);
-    console.log('[UnlockVault] onVaultUnlocked called successfully');
+    devLog('[UnlockVault] onVaultUnlocked called successfully');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[UnlockVault] Form submitted!', { unlockMode, hasPassword: !!password, hasPin: !!pin });
+    devLog('[UnlockVault] Form submitted!', { unlockMode, hasPassword: !!password, hasPin: !!pin });
     
     // Validate inputs based on unlock mode
     if (unlockMode === 'both') {
       if (!password.trim() || !pin.trim()) {
-        console.log('[UnlockVault] Validation failed: missing password or PIN');
+        devLog('[UnlockVault] Validation failed: missing password or PIN');
         setError('Please enter both master password and PIN');
         return;
       }
     } else if (unlockMode === 'pin') {
       if (!pin.trim()) {
-        console.log('[UnlockVault] Validation failed: missing PIN');
+        devLog('[UnlockVault] Validation failed: missing PIN');
         setError('Please enter your PIN');
         return;
       }
     } else if (unlockMode === 'biometric') {
-      console.log('[UnlockVault] Using biometric unlock');
+      devLog('[UnlockVault] Using biometric unlock');
       await handleBiometricUnlock();
       return;
     } else {
       if (!password.trim()) {
-        console.log('[UnlockVault] Validation failed: missing password');
+        devLog('[UnlockVault] Validation failed: missing password');
         setError('Please enter your master password');
         return;
       }
     }
 
-    console.log('[UnlockVault] Validation passed, starting unlock...');
+    devLog('[UnlockVault] Validation passed, starting unlock...');
     setIsLoading(true);
     setError(null);
 
     try {
-      console.log('[UnlockVault] Starting unlock process...');
+      devLog('[UnlockVault] Starting unlock process...');
       await performUnlock(password, unlockMode === 'pin' || unlockMode === 'both' ? pin : null);
-      console.log('[UnlockVault] Unlock process completed successfully');
+      devLog('[UnlockVault] Unlock process completed successfully');
     } catch (err) {
       console.error('[UnlockVault] Unlock failed:', err);
       if (err instanceof Error) {
@@ -461,12 +462,12 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
                     label="Master Password"
                     value={password}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      console.log('[UnlockVault] Password changed, length:', e.target.value.length);
+                      devLog('[UnlockVault] Password changed, length:', e.target.value.length);
                       setPassword(e.target.value);
                     }}
                     onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                       if (e.key === 'Enter') {
-                        console.log('[UnlockVault] Enter key pressed in password field');
+                        devLog('[UnlockVault] Enter key pressed in password field');
                         e.preventDefault();
                         handleSubmit(e as any);
                       }
@@ -567,7 +568,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
               <Button
                 type="submit"
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                  console.log('[UnlockVault] Submit button clicked!', { password: password ? '***' : '', unlockMode });
+                  devLog('[UnlockVault] Submit button clicked!', { password: password ? '***' : '', unlockMode });
                 }}
                 disabled={isLoading || (unlockMode === 'password' && !password.trim()) || (unlockMode === 'both' && (!password.trim() || !pin.trim()))}
                 variant="primary"

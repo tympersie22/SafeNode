@@ -15,6 +15,7 @@ import { API_BASE } from '../config/api'
 import { listPasskeys, authenticateWithPasskey } from '../api/passkeys'
 import { keychainService } from '../utils/keychain'
 import { getCurrentDeviceHeaders } from '../services/deviceService'
+import { devLog, devWarn } from '../utils/debug'
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -81,7 +82,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
         const hasStoredPassword = await keychainService.get('safenode', 'master_password')
         setBiometricEnabled(enabled && caps.available && !!hasStoredPassword)
       } catch (error) {
-        console.warn('Biometric check failed:', error)
+        devWarn('Biometric check failed:', error)
         setBiometricAvailable(false)
         setBiometricEnabled(false)
       }
@@ -106,7 +107,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
         setPasskeyAvailable(true)
         setPasskeyEnabled(Boolean(storedPassword) && passkeys.length > 0)
       } catch (error) {
-        console.warn('Passkey check failed:', error)
+        devWarn('Passkey check failed:', error)
         setPasskeyAvailable(true)
         setPasskeyEnabled(false)
       }
@@ -360,14 +361,14 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                console.log('[UnlockVault] Set Up Master Password button clicked')
+                devLog('[UnlockVault] Set Up Master Password button clicked')
                 
                 // Trigger master password setup via callback
                 if (onSetupMasterPassword) {
-                  console.log('[UnlockVault] Calling onSetupMasterPassword callback')
+                  devLog('[UnlockVault] Calling onSetupMasterPassword callback')
                   onSetupMasterPassword()
                 } else {
-                  console.warn('[UnlockVault] onSetupMasterPassword callback not provided')
+                  devWarn('[UnlockVault] onSetupMasterPassword callback not provided')
                   // NO NAVIGATION - callback should be provided
                 }
               }}

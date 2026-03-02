@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { getPasswordBreachCount } from '../crypto/crypto'
 import { aiService, type AIRecommendation } from '../services/aiService'
+import { devLog } from '../utils/debug'
 
 export interface AdvisorEntry {
   id: string
@@ -330,8 +331,7 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({
                             } else if (rec.action === 'Rotate old passwords' && onRotateOldPasswords) {
                               onRotateOldPasswords();
                             } else {
-                              // Fallback: show notification
-                              console.log('Action clicked:', rec.action);
+                              devLog('SecurityAdvisor action clicked:', rec.action)
                             }
                           }}
                           className={`mt-2 inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
@@ -447,5 +447,4 @@ const SecurityAdvisor: React.FC<SecurityAdvisorProps> = ({
 }
 
 export default SecurityAdvisor
-
 

@@ -5,6 +5,7 @@
 
 import { setUser as setSentryUser, clearUser as clearSentryUser, captureException } from './sentryService'
 import { getCurrentDeviceId } from './deviceService'
+import { devLog, devWarn } from '../utils/debug'
 
 export interface User {
   id: string
@@ -79,7 +80,7 @@ export function getAuthHeader(): string | null {
  * Register a new user account
  */
 export async function register(credentials: RegisterCredentials): Promise<AuthResponse> {
-  console.log('[authService] register called for:', credentials.email)
+  devLog('[authService] register called for:', credentials.email)
   try {
     // Use AbortController only for timeout (necessary for preventing hanging requests)
     const controller = new AbortController()
@@ -89,7 +90,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
       }
     }, 90000) // 90 second timeout (safety net for argon2 hashing)
     
-    console.log('[authService] Making register request to:', `${API_BASE}/api/auth/register`)
+    devLog('[authService] Making register request to:', `${API_BASE}/api/auth/register`)
     let response: Response
     try {
       response = await fetch(`${API_BASE}/api/auth/register`, {
@@ -111,7 +112,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     }
     
     clearTimeout(timeoutId)
-    console.log('[authService] Register response status:', response.status, response.statusText)
+    devLog('[authService] Register response status:', response.status, response.statusText)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Registration failed' }))
@@ -125,7 +126,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     }
 
     const data: AuthResponse = await response.json()
-    console.log('[authService] Register success, response:', { success: data.success, hasToken: !!data.token, userId: data.user?.id })
+    devLog('[authService] Register success, response:', { success: data.success, hasToken: !!data.token, userId: data.user?.id })
     
     // Ensure token exists and is a string
     if (!data.token || typeof data.token !== 'string') {
@@ -160,8 +161,8 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
  */
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
   try {
-    console.log('[authService] Making login request to:', `${API_BASE}/api/auth/login`)
-    console.log('[authService] Request body:', { email: credentials.email, password: '***' })
+    devLog('[authService] Making login request to:', `${API_BASE}/api/auth/login`)
+    devLog('[authService] Request body:', { email: credentials.email, password: '***' })
     
     // Use AbortController only for timeout (necessary for preventing hanging requests)
     const controller = new AbortController()
@@ -194,7 +195,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     }
     
     clearTimeout(timeoutId)
-    console.log('[authService] Response received:', response.status, response.statusText)
+    devLog('[authService] Response received:', response.status, response.statusText)
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Login failed' }))
@@ -219,7 +220,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   }
 
     const data: AuthResponse = await response.json()
-    console.log('[authService] Login success, response:', { success: data.success, hasToken: !!data.token, userId: data.user?.id, requiresTwoFactor: !!data.requiresTwoFactor })
+    devLog('[authService] Login success, response:', { success: data.success, hasToken: !!data.token, userId: data.user?.id, requiresTwoFactor: !!data.requiresTwoFactor })
 
     if (data.requiresTwoFactor) {
       return data
@@ -359,7 +360,7 @@ export async function getCurrentUser(): Promise<User> {
           // If error code is USER_NOT_FOUND, this might be a new user (race condition)
           // Don't immediately clear auth - let the caller decide
           if (error.code === 'USER_NOT_FOUND') {
-            console.warn('[authService] User not found - this might be a new user. Returning error without clearing auth.')
+            devWarn('[authService] User not found - this might be a new user. Returning error without clearing auth.')
             // Don't clear token immediately - might be a timing issue with new user creation
             clearGetCurrentUserCache()
             throw new Error('User not found - authentication invalid')

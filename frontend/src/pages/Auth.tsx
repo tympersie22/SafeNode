@@ -10,6 +10,7 @@ import Input from '../ui/Input'
 import Button from '../components/ui/Button'
 import { login as authLogin, register as authRegister, verifyLoginTwoFactor } from '../services/authService'
 import { showToast } from '../components/ui/Toast'
+import { devLog } from '../utils/debug'
 
 interface AuthProps {
   onBackToHome?: () => void
@@ -97,13 +98,13 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
         isProcessingRef.current = false
         return
       }
-      console.log('[Auth] Login successful, updating auth context')
+      devLog('[Auth] Login successful, updating auth context')
       
       // Use flushSync to ensure state updates synchronously before navigation
       flushSync(() => {
         setAuthUser(result.user, result.token)
       })
-      console.log('[Auth] Auth context updated synchronously')
+      devLog('[Auth] Auth context updated synchronously')
       
       setIsLoading(false)
       isProcessingRef.current = false
@@ -168,13 +169,13 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
         password: signupData.password,
         displayName: signupData.displayName
       })
-      console.log('[Auth] Signup successful, updating auth context')
+      devLog('[Auth] Signup successful, updating auth context')
       
       // Use flushSync to ensure state updates synchronously before navigation
       flushSync(() => {
         setAuthUser(result.user, result.token)
       })
-      console.log('[Auth] Auth context updated synchronously')
+      devLog('[Auth] Auth context updated synchronously')
       
       setIsLoading(false)
       isProcessingRef.current = false
@@ -313,7 +314,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
               <SignupForm
                 onSignup={handleSignup}
                 onSwitchToLogin={() => {
-                  console.log('[Auth] Switching to login mode')
+                  devLog('[Auth] Switching to login mode')
                   setIsLogin(true)
                 }}
                 isLoading={isLoading}

@@ -100,18 +100,23 @@ const AuditLogsModal: React.FC<AuditLogsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="audit-logs-title"
+        aria-describedby="audit-logs-description"
+        onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col"
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">Audit Logs</h2>
-            <p className="text-sm text-slate-500 mt-1">Security event history and activity tracking</p>
+            <h2 id="audit-logs-title" className="text-xl font-semibold text-slate-900">Audit Logs</h2>
+            <p id="audit-logs-description" className="text-sm text-slate-500 mt-1">Security event history and activity tracking for the current account.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => handleExport('json')} variant="outline" size="sm">
@@ -245,14 +250,19 @@ const AuditLogsModal: React.FC<AuditLogsModalProps> = ({
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="audit-log-detail-title"
+              aria-describedby="audit-log-detail-description"
               className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">Log Details</h3>
+                <h3 id="audit-log-detail-title" className="text-lg font-semibold text-slate-900">Log Details</h3>
                 <Button onClick={() => setSelectedLog(null)} variant="ghost" size="sm">
                   ✕
                 </Button>
               </div>
+              <p id="audit-log-detail-description" className="mb-4 text-sm text-slate-500">Detailed metadata for the selected audit event.</p>
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="font-medium text-slate-700">Event Type:</span>
@@ -320,4 +330,3 @@ const AuditLogsModal: React.FC<AuditLogsModalProps> = ({
 };
 
 export default AuditLogsModal;
-

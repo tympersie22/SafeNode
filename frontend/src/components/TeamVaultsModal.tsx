@@ -192,18 +192,23 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="team-vaults-title"
+        aria-describedby="team-vaults-description"
+        onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col"
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">Team Vaults & Organizations</h2>
-            <p className="text-sm text-slate-500 mt-1">Manage teams, organizations, and shared vaults</p>
+            <h2 id="team-vaults-title" className="text-xl font-semibold text-slate-900">Team Vaults & Organizations</h2>
+            <p id="team-vaults-description" className="text-sm text-slate-500 mt-1">Manage teams, organizations, shared vaults, and member invitations.</p>
           </div>
           <Button onClick={onClose} variant="ghost" size="sm">
             ✕
@@ -605,4 +610,3 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
 };
 
 export default TeamVaultsModal;
-

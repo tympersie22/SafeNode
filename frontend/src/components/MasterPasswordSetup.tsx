@@ -14,6 +14,7 @@ import { initializeVault, unlockVault, getVaultSalt } from '../services/vaultSer
 import { base64ToArrayBuffer } from '../crypto/crypto'
 import { generateSecurePassword } from '../crypto/crypto'
 import PasswordStrengthMeter from './PasswordStrengthMeter'
+import { devLog } from '../utils/debug'
 
 interface MasterPasswordSetupProps {
   onComplete: (vault?: any, masterPassword?: string, salt?: ArrayBuffer) => void
@@ -117,13 +118,13 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
       let vault
       try {
         vault = await unlockVault(masterPassword)
-        console.log('[MasterPasswordSetup] Vault unlocked successfully:', { entryCount: vault.entries?.length || 0 })
+        devLog('[MasterPasswordSetup] Vault unlocked successfully:', { entryCount: vault.entries?.length || 0 })
       } catch (unlockError: any) {
         console.error('[MasterPasswordSetup] Failed to unlock vault after initialization:', unlockError)
         // If unlock fails, try one more time after a short delay
         await new Promise(resolve => setTimeout(resolve, 500))
         vault = await unlockVault(masterPassword)
-        console.log('[MasterPasswordSetup] Vault unlocked on retry:', { entryCount: vault.entries?.length || 0 })
+        devLog('[MasterPasswordSetup] Vault unlocked on retry:', { entryCount: vault.entries?.length || 0 })
       }
       
       setStep('success')
@@ -378,4 +379,3 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
     </motion.div>
   )
 }
-
