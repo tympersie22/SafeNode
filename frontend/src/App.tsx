@@ -1023,7 +1023,7 @@ const App: React.FC = () => {
       activeSidebarItem="vault"
       sidebarBrand={{
         logo: <Logo variant="header" />,
-        title: 'Safenode',
+        title: 'SafeNode',
         subtitle: 'Encrypted operations center',
         badge: 'Zero-knowledge'
       }}

@@ -130,7 +130,7 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
           bg-[#f3f4f0] dark:bg-slate-950
           border-r border-slate-200/80 dark:border-slate-800
           h-full
-          ${collapsed ? 'w-20' : 'w-[320px]'}
+          ${collapsed ? 'w-20' : 'w-[336px]'}
           transition-all duration-300
           ${className}
         `}
@@ -146,16 +146,14 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
                     {brand.logo}
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h2 className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">{brand.title}</h2>
-                      {brand.badge && (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                          {brand.badge}
-                        </span>
-                      )}
-                    </div>
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{brand.title}</h2>
                     {brand.subtitle && (
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{brand.subtitle}</p>
+                    )}
+                    {brand.badge && (
+                      <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                        {brand.badge}
+                      </span>
                     )}
                   </div>
                 </div>

@@ -247,7 +247,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             </div>
           </motion.section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_300px]">
             <div className={sectionCardClass}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -287,57 +287,74 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Adjust your search or tag filter, or add a new secure record.</p>
                 </div>
               ) : (
-                <div className="mt-6 grid gap-4 xl:grid-cols-2">
+                <div className="mt-6 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={onRunBreachScan} variant="outline" size="sm" loading={isScanningBreaches}>
+                      <ScanSearch className="h-4 w-4" />
+                      {isScanningBreaches ? 'Scanning' : 'Run breach scan'}
+                    </Button>
+                    <Button onClick={onStrengthenPasswords} variant="ghost" size="sm">
+                      <Sparkles className="h-4 w-4" />
+                      Strengthen weak
+                    </Button>
+                    <Button onClick={onOpenPasswordGenerator} variant="ghost" size="sm">
+                      Generate replacement
+                    </Button>
+                  </div>
+
                   {quickEntries.map((entry, index) => {
                     const badge = getEntryBadge(entry)
                     return (
                       <motion.div
                         key={entry.id}
                         layout
-                        className={`rounded-[26px] border p-5 transition-colors dark:border-slate-800 ${
+                        className={`rounded-[22px] border px-4 py-4 transition-colors dark:border-slate-800 ${
                           index === 0
                             ? 'border-emerald-300 bg-[linear-gradient(180deg,_#fafdf8_0%,_#f4fbf3_100%)] dark:border-emerald-900 dark:bg-slate-900/80'
-                            : 'border-slate-200 bg-[#fafbf8] hover:border-emerald-300 dark:bg-slate-900/70 dark:hover:border-emerald-900'
+                            : 'border-slate-200 bg-[#fafbf8] dark:bg-slate-900/70'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
                               {index === 0 && (
                                 <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                                   Priority
                                 </span>
                               )}
                               <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badge.tone}`}>{badge.label}</span>
+                              <span className="text-xs uppercase tracking-[0.16em] text-slate-400">{formatDomain(entry.url)}</span>
                             </div>
-                            <p className="mt-3 truncate text-base font-semibold text-slate-900 dark:text-slate-100">{entry.name}</p>
-                            <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{entry.username || 'No username stored'}</p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">{formatDomain(entry.url)}</p>
+                            <div className="mt-3 grid gap-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center">
+                              <div className="min-w-0">
+                                <p className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">{entry.name}</p>
+                                <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{entry.username || 'No username stored'}</p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(entry.tags || []).slice(0, 3).map((tag) => (
+                                  <span key={tag} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {(entry.tags || []).slice(0, 3).map((tag) => (
-                            <span key={tag} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap gap-2">
-                          <Button onClick={() => onSelectEntry(entry)} variant="outline" size="sm">
-                            Open
-                          </Button>
-                          <Button onClick={() => onCopyPassword(entry)} variant="ghost" size="sm">
-                            <Copy className="h-4 w-4" />
-                            Copy
-                          </Button>
-                          <Button onClick={() => onShare(entry)} variant="ghost" size="sm">
-                            Share
-                          </Button>
-                          <Button onClick={() => onEdit(entry)} variant="ghost" size="sm">
-                            Edit
-                          </Button>
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
+                            <Button onClick={() => onSelectEntry(entry)} variant="outline" size="sm">
+                              Open
+                            </Button>
+                            <Button onClick={() => onCopyPassword(entry)} variant="ghost" size="sm">
+                              <Copy className="h-4 w-4" />
+                              Copy
+                            </Button>
+                            <Button onClick={() => onShare(entry)} variant="ghost" size="sm">
+                              Share
+                            </Button>
+                            <Button onClick={() => onEdit(entry)} variant="ghost" size="sm">
+                              Edit
+                            </Button>
+                          </div>
                         </div>
                       </motion.div>
                     )

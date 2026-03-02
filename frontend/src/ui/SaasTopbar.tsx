@@ -28,14 +28,13 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
 }) => {
   return (
     <motion.header
-      className={`border-b border-slate-200/70 bg-white/70 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4 dark:border-slate-800 dark:bg-slate-950/65 ${className}`}
+      className={`relative z-30 border-b border-slate-200/70 bg-white/70 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4 dark:border-slate-800 dark:bg-slate-950/65 ${className}`}
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.2 }}
     >
-      <div className="flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Mobile menu button + Title */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[auto_minmax(180px,240px)_minmax(260px,1fr)_auto] xl:items-center xl:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           {/* Hamburger for mobile */}
           {showMobileMenu && onMenuClick && (
             <button
@@ -49,25 +48,25 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
             </button>
           )}
           {leftContent}
-          {(title || subtitle) && (
-            <div className="min-w-0">
-              {title && (
-                <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-slate-900 sm:text-[2rem] dark:text-slate-100">
-                  {title}
-                </h1>
-              )}
-              {subtitle && (
-                <p className="mt-1 truncate text-xs uppercase tracking-[0.22em] text-slate-500 sm:text-[11px] dark:text-slate-400">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Search — hidden on xs, shown on sm+ */}
+        {(title || subtitle) && (
+          <div className="min-w-0">
+            {title && (
+              <h1 className="text-2xl font-semibold leading-none tracking-[-0.03em] text-slate-900 sm:text-[2.4rem] dark:text-slate-100">
+                {title}
+              </h1>
+            )}
+            {subtitle && (
+              <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        )}
+
         {search && (
-          <div className="hidden sm:flex flex-1 max-w-md">
+          <div className="hidden min-w-0 sm:flex xl:max-w-none">
             <div className="relative w-full">
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +90,7 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
 
         {/* Right */}
         {rightContent && (
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             {rightContent}
           </div>
         )}
