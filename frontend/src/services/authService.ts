@@ -21,8 +21,10 @@ export interface User {
 
 export interface AuthResponse {
   success: boolean
-  token: string
+  token?: string
   user: User
+  requiresTwoFactor?: boolean
+  message?: string
 }
 
 export interface LoginCredentials {
@@ -217,9 +219,13 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   }
 
     const data: AuthResponse = await response.json()
-    console.log('[authService] Login success, response:', { success: data.success, hasToken: !!data.token, userId: data.user?.id })
-    
-    // Ensure token exists and is a string
+    console.log('[authService] Login success, response:', { success: data.success, hasToken: !!data.token, userId: data.user?.id, requiresTwoFactor: !!data.requiresTwoFactor })
+
+    if (data.requiresTwoFactor) {
+      return data
+    }
+
+    // Ensure token exists and is a string for completed logins
     if (!data.token || typeof data.token !== 'string') {
       console.error('[authService] Invalid login response - token missing')
       throw new Error('Invalid response: token missing or invalid')
@@ -254,6 +260,41 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     // Re-throw other errors
     throw error
   }
+}
+
+export async function verifyLoginTwoFactor(
+  credentials: LoginCredentials & { code?: string; backupCode?: string }
+): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE}/api/auth/2fa/verify-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Device-ID': getCurrentDeviceId()
+    },
+    credentials: 'include',
+    body: JSON.stringify(credentials)
+  })
+
+  const data = await response.json().catch(() => ({ message: '2FA verification failed' }))
+
+  if (!response.ok) {
+    throw new Error(data.message || '2FA verification failed')
+  }
+
+  if (!data.token || typeof data.token !== 'string') {
+    throw new Error('Invalid response: token missing or invalid')
+  }
+
+  setToken(data.token)
+  clearGetCurrentUserCache()
+
+  setSentryUser({
+    id: data.user.id,
+    email: data.user.email,
+    username: data.user.displayName
+  })
+
+  return data
 }
 
 /**
