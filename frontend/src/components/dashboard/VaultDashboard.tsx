@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Sparkles,
   Tags,
-  UserCog,
   Wifi
 } from 'lucide-react'
 import Button from '../ui/Button'
@@ -53,16 +52,12 @@ interface VaultDashboardProps {
   onOpenTeams: () => void
   onOpenAudit: () => void
   onOpenBilling: () => void
-  onOpenSettings: () => void
   onOpenPasswordGenerator: () => void
   onStrengthenPasswords: () => void
   onSelectEntry: (entry: VaultEntry) => void
   onCopyPassword: (entry: VaultEntry) => void
   onShare: (entry: VaultEntry) => void
   onEdit: (entry: VaultEntry) => void
-  userName: string
-  userEmail: string
-  userPlan: string
   passkeySupported: boolean
 }
 
@@ -119,16 +114,12 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   onOpenTeams,
   onOpenAudit,
   onOpenBilling,
-  onOpenSettings,
   onOpenPasswordGenerator,
   onStrengthenPasswords,
   onSelectEntry,
   onCopyPassword,
   onShare,
   onEdit,
-  userName,
-  userEmail,
-  userPlan,
   passkeySupported
 }) => {
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -189,19 +180,6 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
               One working surface for vault health, session state, and credential triage. Navigation stays in the left sidebar. The dashboard body only shows what needs action now.
             </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[360px]">
-            <div className="rounded-[20px] border border-white/80 bg-white/85 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Operator</p>
-              <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{userName}</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{userEmail}</p>
-            </div>
-            <div className="rounded-[20px] border border-white/80 bg-white/85 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Plan envelope</p>
-              <p className="mt-2 text-sm font-semibold capitalize text-slate-900 dark:text-slate-100">{userPlan}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Device-bound vault session policy active</p>
-            </div>
           </div>
         </div>
 
@@ -457,10 +435,6 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                 <Button onClick={onAddEntry} variant="primary" size="sm">
                   <LockKeyhole className="h-4 w-4" />
                   Add secure entry
-                </Button>
-                <Button onClick={onOpenSettings} variant="outline" size="sm">
-                  <UserCog className="h-4 w-4" />
-                  Settings
                 </Button>
               </div>
             </div>

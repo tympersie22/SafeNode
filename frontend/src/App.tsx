@@ -1033,6 +1033,8 @@ const App: React.FC = () => {
         menuItems: [
           { label: 'Open settings', onClick: () => navigate('/settings') },
           { label: 'Account & security', onClick: () => navigate('/settings') },
+          { label: 'Passkeys', onClick: () => setIsPasskeysOpen(true) },
+          { label: 'Audit trail', onClick: () => setIsAuditLogsOpen(true) },
           { label: 'Lock vault', onClick: handleLock },
           { label: 'Logout', onClick: handleLogout, destructive: true }
         ]
@@ -1121,8 +1123,6 @@ const App: React.FC = () => {
               )}
             </AnimatePresence>
           </div>
-          <Button onClick={handleLock} size="sm" variant="outline">Lock</Button>
-          <Button onClick={handleLogout} size="sm" variant="outline">Logout</Button>
         </div>
       }
     >
@@ -1154,7 +1154,6 @@ const App: React.FC = () => {
         onOpenTeams={() => setIsTeamVaultsOpen(true)}
         onOpenAudit={() => setIsAuditLogsOpen(true)}
         onOpenBilling={() => navigate('/billing')}
-        onOpenSettings={() => navigate('/settings')}
         onOpenPasswordGenerator={() => setIsPasswordGeneratorOpen(true)}
         onStrengthenPasswords={() => setIsStrengthenPasswordsOpen(true)}
         onSelectEntry={setSelectedEntryDetail}
@@ -1164,9 +1163,6 @@ const App: React.FC = () => {
         }}
         onShare={setShareEntry}
         onEdit={handleEditEntry}
-        userName={userName}
-        userEmail={user?.email || 'signed-in account'}
-        userPlan={userPlan}
         passkeySupported={passkeySupported}
       />
 
