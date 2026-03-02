@@ -133,7 +133,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
         onClick={() => setIsOpen(!isOpen)}
         variant="outline"
         size="sm"
-        className="flex items-center gap-2"
+        className="flex min-w-[220px] items-center justify-between gap-2"
       >
         {activeAccount && (
           <>
@@ -152,7 +152,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-lg z-50"
+            className="absolute left-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg"
           >
             <div className="p-4 border-b border-slate-200">
               <h3 className="font-semibold text-slate-900">Switch Account</h3>
