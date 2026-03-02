@@ -14,6 +14,7 @@ import {
 
 import { API_BASE } from '../config/api'
 import { getCurrentDeviceHeaders } from './deviceService'
+import { vaultStorage } from '../storage/vaultStorage'
 
 export interface VaultEntry {
   id: string
@@ -217,7 +218,6 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
     // Server says vault is up to date - try to use cached vault from IndexedDB
     // This happens when the client already has the latest version cached
     try {
-      const { vaultStorage } = await import('../storage/vaultStorage');
       await vaultStorage.init();
       const cachedVault = await vaultStorage.getVault();
       
@@ -328,7 +328,6 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   // Store encrypted vault in IndexedDB for future unlocks and saves
   // This ensures the vault is available for subsequent operations
   try {
-    const { vaultStorage } = await import('../storage/vaultStorage')
     await vaultStorage.init()
     
     // Store the encrypted vault data we just decrypted

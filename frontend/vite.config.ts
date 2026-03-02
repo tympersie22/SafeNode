@@ -28,30 +28,51 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Vendor chunks
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-vendor'
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/scheduler/')
+            ) {
+              return 'react-core'
             }
-            if (id.includes('framer-motion')) {
-              return 'framer-motion'
+            if (id.includes('/react-router/') || id.includes('/react-router-dom/')) {
+              return 'router'
             }
-            if (id.includes('hash-wasm') || id.includes('crypto')) {
+            if (id.includes('/framer-motion/')) {
+              return 'motion'
+            }
+            if (id.includes('/lucide-react/')) {
+              return 'icons'
+            }
+            if (id.includes('/@tensorflow/')) {
+              return 'tensorflow'
+            }
+            if (id.includes('/hash-wasm/')) {
               return 'crypto-vendor'
             }
-            // Other node_modules go into vendor chunk
-            return 'vendor'
+            if (id.includes('/react-hot-toast/')) {
+              return 'toast'
+            }
+            return 'vendor-misc'
           }
-          // Large feature chunks
+
           if (id.includes('/src/crypto/')) {
             return 'crypto'
+          }
+          if (id.includes('/src/pages/marketing/')) {
+            return 'marketing'
+          }
+          if (id.includes('/src/pages/settings/')) {
+            return 'settings'
+          }
+          if (id.includes('/src/components/dashboard/') || id.includes('/src/ui/Saas')) {
+            return 'dashboard'
           }
         }
       }
     },
-    chunkSizeWarningLimit: 1000, // Increase limit to 1MB for large dependencies
+    chunkSizeWarningLimit: 700,
     sourcemap: false // Disable sourcemaps in production for smaller builds
   }
 })
-
-

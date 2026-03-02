@@ -16,6 +16,7 @@ import { listPasskeys, authenticateWithPasskey } from '../api/passkeys'
 import { keychainService } from '../utils/keychain'
 import { getCurrentDeviceHeaders } from '../services/deviceService'
 import { devLog, devWarn } from '../utils/debug'
+import { biometricAuthService } from '../utils/biometricAuth'
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -72,8 +73,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
   useEffect(() => {
       const checkBiometric = async () => {
         try {
-        const { biometricAuthService } = await import('../utils/biometricAuth')
-        
         const caps = await biometricAuthService.isAvailable()
         setBiometricAvailable(caps.available)
         
@@ -135,8 +134,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked, onSet
     setError(null)
 
     try {
-      const { biometricAuthService } = await import('../utils/biometricAuth')
-      
       // Authenticate with biometric
       const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
         enableML: true,

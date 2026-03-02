@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
 import { Download, Upload, Database, Cloud } from 'lucide-react'
+import { vaultStorage } from '../../storage/vaultStorage'
 
 export const DataSettings: React.FC = () => {
   const [exporting, setExporting] = useState(false)
@@ -17,8 +18,6 @@ export const DataSettings: React.FC = () => {
   const handleExport = async () => {
     setExporting(true)
     try {
-      // Get vault from storage
-      const { vaultStorage } = await import('../../storage/vaultStorage')
       await vaultStorage.init()
       const vault = await vaultStorage.getVault()
       
@@ -77,8 +76,6 @@ export const DataSettings: React.FC = () => {
           throw new Error('Invalid backup file format')
         }
 
-        // Import vault
-        const { vaultStorage } = await import('../../storage/vaultStorage')
         await vaultStorage.init()
         
         const storedVault = vaultStorage.createVault(
