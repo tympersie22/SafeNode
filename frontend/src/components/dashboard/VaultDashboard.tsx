@@ -247,6 +247,50 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
       <section className={sectionCardClass}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower priority</p>
+            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security posture at a glance</h3>
+          </div>
+          <Button onClick={onOpenWatchtower} variant="outline" size="sm">
+            Open Watchtower
+          </Button>
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.2fr)]">
+          {[
+            { label: 'Compromised', value: breachedEntries, tone: 'text-rose-600 dark:text-rose-300' },
+            { label: 'Weak', value: weakEntries, tone: 'text-amber-600 dark:text-amber-300' },
+            { label: 'Reused', value: healthSummary?.reusedCount ?? 0, tone: 'text-sky-600 dark:text-sky-300' }
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{stat.label}</p>
+              <p className={`mt-3 text-3xl font-semibold ${stat.tone}`}>{stat.value}</p>
+            </div>
+          ))}
+
+          <div className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
+            {priorityIssues.length === 0 ? (
+              <>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">No urgent password issues</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  No high-priority password risks are open right now.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{priorityIssues[0].entryName}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{priorityIssues[0].message}</p>
+                <span className={`mt-3 inline-flex rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${priorityIssues[0].severity === 'high' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>
+                  {priorityIssues[0].severity}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={sectionCardClass}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Operational strip</p>
             <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Session and response controls</h3>
           </div>
@@ -490,60 +534,13 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             )}
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <div className={sectionCardClass}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower</p>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">What needs action</h3>
-                </div>
-                <Button onClick={onOpenWatchtower} variant="outline" size="sm">
-                  Open Watchtower
-                </Button>
-              </div>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                {[
-                  { label: 'Compromised', value: breachedEntries, tone: 'text-rose-600 dark:text-rose-300' },
-                  { label: 'Weak', value: weakEntries, tone: 'text-amber-600 dark:text-amber-300' },
-                  { label: 'Reused', value: healthSummary?.reusedCount ?? 0, tone: 'text-sky-600 dark:text-sky-300' }
-                ].map((stat) => (
-                  <div key={stat.label} className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{stat.label}</p>
-                    <p className={`mt-3 text-3xl font-semibold ${stat.tone}`}>{stat.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {priorityIssues.length === 0 ? (
-                  <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    No high-priority password risks are open right now.
-                  </div>
-                ) : (
-                  priorityIssues.map((issue) => (
-                    <div key={`${issue.entryId}-${issue.type}`} className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{issue.entryName}</p>
-                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{issue.message}</p>
-                        </div>
-                        <span className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${issue.severity === 'high' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>
-                          {issue.severity}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className={sectionCardClass}>
+          <section className={sectionCardClass}>
+            <div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin shortcuts</p>
                 <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security and billing tools</h3>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[
                   { label: 'Manage passkeys', description: 'WebAuthn and biometric access.', action: onOpenPasskeys, icon: <KeyRound className="h-4 w-4" /> },
                   { label: 'Audit trail', description: 'Sessions, blocked devices, events.', action: onOpenAudit, icon: <BellRing className="h-4 w-4" /> },

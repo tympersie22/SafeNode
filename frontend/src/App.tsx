@@ -992,14 +992,6 @@ const App: React.FC = () => {
       section: 'Workspace',
       icon: <span>◔</span>,
       onClick: () => navigate('/billing')
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      description: 'Vault preferences and account',
-      section: 'Workspace',
-      icon: <span>⚙</span>,
-      onClick: () => navigate('/settings')
     }
   ]
 
