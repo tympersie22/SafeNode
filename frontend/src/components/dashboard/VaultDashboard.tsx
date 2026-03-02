@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react'
-import { motion } from 'framer-motion'
+import React, { useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   BellRing,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   Copy,
   CreditCard,
@@ -65,7 +67,7 @@ interface VaultDashboardProps {
 }
 
 const metricCardClass =
-  'rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-950/85'
+  'rounded-[20px] border border-slate-200/80 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-950/85'
 
 const sectionCardClass =
   'rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-950/85'
@@ -129,6 +131,8 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   userPlan,
   passkeySupported
 }) => {
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
   const topCategories = useMemo(() => {
     const counts = entries.reduce<Record<string, number>>((acc, entry) => {
       const key = entry.category || 'Uncategorized'
@@ -156,7 +160,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
       return breachWeight + weakWeight + noTotpWeight + updatedAt / 10_000_000_000
     }
 
-    return [...filteredEntries].sort((a, b) => score(b) - score(a)).slice(0, 6)
+    return [...filteredEntries].sort((a, b) => score(b) - score(a)).slice(0, 8)
   }, [filteredEntries])
 
   const statusTone =
@@ -188,12 +192,12 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:w-[360px]">
-            <div className="rounded-[22px] border border-white/80 bg-white/85 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+            <div className="rounded-[20px] border border-white/80 bg-white/85 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Operator</p>
               <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{userName}</p>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">{userEmail}</p>
             </div>
-            <div className="rounded-[22px] border border-white/80 bg-white/85 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+            <div className="rounded-[20px] border border-white/80 bg-white/85 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Plan envelope</p>
               <p className="mt-2 text-sm font-semibold capitalize text-slate-900 dark:text-slate-100">{userPlan}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Device-bound vault session policy active</p>
@@ -204,38 +208,38 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Vault entries</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Entries</span>
               <Layers3 className="h-4 w-4 text-slate-400" />
             </div>
-            <p className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{entries.length}</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{filteredEntries.length} visible in the active filter</p>
+            <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{entries.length}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{filteredEntries.length} in current view</p>
           </div>
 
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower score</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower</span>
               <ShieldAlert className="h-4 w-4 text-slate-400" />
             </div>
-            <p className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{healthSummary?.score ?? 100}</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{breachedEntries} breached, {weakEntries} weak, {healthSummary?.reusedCount ?? 0} reused</p>
+            <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{healthSummary?.score ?? 100}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{breachedEntries} breached, {weakEntries} weak</p>
           </div>
 
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Session state</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Session</span>
               <Clock3 className="h-4 w-4 text-slate-400" />
             </div>
-            <p className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">{sessionCountdownLabel || 'Active'}</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Current sync: {syncState.lastSyncedLabel}</p>
+            <p className="mt-3 text-xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">{sessionCountdownLabel || 'Active'}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Sync: {syncState.lastSyncedLabel}</p>
           </div>
 
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Surface coverage</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Coverage</span>
               <Globe className="h-4 w-4 text-slate-400" />
             </div>
-            <p className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{monitoredDomains}</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{allTags.length} tags across {topCategories.length} active categories</p>
+            <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{monitoredDomains}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{allTags.length} tags, {totpEntries} with 2FA</p>
           </div>
         </div>
       </motion.section>
@@ -246,13 +250,20 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Operational strip</p>
             <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Session and response controls</h3>
           </div>
-          <span className={`inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusTone}`}>
-            {syncState.status}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusTone}`}>
+              {syncState.status}
+            </span>
+            <Button onClick={() => setFiltersOpen((prev) => !prev)} variant="outline" size="sm">
+              <Tags className="h-4 w-4" />
+              Filters
+              {filtersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-4">
-          <div className="rounded-[20px] border border-slate-200 p-4 dark:border-slate-800">
+        <div className="mt-5 grid gap-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+          <div className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eff8ef] text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <Wifi className="h-4 w-4" />
@@ -263,7 +274,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
               </div>
             </div>
           </div>
-          <div className="rounded-[20px] border border-slate-200 p-4 dark:border-slate-800">
+          <div className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eff8ef] text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <KeyRound className="h-4 w-4" />
@@ -274,7 +285,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
               </div>
             </div>
           </div>
-          <div className="rounded-[20px] border border-slate-200 p-4 dark:border-slate-800">
+          <div className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eff8ef] text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <ShieldCheck className="h-4 w-4" />
@@ -288,17 +299,85 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           <div className="flex flex-wrap gap-2 lg:justify-end">
             <Button onClick={onRunBreachScan} variant="outline" size="sm" loading={isScanningBreaches}>
               <ScanSearch className="h-4 w-4" />
-              {isScanningBreaches ? 'Scanning' : 'Run breach scan'}
+              {isScanningBreaches ? 'Scanning' : 'Run scan'}
             </Button>
             <Button onClick={onStrengthenPasswords} variant="ghost" size="sm">
               <Sparkles className="h-4 w-4" />
-              Strengthen weak
+              Strengthen
             </Button>
             <Button onClick={onOpenPasswordGenerator} variant="ghost" size="sm">
-              Generate replacement
+              Generate
             </Button>
           </div>
         </div>
+
+        <AnimatePresence>
+          {filtersOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -8 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -8 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-5 grid gap-6 border-t border-slate-200 pt-5 dark:border-slate-800 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Categories</p>
+                  </div>
+                  {topCategories.length === 0 ? (
+                    <div className="rounded-[18px] border border-dashed border-slate-300 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      Add entries to start building category analytics.
+                    </div>
+                  ) : (
+                    topCategories.map(([category, count], index) => {
+                      const width = `${Math.max(18, Math.round((count / Math.max(...topCategories.map(([, value]) => value))) * 100))}%`
+                      return (
+                        <div key={category}>
+                          <div className="mb-2 flex items-center justify-between text-sm">
+                            <span className="font-medium text-slate-700 dark:text-slate-200">{category}</span>
+                            <span className="text-slate-500 dark:text-slate-400">{count}</span>
+                          </div>
+                          <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                            <div
+                              className={`h-full rounded-full ${index % 3 === 0 ? 'bg-emerald-400' : index % 3 === 1 ? 'bg-sky-400' : 'bg-amber-400'}`}
+                              style={{ width }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Tags</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => onTagChange(null)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${activeTag === null ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800'}`}
+                    >
+                      All entries
+                    </button>
+                    {(showAllTags ? allTags : topTags).map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => onTagChange(tag)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold ${activeTag === tag ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800'}`}
+                      >
+                        {tag} <span className="opacity-70">({tagUsage[tag]})</span>
+                      </button>
+                    ))}
+                    {allTags.length > 5 && (
+                      <button onClick={onToggleShowAllTags} className="rounded-full px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:text-emerald-300 dark:ring-emerald-900">
+                        {showAllTags ? 'Collapse tags' : 'Show all tags'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {(breachScanError || lastBreachScanLabel) && (
           <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
@@ -328,7 +407,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Inventory focus</p>
                 <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Priority credentials</h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">High-risk and high-value credentials are sorted into one compact list instead of oversized cards.</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A real table now. Fast scanning, no oversized cards, no duplicate side panels.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button onClick={onAddEntry} variant="primary" size="sm">
@@ -348,13 +427,19 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Adjust your search or tag filter, or add a new secure record.</p>
               </div>
             ) : (
-              <div className="mt-6 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800">
+              <div className="mt-6 overflow-hidden rounded-[22px] border border-slate-200 dark:border-slate-800">
+                <div className="hidden grid-cols-[minmax(0,1.2fr)_140px_180px_220px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
+                  <span>Credential</span>
+                  <span>State</span>
+                  <span>Tags</span>
+                  <span>Actions</span>
+                </div>
                 {quickEntries.map((entry, index) => {
                   const badge = getEntryBadge(entry)
                   return (
                     <div
                       key={entry.id}
-                      className={`grid gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto] lg:items-center ${
+                      className={`grid gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800 lg:grid-cols-[minmax(0,1.2fr)_140px_180px_220px] lg:items-center ${
                         index === quickEntries.length - 1 ? 'border-b-0' : ''
                       } ${index === 0 ? 'bg-emerald-50/60 dark:bg-emerald-950/10' : 'bg-white dark:bg-slate-950/70'}`}
                     >
@@ -365,15 +450,18 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                               Priority
                             </span>
                           )}
-                          <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badge.tone}`}>{badge.label}</span>
                           <span className="text-xs uppercase tracking-[0.16em] text-slate-400">{formatDomain(entry.url)}</span>
                         </div>
-                        <p className="mt-3 truncate text-base font-semibold text-slate-900 dark:text-slate-100">{entry.name}</p>
+                        <p className="mt-2 truncate text-base font-semibold text-slate-900 dark:text-slate-100">{entry.name}</p>
                         <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{entry.username || 'No username stored'}</p>
                       </div>
 
+                      <div>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.tone}`}>{badge.label}</span>
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
-                        {(entry.tags || []).slice(0, 4).map((tag) => (
+                        {(entry.tags || []).slice(0, 3).map((tag) => (
                           <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
                             {tag}
                           </span>
@@ -420,7 +508,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                   { label: 'Weak', value: weakEntries, tone: 'text-amber-600 dark:text-amber-300' },
                   { label: 'Reused', value: healthSummary?.reusedCount ?? 0, tone: 'text-sky-600 dark:text-sky-300' }
                 ].map((stat) => (
-                  <div key={stat.label} className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+                  <div key={stat.label} className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{stat.label}</p>
                     <p className={`mt-3 text-3xl font-semibold ${stat.tone}`}>{stat.value}</p>
                   </div>
@@ -429,12 +517,12 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
 
               <div className="mt-5 space-y-3">
                 {priorityIssues.length === 0 ? (
-                  <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                  <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
                     No high-priority password risks are open right now.
                   </div>
                 ) : (
                   priorityIssues.map((issue) => (
-                    <div key={`${issue.entryId}-${issue.type}`} className="rounded-[20px] border border-slate-200 p-4 dark:border-slate-800">
+                    <div key={`${issue.entryId}-${issue.type}`} className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{issue.entryName}</p>
@@ -450,99 +538,33 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
               </div>
             </div>
 
-            <div className="space-y-6">
-              <section className={sectionCardClass}>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Vault map</p>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Categories and tags</h3>
-                </div>
-
-                <div className="mt-5 space-y-4">
-                  {topCategories.length === 0 ? (
-                    <div className="rounded-[20px] border border-dashed border-slate-300 p-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                      Add entries to start building category analytics.
+            <div className={sectionCardClass}>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin shortcuts</p>
+                <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security and billing tools</h3>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {[
+                  { label: 'Manage passkeys', description: 'WebAuthn and biometric access.', action: onOpenPasskeys, icon: <KeyRound className="h-4 w-4" /> },
+                  { label: 'Audit trail', description: 'Sessions, blocked devices, events.', action: onOpenAudit, icon: <BellRing className="h-4 w-4" /> },
+                  { label: 'Teams', description: 'Shared vaults and collaboration.', action: onOpenTeams, icon: <FolderKanban className="h-4 w-4" /> },
+                  { label: 'Billing', description: 'Plan limits and upgrade path.', action: onOpenBilling, icon: <CreditCard className="h-4 w-4" /> }
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={item.action}
+                    className="flex items-center gap-3 rounded-[18px] border border-slate-200 px-4 py-4 text-left transition-colors hover:border-emerald-300 hover:bg-[#f8fbf7] dark:border-slate-800 dark:hover:border-emerald-900 dark:hover:bg-slate-900"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                      {item.icon}
                     </div>
-                  ) : (
-                    topCategories.map(([category, count], index) => {
-                      const width = `${Math.max(18, Math.round((count / Math.max(...topCategories.map(([, value]) => value))) * 100))}%`
-                      return (
-                        <div key={category}>
-                          <div className="mb-2 flex items-center justify-between text-sm">
-                            <span className="font-medium text-slate-700 dark:text-slate-200">{category}</span>
-                            <span className="text-slate-500 dark:text-slate-400">{count}</span>
-                          </div>
-                          <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                            <div
-                              className={`h-full rounded-full ${index % 3 === 0 ? 'bg-emerald-400' : index % 3 === 1 ? 'bg-sky-400' : 'bg-amber-400'}`}
-                              style={{ width }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                <div className="mt-6 rounded-[20px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Tag clusters</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use tags as the routing layer for fast vault operations.</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.label}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.description}</p>
                     </div>
-                    {allTags.length > 5 && (
-                      <button onClick={onToggleShowAllTags} className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                        {showAllTags ? 'Collapse' : 'Expand'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => onTagChange(null)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${activeTag === null ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800'}`}
-                    >
-                      All entries
-                    </button>
-                    {(showAllTags ? allTags : topTags).map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => onTagChange(tag)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold ${activeTag === tag ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800'}`}
-                      >
-                        {tag} <span className="opacity-70">({tagUsage[tag]})</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </section>
-
-              <section className={sectionCardClass}>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin shortcuts</p>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security and billing tools</h3>
-                </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {[
-                    { label: 'Manage passkeys', description: 'WebAuthn and biometric access.', action: onOpenPasskeys, icon: <KeyRound className="h-4 w-4" /> },
-                    { label: 'Audit trail', description: 'Sessions, blocked devices, events.', action: onOpenAudit, icon: <BellRing className="h-4 w-4" /> },
-                    { label: 'Teams', description: 'Shared vaults and collaboration.', action: onOpenTeams, icon: <FolderKanban className="h-4 w-4" /> },
-                    { label: 'Billing', description: 'Plan limits and upgrade path.', action: onOpenBilling, icon: <CreditCard className="h-4 w-4" /> }
-                  ].map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={item.action}
-                      className="flex items-center gap-3 rounded-[20px] border border-slate-200 px-4 py-4 text-left transition-colors hover:border-emerald-300 hover:bg-[#f8fbf7] dark:border-slate-800 dark:hover:border-emerald-900 dark:hover:bg-slate-900"
-                    >
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                        {item.icon}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.label}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{item.description}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </section>
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
         </>
