@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 
 export interface SidebarItem {
@@ -25,6 +25,12 @@ interface SidebarFooter {
   subtitle?: string
   meta?: React.ReactNode
   avatar?: React.ReactNode
+  menuItems?: Array<{
+    label: string
+    onClick: () => void
+    destructive?: boolean
+  }>
+  details?: React.ReactNode
 }
 
 export interface SaasSidebarProps {
@@ -50,6 +56,7 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
   brand,
   footer,
 }) => {
+  const [isFooterMenuOpen, setIsFooterMenuOpen] = useState(false)
   const groupedItems = items.reduce<Record<string, SidebarItem[]>>((groups, item) => {
     const section = item.section || 'Workspace'
     groups[section] = groups[section] || []
@@ -164,19 +171,77 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
           {renderNavItems(false)}
           </nav>
           {footer && !collapsed && (
-            <div className="mt-4 rounded-[24px] border border-white/80 bg-white/90 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900/90">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eff8ef] text-slate-900 dark:bg-emerald-950/40 dark:text-slate-100">
-                  {footer.avatar || <span className="text-sm font-semibold">{footer.title.slice(0, 2).toUpperCase()}</span>}
+            <div className="relative mt-4">
+              {footer.menuItems && isFooterMenuOpen && (
+                <div className="absolute bottom-[calc(100%+12px)] left-0 right-0 z-40 rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.18)] dark:border-slate-800 dark:bg-slate-950">
+                  <div className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/80">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eff8ef] text-slate-900 dark:bg-emerald-950/40 dark:text-slate-100">
+                        {footer.avatar || <span className="text-sm font-semibold">{footer.title.slice(0, 2).toUpperCase()}</span>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{footer.title}</p>
+                        {footer.subtitle && (
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{footer.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                    {footer.details && <div className="mt-3">{footer.details}</div>}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {footer.menuItems.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => {
+                          item.onClick()
+                          setIsFooterMenuOpen(false)
+                        }}
+                        className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                          item.destructive
+                            ? 'text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30'
+                            : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{footer.title}</p>
-                  {footer.subtitle && (
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{footer.subtitle}</p>
-                  )}
+              )}
+              <button
+                onClick={() => setIsFooterMenuOpen((prev) => !prev)}
+                className="w-full rounded-[24px] border border-white/80 bg-white/90 p-4 text-left shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition-colors hover:border-emerald-200 dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-emerald-900"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eff8ef] text-slate-900 dark:bg-emerald-950/40 dark:text-slate-100">
+                    {footer.avatar || <span className="text-sm font-semibold">{footer.title.slice(0, 2).toUpperCase()}</span>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{footer.title}</p>
+                    {footer.subtitle && (
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">{footer.subtitle}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {footer.meta && <div className="text-xs text-slate-500 dark:text-slate-400">{footer.meta}</div>}
+                    <svg className={`h-4 w-4 text-slate-400 transition-transform ${isFooterMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 9l6 6 6-6" />
+                    </svg>
+                  </div>
                 </div>
-                {footer.meta && <div className="text-xs text-slate-500 dark:text-slate-400">{footer.meta}</div>}
-              </div>
+              </button>
+              {isFooterMenuOpen && (
+                <button
+                  aria-label="Close account menu"
+                  className="fixed inset-0 z-30 cursor-default"
+                  onClick={() => setIsFooterMenuOpen(false)}
+                />
+              )}
+              {isFooterMenuOpen && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+12px)] z-40">
+                  {/* keeps menu above overlay */}
+                </div>
+              )}
             </div>
           )}
         </div>

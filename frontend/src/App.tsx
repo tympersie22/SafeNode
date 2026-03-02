@@ -1031,7 +1031,19 @@ const App: React.FC = () => {
         title: userName,
         subtitle: user?.email || 'Signed in',
         meta: <span className="capitalize">{userPlan}</span>,
-        avatar: <span className="text-sm font-semibold">{userName.slice(0, 2).toUpperCase()}</span>
+        avatar: <span className="text-sm font-semibold">{userName.slice(0, 2).toUpperCase()}</span>,
+        details: (
+          <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="capitalize">Plan: {userPlan}</p>
+            <p>{passkeySupported ? 'Passkeys supported on this device' : 'Passkeys unavailable on this device'}</p>
+          </div>
+        ),
+        menuItems: [
+          { label: 'Open settings', onClick: () => navigate('/settings') },
+          { label: 'Account & security', onClick: () => navigate('/settings') },
+          { label: 'Lock vault', onClick: handleLock },
+          { label: 'Logout', onClick: handleLogout, destructive: true }
+        ]
       }}
       topbarTitle="Dashboard"
       topbarSubtitle="Vault command center"

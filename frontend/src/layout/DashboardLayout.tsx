@@ -29,6 +29,12 @@ export interface DashboardLayoutProps {
     subtitle?: string
     meta?: ReactNode
     avatar?: ReactNode
+    details?: ReactNode
+    menuItems?: Array<{
+      label: string
+      onClick: () => void
+      destructive?: boolean
+    }>
   }
 }
 
