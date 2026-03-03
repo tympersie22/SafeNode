@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "cap:copy": "npx cap copy android",
+    "cap:sync": "npx cap sync android",
+    "build:android:apk": "npm run build && npm run cap:copy && cd android && ./gradlew assembleDebug",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
@@ -14,6 +17,9 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
     "@sentry/react": "^10.26.0",
     "@tensorflow/tfjs": "^4.22.0",
     "clsx": "^2.1.1",
