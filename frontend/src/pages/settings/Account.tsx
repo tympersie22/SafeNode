@@ -3,20 +3,57 @@
  * Logout, delete account, support
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
-import { LogOut, Trash2, HelpCircle, User } from 'lucide-react'
+import { LogOut, Trash2, HelpCircle, User, ShieldCheck, Clock3 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { logout } from '../../services/authService'
+import {
+  cancelAccountSuccessorClaim,
+  getAccountSuccessor,
+  revokeAccountSuccessor,
+  saveAccountSuccessor,
+  type AccountSuccessor
+} from '../../services/accountSuccessorService'
 
 export const AccountSettings: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout: authLogout } = useAuth()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [savingSuccessor, setSavingSuccessor] = useState(false)
+  const [successor, setSuccessor] = useState<AccountSuccessor | null>(null)
+  const [successorError, setSuccessorError] = useState<string | null>(null)
+  const [successorMessage, setSuccessorMessage] = useState<string | null>(null)
+  const [successorForm, setSuccessorForm] = useState({
+    successorEmail: '',
+    successorName: '',
+    relationshipLabel: '',
+    note: '',
+    waitingPeriodDays: 14
+  })
+
+  useEffect(() => {
+    getAccountSuccessor()
+      .then((record) => {
+        setSuccessor(record)
+        if (record) {
+          setSuccessorForm({
+            successorEmail: record.successorEmail,
+            successorName: record.successorName || '',
+            relationshipLabel: record.relationshipLabel || '',
+            note: record.note || '',
+            waitingPeriodDays: record.waitingPeriodDays
+          })
+        }
+      })
+      .catch((error: any) => {
+        setSuccessorError(error.message || 'Failed to load successor settings')
+      })
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -35,6 +72,52 @@ export const AccountSettings: React.FC = () => {
       alert('Failed to delete account: ' + error.message)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleSaveSuccessor = async () => {
+    setSavingSuccessor(true)
+    setSuccessorError(null)
+    setSuccessorMessage(null)
+    try {
+      const record = await saveAccountSuccessor(successorForm)
+      setSuccessor(record)
+      setSuccessorMessage('Successor settings saved. The designated contact has been notified by email.')
+    } catch (error: any) {
+      setSuccessorError(error.message || 'Failed to save successor settings')
+    } finally {
+      setSavingSuccessor(false)
+    }
+  }
+
+  const handleRevokeSuccessor = async () => {
+    setSavingSuccessor(true)
+    setSuccessorError(null)
+    setSuccessorMessage(null)
+    try {
+      await revokeAccountSuccessor()
+      setSuccessor(null)
+      setSuccessorMessage('Successor access has been revoked.')
+    } catch (error: any) {
+      setSuccessorError(error.message || 'Failed to revoke successor access')
+    } finally {
+      setSavingSuccessor(false)
+    }
+  }
+
+  const handleCancelClaim = async () => {
+    setSavingSuccessor(true)
+    setSuccessorError(null)
+    setSuccessorMessage(null)
+    try {
+      await cancelAccountSuccessorClaim()
+      const record = await getAccountSuccessor()
+      setSuccessor(record)
+      setSuccessorMessage('Pending succession claim cancelled.')
+    } catch (error: any) {
+      setSuccessorError(error.message || 'Failed to cancel succession claim')
+    } finally {
+      setSavingSuccessor(false)
     }
   }
 
@@ -62,6 +145,103 @@ export const AccountSettings: React.FC = () => {
               <p><strong>Email:</strong> {user?.email || 'Not available'}</p>
               <p><strong>User ID:</strong> {user?.id || 'Not available'}</p>
               <p><strong>Account Created:</strong> {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</p>
+            </div>
+          </div>
+        </div>
+      </SaasCard>
+
+      <SaasCard>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Account Successor
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Designate a successor who can request account-control transfer after a waiting period. This transfers account ownership, but existing encrypted vault data still depends on recovery materials you arranged beforehand.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <span>Successor email</span>
+                <input
+                  value={successorForm.successorEmail}
+                  onChange={(e) => setSuccessorForm(prev => ({ ...prev, successorEmail: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100"
+                />
+              </label>
+              <label className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <span>Successor name</span>
+                <input
+                  value={successorForm.successorName}
+                  onChange={(e) => setSuccessorForm(prev => ({ ...prev, successorName: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100"
+                />
+              </label>
+              <label className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <span>Relationship</span>
+                <input
+                  value={successorForm.relationshipLabel}
+                  onChange={(e) => setSuccessorForm(prev => ({ ...prev, relationshipLabel: e.target.value }))}
+                  placeholder="Family member, attorney, executor"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100"
+                />
+              </label>
+              <label className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <span>Waiting period</span>
+                <select
+                  value={successorForm.waitingPeriodDays}
+                  onChange={(e) => setSuccessorForm(prev => ({ ...prev, waitingPeriodDays: Number(e.target.value) }))}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100"
+                >
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="space-y-2 text-sm text-slate-600 dark:text-slate-400 block">
+              <span>Owner note</span>
+              <textarea
+                value={successorForm.note}
+                onChange={(e) => setSuccessorForm(prev => ({ ...prev, note: e.target.value }))}
+                rows={4}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100"
+              />
+            </label>
+
+            {successor && (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 text-sm text-slate-600 dark:text-slate-300">
+                <div className="flex items-center gap-2 font-medium text-slate-900 dark:text-slate-100">
+                  <Clock3 className="w-4 h-4" />
+                  Status: {successor.status.replace('_', ' ')}
+                </div>
+                {successor.claimAvailableAt && (
+                  <p className="mt-2">Claim becomes eligible on {new Date(successor.claimAvailableAt).toLocaleString()}.</p>
+                )}
+              </div>
+            )}
+
+            {successorError && <p className="text-sm text-red-600 dark:text-red-400">{successorError}</p>}
+            {successorMessage && <p className="text-sm text-emerald-600 dark:text-emerald-400">{successorMessage}</p>}
+
+            <div className="flex flex-wrap gap-3">
+              <SaasButton variant="primary" onClick={handleSaveSuccessor} isLoading={savingSuccessor}>
+                Save successor
+              </SaasButton>
+              {successor && (
+                <SaasButton variant="outline" onClick={handleRevokeSuccessor} isLoading={savingSuccessor}>
+                  Revoke successor
+                </SaasButton>
+              )}
+              {successor?.status === 'claim_pending' && (
+                <SaasButton variant="outline" onClick={handleCancelClaim} isLoading={savingSuccessor}>
+                  Cancel pending claim
+                </SaasButton>
+              )}
             </div>
           </div>
         </div>

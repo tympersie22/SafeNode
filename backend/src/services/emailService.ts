@@ -212,6 +212,86 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
     })
   }
 
+  async sendSuccessorDesignationEmail(options: {
+    to: string
+    ownerName?: string
+    waitingPeriodDays: number
+    relationshipLabel?: string
+    note?: string
+  }): Promise<void> {
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
+    const claimUrl = `${frontendBaseUrl}/auth/successor`
+    const ownerName = options.ownerName || 'A SafeNode account owner'
+
+    await this.send({
+      to: options.to,
+      subject: 'You were added as a SafeNode successor contact',
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc;">
+          <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
+            <h1 style="margin: 0 0 12px; font-size: 24px;">You were added as a SafeNode account successor</h1>
+            <p style="margin: 0 0 16px; color: #475569;">${ownerName} designated this email as the successor contact for their SafeNode account.</p>
+            <p style="margin: 0 0 16px; color: #475569;">If a succession claim is ever started, there will be a ${options.waitingPeriodDays}-day delay so the current owner can cancel it.</p>
+            ${options.relationshipLabel ? `<p style="margin: 0 0 12px; color: #475569;"><strong>Relationship:</strong> ${options.relationshipLabel}</p>` : ''}
+            ${options.note ? `<div style="margin: 0 0 20px; padding: 16px; border-radius: 12px; background: #f8fafc; color: #334155;"><strong>Owner note:</strong><br />${options.note}</div>` : ''}
+            <p style="margin: 0 0 20px; color: #475569;">If you ever need to start the process, use the successor claim page below.</p>
+            <a href="${claimUrl}" style="display: inline-block; background: #0f766e; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600;">Open successor claim page</a>
+          </div>
+        </div>
+      `.trim(),
+      text: `${ownerName} designated you as a SafeNode successor contact. If you ever need to start the process, visit ${claimUrl}.`
+    })
+  }
+
+  async sendSuccessorClaimOwnerAlertEmail(options: {
+    to: string
+    ownerName?: string
+    successorEmail: string
+    claimAvailableAt: Date
+  }): Promise<void> {
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
+    const settingsUrl = `${frontendBaseUrl}/settings`
+
+    await this.send({
+      to: options.to,
+      subject: 'SafeNode succession claim started',
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc;">
+          <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
+            <h1 style="margin: 0 0 12px; font-size: 24px;">A SafeNode succession claim was started</h1>
+            <p style="margin: 0 0 16px; color: #475569;">${options.successorEmail} requested account succession for ${options.ownerName || 'your account'}.</p>
+            <p style="margin: 0 0 16px; color: #475569;">If this was not expected, cancel it from Account Settings before <strong>${options.claimAvailableAt.toUTCString()}</strong>.</p>
+            <a href="${settingsUrl}" style="display: inline-block; background: #991b1b; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600;">Review in Account Settings</a>
+          </div>
+        </div>
+      `.trim(),
+      text: `${options.successorEmail} requested account succession. Cancel it from ${settingsUrl} before ${options.claimAvailableAt.toUTCString()}.`
+    })
+  }
+
+  async sendSuccessorClaimSuccessorEmail(options: {
+    to: string
+    ownerEmail: string
+    claimUrl: string
+    claimAvailableAt: Date
+  }): Promise<void> {
+    await this.send({
+      to: options.to,
+      subject: 'SafeNode succession claim in progress',
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc;">
+          <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
+            <h1 style="margin: 0 0 12px; font-size: 24px;">Your SafeNode succession claim is in progress</h1>
+            <p style="margin: 0 0 16px; color: #475569;">A claim for ${options.ownerEmail} was started. The owner can cancel it during the waiting period.</p>
+            <p style="margin: 0 0 16px; color: #475569;">You can complete the claim after <strong>${options.claimAvailableAt.toUTCString()}</strong>.</p>
+            <a href="${options.claimUrl}" style="display: inline-block; background: #0f766e; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600;">Open claim status</a>
+          </div>
+        </div>
+      `.trim(),
+      text: `Your SafeNode succession claim for ${options.ownerEmail} is in progress. Complete it after ${options.claimAvailableAt.toUTCString()}: ${options.claimUrl}`
+    })
+  }
+
   /**
    * Send email using configured provider
    */

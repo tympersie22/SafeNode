@@ -25,6 +25,7 @@ import { BillingCancelPage } from './pages/billing/BillingCancel'
 import { ForgotPasswordPage } from './pages/auth/ForgotPassword'
 import { ResetPasswordPage } from './pages/auth/ResetPassword'
 import VerifyEmailPage from './pages/auth/VerifyEmail'
+import SuccessorClaimPage from './pages/auth/SuccessorClaim'
 import { PrivacyPolicyPage } from './pages/marketing/PrivacyPolicy'
 import { TermsOfServicePage } from './pages/marketing/TermsOfService'
 import { RefundPolicyPage } from './pages/marketing/RefundPolicy'
@@ -62,6 +63,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="/auth/verify" element={<VerifyEmailPage />} />
+          <Route path="/auth/successor" element={<SuccessorClaimPage />} />
 
           {/* Billing Result Pages */}
           <Route path="/billing/success" element={<BillingSuccessPage />} />

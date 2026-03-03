@@ -54,6 +54,7 @@ model User {
   webAuthnCredentials WebAuthnCredential[]
   webAuthnChallenges WebAuthnChallenge[]
   deviceSessions DeviceSession[]
+  accountSuccessor AccountSuccessor?
   
   @@index([email])
   @@index([subscriptionTier])
@@ -62,6 +63,33 @@ model User {
   @@index([createdAt])
   @@index([lastLoginAt])
   @@map("users")
+}
+
+model AccountSuccessor {
+  id String @id @default(cuid())
+  ownerUserId String @unique @map("owner_user_id")
+  successorEmail String @map("successor_email")
+  successorName String? @map("successor_name")
+  relationshipLabel String? @map("relationship_label")
+  note String?
+  status String @default("active")
+  waitingPeriodDays Int @default(14) @map("waiting_period_days")
+  claimRequestedAt DateTime? @map("claim_requested_at")
+  claimAvailableAt DateTime? @map("claim_available_at")
+  claimTokenHash String? @map("claim_token_hash")
+  claimTokenExpiresAt DateTime? @map("claim_token_expires_at")
+  claimedAt DateTime? @map("claimed_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([successorEmail])
+  @@index([status])
+  @@index([claimAvailableAt])
+  @@index([claimTokenHash])
+  @@map("account_successors")
 }
 
 // Email Verification Token

@@ -20,6 +20,7 @@ ALTER TABLE IF EXISTS public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.webauthn_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.webauthn_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.billing_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.account_successors ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Deny anon access to users" ON public.users;
 DROP POLICY IF EXISTS "Deny authenticated access to users" ON public.users;
@@ -68,6 +69,9 @@ DROP POLICY IF EXISTS "Service role full access to webauthn_challenges" ON publi
 DROP POLICY IF EXISTS "Deny anon access to billing_webhook_events" ON public.billing_webhook_events;
 DROP POLICY IF EXISTS "Deny authenticated access to billing_webhook_events" ON public.billing_webhook_events;
 DROP POLICY IF EXISTS "Service role full access to billing_webhook_events" ON public.billing_webhook_events;
+DROP POLICY IF EXISTS "Deny anon access to account_successors" ON public.account_successors;
+DROP POLICY IF EXISTS "Deny authenticated access to account_successors" ON public.account_successors;
+DROP POLICY IF EXISTS "Service role full access to account_successors" ON public.account_successors;
 
 CREATE POLICY "Deny anon access to users"
 ON public.users FOR ALL TO anon USING (false);
@@ -152,3 +156,10 @@ CREATE POLICY "Deny authenticated access to billing_webhook_events"
 ON public.billing_webhook_events FOR ALL TO authenticated USING (false);
 CREATE POLICY "Service role full access to billing_webhook_events"
 ON public.billing_webhook_events FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Deny anon access to account_successors"
+ON public.account_successors FOR ALL TO anon USING (false);
+CREATE POLICY "Deny authenticated access to account_successors"
+ON public.account_successors FOR ALL TO authenticated USING (false);
+CREATE POLICY "Service role full access to account_successors"
+ON public.account_successors FOR ALL TO service_role USING (true) WITH CHECK (true);
