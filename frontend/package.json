@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/write-release-version.mjs",
     "build": "vite build",
     "cap:copy": "npx cap copy android",
     "cap:sync": "npx cap sync android",

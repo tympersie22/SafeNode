@@ -10,8 +10,7 @@ import { Link } from 'react-router-dom';
 import { Download, Check } from 'lucide-react';
 import Logo from '../../components/Logo';
 import Footer from '../../components/marketing/Footer';
-
-const RELEASE_VERSION = 'v0.1.4';
+import { RELEASE_VERSION } from '../../config/release';
 
 // Official Brand Logos (using Simple Icons CDN or inline SVG)
 const BrandLogos = {
