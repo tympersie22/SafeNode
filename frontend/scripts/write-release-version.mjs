@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
@@ -66,13 +66,24 @@ function getLatestLocalGitTag() {
   }
 }
 
+function readExistingReleaseVersion() {
+  try {
+    if (!existsSync(OUTPUT_PATH)) return null
+    const raw = readFileSync(OUTPUT_PATH, 'utf8')
+    const match = raw.match(/RELEASE_VERSION\s*=\s*['"]([^'"]+)['"]/)
+    return normalizeTag(match?.[1] || null)
+  } catch {
+    return null
+  }
+}
+
 async function main() {
   const pkg = JSON.parse(readFileSync(PACKAGE_JSON_PATH, 'utf8'))
   const repo = process.env.GITHUB_REPOSITORY || 'tympersie22/SafeNode'
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || ''
   const forcedVersion = normalizeTag(process.env.VITE_RELEASE_VERSION)
 
-  const fallback = normalizeTag(pkg.version) || 'v0.0.0'
+  const fallback = readExistingReleaseVersion() || normalizeTag(pkg.version) || 'v0.0.0'
   let resolved = forcedVersion || getLatestLocalGitTag() || fallback
 
   if (!forcedVersion && resolved === fallback) {
