@@ -11,6 +11,8 @@ import { Download, Check } from 'lucide-react';
 import Logo from '../../components/Logo';
 import Footer from '../../components/marketing/Footer';
 
+const RELEASE_VERSION = 'v0.1.4';
+
 // Official Brand Logos (using Simple Icons CDN or inline SVG)
 const BrandLogos = {
   Apple: () => (
@@ -65,24 +67,24 @@ const DOWNLOADS = {
       os: 'macos',
       logo: BrandLogos.Apple,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-macOS.dmg',
-      size: 'Latest',
-      version: 'Latest',
+      size: 'Apple Silicon DMG',
+      version: RELEASE_VERSION,
     },
     {
       name: 'Windows',
       os: 'windows',
       logo: BrandLogos.Windows,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Windows.exe',
-      size: 'Latest',
-      version: 'Latest',
+      size: 'NSIS installer',
+      version: RELEASE_VERSION,
     },
     {
       name: 'Linux',
       os: 'linux',
       logo: BrandLogos.Linux,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest',
-      size: 'Latest',
-      version: 'Latest',
+      size: 'Release assets',
+      version: RELEASE_VERSION,
     },
   ],
   mobile: [
@@ -92,6 +94,7 @@ const DOWNLOADS = {
       logo: BrandLogos.Apple,
       url: '',
       badge: 'Coming soon',
+      version: 'Unavailable',
     },
     {
       name: 'Android',
@@ -99,6 +102,7 @@ const DOWNLOADS = {
       logo: BrandLogos.Android,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Android.apk',
       badge: 'APK download',
+      version: RELEASE_VERSION,
     },
   ],
   browser: [
@@ -107,18 +111,21 @@ const DOWNLOADS = {
       logo: BrandLogos.Chrome,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/safenode-extension-chrome.zip',
       cta: 'Download ZIP',
+      version: RELEASE_VERSION,
     },
     {
       name: 'Firefox',
       logo: BrandLogos.Firefox,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/safenode-extension-firefox.zip',
       cta: 'Download ZIP',
+      version: RELEASE_VERSION,
     },
     {
       name: 'Safari',
       logo: BrandLogos.Apple,
       url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/safenode-extension-safari.zip',
       cta: 'Download ZIP',
+      version: RELEASE_VERSION,
     },
   ],
 };
@@ -135,7 +142,9 @@ export const DownloadsNewPage: React.FC = () => {
 
     const isMobile = userOS === 'ios' || userOS === 'android';
     if (isMobile) {
-      return DOWNLOADS.mobile.find((d) => d.os === userOS) || DOWNLOADS.mobile[0];
+      const mobileMatch = DOWNLOADS.mobile.find((d) => d.os === userOS);
+      if (mobileMatch?.url) return mobileMatch;
+      return DOWNLOADS.desktop[0];
     }
 
     const desktopMatch = DOWNLOADS.desktop.find((d) => d.os === userOS);
@@ -170,7 +179,7 @@ export const DownloadsNewPage: React.FC = () => {
             Download SafeNode
           </h1>
           <p className="text-xl text-gray-600 mb-12">
-            Secure your passwords on any device. Always encrypted.
+            Install Safenode on desktop or Android, or use it instantly on the web.
           </p>
 
           {/* Primary Download Button */}
@@ -249,7 +258,7 @@ export const DownloadsNewPage: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name}</h3>
                     <p className="text-sm text-gray-600 mb-4">
-                      {isAvailable ? `Download from ${platform.badge}` : platform.badge}
+                      {isAvailable ? `${platform.badge} • ${platform.version}` : platform.badge}
                     </p>
                     {isAvailable ? (
                       <div className="flex items-center gap-2 text-gray-900 font-medium">
@@ -307,7 +316,7 @@ export const DownloadsNewPage: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name} Extension</h3>
                     <p className="text-sm text-gray-600 mb-4">
-                      Auto-fill passwords on any website
+                      {platform.version} • Auto-fill on supported browsers
                     </p>
                     <div className="flex items-center gap-2 text-gray-900 font-medium">
                       <Download className="w-4 h-4" />
@@ -323,9 +332,9 @@ export const DownloadsNewPage: React.FC = () => {
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-8">Web App</h2>
             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-8">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">No Download Needed</h3>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Web App</h3>
               <p className="text-gray-600 mb-6">
-                Access SafeNode instantly in your browser. Works on any device.
+                Open Safenode instantly from any modern browser.
               </p>
               <Link
                 to="/auth"
@@ -339,24 +348,24 @@ export const DownloadsNewPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Security Claims */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-12">
-            Sync Across All Devices
+            Built for secure daily use
           </h2>
           <div className="grid grid-cols-3 gap-8 text-sm text-gray-600">
             <div>
               <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
-              <p>Real-time sync</p>
+              <p>Encrypted vault sync</p>
             </div>
             <div>
               <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
-              <p>End-to-end encrypted</p>
+              <p>Device-aware access controls</p>
             </div>
             <div>
               <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
-              <p>Offline access</p>
+              <p>Passkeys and 2FA support</p>
             </div>
           </div>
         </div>

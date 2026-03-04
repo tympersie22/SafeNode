@@ -852,7 +852,7 @@ const App: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-slate-600 dark:text-slate-400">Initializing SafeNode...</p>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Initializing Safenode...</p>
         </div>
       </div>
     )
