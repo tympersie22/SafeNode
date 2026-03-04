@@ -71,6 +71,50 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release version matches latest tag
+        run: |
+          set -euo pipefail
+
+          LATEST_TAG="$(git for-each-ref --sort=-creatordate --format='%(refname:short)' refs/tags | head -n 1 || true)"
+          if [ -z "${LATEST_TAG}" ]; then
+            echo "No git tags found; skipping release version sync check."
+            exit 0
+          fi
+
+          if [ ! -f "frontend/src/config/release.ts" ]; then
+            echo "Missing frontend/src/config/release.ts"
+            exit 1
+          fi
+
+          FILE_VERSION="$(awk -F\"'\" '/RELEASE_VERSION/ {print $2; exit}' frontend/src/config/release.ts)"
+          if [ -z "${FILE_VERSION}" ]; then
+            echo "Could not read RELEASE_VERSION from frontend/src/config/release.ts"
+            exit 1
+          fi
+
+          normalize() {
+            local v="$1"
+            if [[ "${v}" == v* ]]; then
+              echo "${v}"
+            else
+              echo "v${v}"
+            fi
+          }
+
+          EXPECTED="$(normalize "${LATEST_TAG}")"
+          ACTUAL="$(normalize "${FILE_VERSION}")"
+
+          echo "Latest tag: ${EXPECTED}"
+          echo "Release file version: ${ACTUAL}"
+
+          if [ "${EXPECTED}" != "${ACTUAL}" ]; then
+            echo "Version mismatch: latest git tag (${EXPECTED}) != frontend/src/config/release.ts (${ACTUAL})"
+            echo "Update frontend/src/config/release.ts before merging."
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
