@@ -90,15 +90,15 @@ const DOWNLOADS = {
       name: 'iOS',
       os: 'ios',
       logo: BrandLogos.Apple,
-      url: 'https://expo.dev/accounts/tympersie/projects/safenode-mobile/builds',
-      badge: 'iOS build queue',
+      url: '',
+      badge: 'Coming soon',
     },
     {
       name: 'Android',
       os: 'android',
       logo: BrandLogos.Android,
-      url: 'https://expo.dev/accounts/tympersie/projects/safenode-mobile/builds',
-      badge: 'Latest Android builds',
+      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Android.apk',
+      badge: 'APK download',
     },
   ],
   browser: [
@@ -240,24 +240,49 @@ export const DownloadsNewPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {DOWNLOADS.mobile.map((platform) => {
                 const LogoComponent = platform.logo;
-                return (
-                  <motion.a
-                    key={platform.name}
-                    href={platform.url}
-                    className="block bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition"
-                    whileHover={{ y: -4 }}
-                  >
+                const isAvailable = Boolean(platform.url);
+                const cardClass = "block bg-white rounded-xl border border-gray-200 p-6 transition";
+                const content = (
+                  <>
                     <div className="w-12 h-12 text-gray-700 mb-4">
                       <LogoComponent />
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name}</h3>
                     <p className="text-sm text-gray-600 mb-4">
-                      Download from {platform.badge}
+                      {isAvailable ? `Download from ${platform.badge}` : platform.badge}
                     </p>
-                    <div className="flex items-center gap-2 text-gray-900 font-medium">
-                      <Download className="w-4 h-4" />
-                      <span>Download</span>
+                    {isAvailable ? (
+                      <div className="flex items-center gap-2 text-gray-900 font-medium">
+                        <Download className="w-4 h-4" />
+                        <span>Download</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-400 font-medium">
+                        <span>Not available yet</span>
+                      </div>
+                    )}
+                  </>
+                );
+
+                if (!isAvailable) {
+                  return (
+                    <div
+                      key={platform.name}
+                      className={`${cardClass} opacity-80`}
+                    >
+                      {content}
                     </div>
+                  );
+                }
+
+                return (
+                  <motion.a
+                    key={platform.name}
+                    href={platform.url}
+                    className={`${cardClass} hover:shadow-lg`}
+                    whileHover={{ y: -4 }}
+                  >
+                    {content}
                   </motion.a>
                 );
               })}
