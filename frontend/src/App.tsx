@@ -972,6 +972,14 @@ const App: React.FC = () => {
       onClick: () => setIsAuditLogsOpen(true)
     },
     {
+      id: 'reports',
+      label: 'Reports',
+      description: 'Security trends and exports',
+      section: 'Security',
+      icon: <span>◴</span>,
+      onClick: () => navigate('/settings?tab=reports')
+    },
+    {
       id: 'teams',
       label: 'Teams',
       description: 'Shared vaults and org controls',
@@ -1026,6 +1034,7 @@ const App: React.FC = () => {
         ),
         menuItems: [
           { label: 'Open settings', onClick: () => navigate('/settings') },
+          { label: 'Reports', onClick: () => navigate('/settings?tab=reports') },
           { label: 'Passkeys', onClick: () => setIsPasskeysOpen(true) },
           { label: 'Audit trail', onClick: () => setIsAuditLogsOpen(true) },
           { label: 'Lock vault', onClick: handleLock },

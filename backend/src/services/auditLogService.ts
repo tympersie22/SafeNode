@@ -48,6 +48,9 @@ export type AuditAction =
   | 'team_created'
   | 'team_member_added'
   | 'team_member_removed'
+  | 'report_viewed'
+  | 'report_exported'
+  | 'report_filter_applied'
 
 /**
  * Create an audit log entry

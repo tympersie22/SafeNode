@@ -1,0 +1,351 @@
+import { FastifyInstance } from 'fastify'
+import { z } from 'zod'
+import { requireAuth } from '../middleware/auth'
+import { requireRegisteredDevice } from '../middleware/deviceAccess'
+import { getPrismaClient } from '../db/prisma'
+import { createAuditLog } from '../services/auditLogService'
+
+type ReportSeverity = 'high' | 'medium' | 'info'
+
+const reportQuerySchema = z.object({
+  days: z
+    .string()
+    .optional()
+    .transform((val) => {
+      const parsed = val ? parseInt(val, 10) : 30
+      return Number.isNaN(parsed) ? 30 : Math.min(365, Math.max(1, parsed))
+    }),
+  limit: z
+    .string()
+    .optional()
+    .transform((val) => {
+      const parsed = val ? parseInt(val, 10) : 50
+      return Number.isNaN(parsed) ? 50 : Math.min(500, Math.max(1, parsed))
+    }),
+  offset: z
+    .string()
+    .optional()
+    .transform((val) => {
+      const parsed = val ? parseInt(val, 10) : 0
+      return Number.isNaN(parsed) ? 0 : Math.max(0, parsed)
+    }),
+  action: z.string().optional(),
+  severity: z.enum(['all', 'high', 'medium', 'info']).optional().default('all')
+})
+
+function getSeverity(action: string, metadata: Record<string, any> | null | undefined): ReportSeverity {
+  if (action === 'device_access_denied') {
+    const code = String(metadata?.code || '')
+    if (code === 'SESSION_DEVICE_MISMATCH' || code === 'DEVICE_REAPPROVAL_REQUIRED') return 'high'
+    return 'medium'
+  }
+  if (action === 'session_replaced' || action === 'session_revoked') return 'high'
+  if (action === '2fa_disabled' || action === 'vault_exported' || action === 'password_changed') return 'medium'
+  return 'info'
+}
+
+function isSecurityAction(action: string): boolean {
+  return [
+    'device_access_denied',
+    'session_replaced',
+    'session_revoked',
+    'device_reapproval_required',
+    'device_reapproved',
+    '2fa_enabled',
+    '2fa_disabled',
+    'password_changed',
+    'vault_exported',
+    'vault_imported',
+    'vault_locked',
+    'vault_unlocked'
+  ].includes(action)
+}
+
+function toCsvRow(values: Array<string | number | null | undefined>): string {
+  return values
+    .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
+    .join(',')
+}
+
+async function writeReportAudit(
+  userId: string,
+  action: 'report_viewed' | 'report_exported' | 'report_filter_applied',
+  metadata: Record<string, any>,
+  ipAddress?: string,
+  userAgent?: string
+) {
+  await createAuditLog({
+    userId,
+    action,
+    resourceType: 'report',
+    metadata,
+    ipAddress,
+    userAgent
+  })
+}
+
+export async function registerReportRoutes(server: FastifyInstance) {
+  server.get('/api/reports/overview', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const validation = reportQuerySchema.safeParse(request.query as any)
+      if (!validation.success) {
+        return reply.code(400).send({
+          error: 'validation_error',
+          message: 'Invalid query parameters',
+          details: validation.error.errors
+        })
+      }
+
+      const { days } = validation.data
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      const prisma = getPrismaClient()
+
+      const [events, deviceCount, pendingReapprovals] = await Promise.all([
+        prisma.auditLog.findMany({
+          where: {
+            userId: user.id,
+            createdAt: { gte: startDate }
+          },
+          select: {
+            action: true,
+            metadata: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 2000
+        }),
+        prisma.device.count({
+          where: {
+            userId: user.id,
+            isActive: true
+          }
+        }),
+        prisma.device.count({
+          where: {
+            userId: user.id,
+            requiresReapproval: true
+          }
+        })
+      ])
+
+      const securityEvents = events.filter((event) => isSecurityAction(event.action))
+      const blockedDeviceAttempts = securityEvents.filter((event) => event.action === 'device_access_denied').length
+      const sessionTakeovers = securityEvents.filter((event) => event.action === 'session_replaced').length
+      const vaultAccessEvents = securityEvents.filter((event) => event.action === 'vault_unlocked' || event.action === 'vault_locked').length
+
+      const actionsBreakdown = securityEvents.reduce<Record<string, number>>((acc, event) => {
+        acc[event.action] = (acc[event.action] || 0) + 1
+        return acc
+      }, {})
+
+      const dailyMap = new Map<string, number>()
+      for (let i = 0; i < days; i++) {
+        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        dailyMap.set(date, 0)
+      }
+      securityEvents.forEach((event) => {
+        const key = event.createdAt.toISOString().slice(0, 10)
+        if (dailyMap.has(key)) {
+          dailyMap.set(key, (dailyMap.get(key) || 0) + 1)
+        }
+      })
+
+      const activitySeries = Array.from(dailyMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+      const topActions = Object.entries(actionsBreakdown)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([action, count]) => ({ action, count }))
+
+      const recentAlerts = securityEvents
+        .map((event) => ({
+          action: event.action,
+          severity: getSeverity(event.action, (event.metadata as any) || {}),
+          message: String((event.metadata as any)?.message || (event.metadata as any)?.code || event.action),
+          createdAt: event.createdAt.getTime()
+        }))
+        .filter((event) => event.severity !== 'info')
+        .slice(0, 10)
+
+      await writeReportAudit(
+        user.id,
+        'report_viewed',
+        { report: 'overview', days },
+        request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
+        request.headers['user-agent'] || undefined
+      )
+
+      return {
+        generatedAt: Date.now(),
+        periodDays: days,
+        summary: {
+          securityEventCount: securityEvents.length,
+          blockedDeviceAttempts,
+          sessionTakeovers,
+          vaultAccessEvents,
+          activeDeviceCount: deviceCount,
+          pendingReapprovals
+        },
+        topActions,
+        activitySeries,
+        recentAlerts
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to build report overview'
+      })
+    }
+  })
+
+  server.get('/api/reports/events', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const validation = reportQuerySchema.safeParse(request.query as any)
+      if (!validation.success) {
+        return reply.code(400).send({
+          error: 'validation_error',
+          message: 'Invalid query parameters',
+          details: validation.error.errors
+        })
+      }
+
+      const { days, limit, offset, action, severity } = validation.data
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      const prisma = getPrismaClient()
+
+      const where: any = {
+        userId: user.id,
+        createdAt: { gte: startDate }
+      }
+      if (action) where.action = action
+
+      const [rawEvents, total] = await Promise.all([
+        prisma.auditLog.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: Math.min(limit * 3, 1200),
+          skip: offset
+        }),
+        prisma.auditLog.count({ where })
+      ])
+
+      const mapped = rawEvents
+        .map((event) => ({
+          id: event.id,
+          action: event.action,
+          resourceType: event.resourceType,
+          resourceId: event.resourceId,
+          metadata: event.metadata as Record<string, any> | null,
+          ipAddress: event.ipAddress,
+          userAgent: event.userAgent,
+          createdAt: event.createdAt.getTime(),
+          severity: getSeverity(event.action, event.metadata as Record<string, any> | null)
+        }))
+        .filter((event) => (severity === 'all' ? true : event.severity === severity))
+        .slice(0, limit)
+
+      await writeReportAudit(
+        user.id,
+        'report_filter_applied',
+        { report: 'events', days, action: action || null, severity, limit, offset },
+        request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
+        request.headers['user-agent'] || undefined
+      )
+
+      return {
+        events: mapped,
+        count: mapped.length,
+        pagination: {
+          limit,
+          offset,
+          total
+        }
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to load report events'
+      })
+    }
+  })
+
+  server.get('/api/reports/export', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const validation = reportQuerySchema.safeParse(request.query as any)
+      if (!validation.success) {
+        return reply.code(400).send({
+          error: 'validation_error',
+          message: 'Invalid query parameters',
+          details: validation.error.errors
+        })
+      }
+
+      const { days, action, severity } = validation.data
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      const prisma = getPrismaClient()
+      const where: any = {
+        userId: user.id,
+        createdAt: { gte: startDate }
+      }
+      if (action) where.action = action
+
+      const rawEvents = await prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 10000
+      })
+
+      const filtered = rawEvents.filter((event) => {
+        const eventSeverity = getSeverity(event.action, event.metadata as Record<string, any> | null)
+        return severity === 'all' ? true : eventSeverity === severity
+      })
+
+      const lines = [
+        toCsvRow(['Date', 'Action', 'Severity', 'Resource Type', 'Resource ID', 'IP Address', 'User Agent', 'Metadata']),
+        ...filtered.map((event) =>
+          toCsvRow([
+            new Date(event.createdAt).toISOString(),
+            event.action,
+            getSeverity(event.action, event.metadata as Record<string, any> | null),
+            event.resourceType || '',
+            event.resourceId || '',
+            event.ipAddress || '',
+            event.userAgent || '',
+            JSON.stringify(event.metadata || {})
+          ])
+        )
+      ]
+
+      await writeReportAudit(
+        user.id,
+        'report_exported',
+        { report: 'events', days, action: action || null, severity, rows: filtered.length },
+        request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
+        request.headers['user-agent'] || undefined
+      )
+
+      reply.header('Content-Type', 'text/csv')
+      reply.header('Content-Disposition', `attachment; filename="safenode-report-${Date.now()}.csv"`)
+      return reply.send(lines.join('\n'))
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to export report data'
+      })
+    }
+  })
+}

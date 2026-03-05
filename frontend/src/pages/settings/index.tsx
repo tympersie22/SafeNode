@@ -3,9 +3,9 @@
  * Main settings page with tabs for different sections
  */
 
-import React, { useState } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { SaasTabs, Tab } from '../../ui/SaasTabs'
 import { SecuritySettings } from './Security'
 import { DevicesSettings } from './Devices'
@@ -14,15 +14,23 @@ import { PrivacySettings } from './Privacy'
 import { DataSettings } from './Data'
 import { AdvancedSettings } from './Advanced'
 import { AccountSettings } from './Account'
+import { ReportsSettings } from './Reports'
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  const tabFromQuery = React.useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    const tab = params.get('tab')
+    return tab || 'security'
+  }, [location.search])
   const tabs: Tab[] = [
     { id: 'security', label: 'Security', icon: '🔒', content: <SecuritySettings /> },
     { id: 'privacy', label: 'Privacy', icon: '🛡️', content: <PrivacySettings /> },
     { id: 'data', label: 'Data', icon: '💾', content: <DataSettings /> },
     { id: 'devices', label: 'Devices', icon: '🖥️', content: <DevicesSettings /> },
     { id: 'advanced', label: 'Advanced', icon: '⚙️', content: <AdvancedSettings /> },
+    { id: 'reports', label: 'Reports', icon: '📊', content: <ReportsSettings /> },
     { id: 'account', label: 'Account', icon: '👤', content: <AccountSettings /> },
     { id: 'billing', label: 'Billing', icon: '💳', content: <BillingSettings /> }
   ]
@@ -57,11 +65,10 @@ export const SettingsPage: React.FC = () => {
 
         <SaasTabs
           tabs={tabs}
-          defaultTab="security"
+          defaultTab={tabFromQuery}
           className="mb-8"
         />
       </div>
     </div>
   )
 }
-

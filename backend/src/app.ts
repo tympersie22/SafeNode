@@ -19,6 +19,8 @@ import { registerSSORoutes } from './routes/sso'
 import { registerHealthRoutes } from './routes/health'
 import { registerDownloadRoutes } from './routes/downloads'
 import { registerDeviceRoutes } from './routes/devices'
+import { registerAuditRoutes } from './routes/audit'
+import { registerReportRoutes } from './routes/reports'
 import { registerPasskeyRoutes } from './routes/passkeys'
 import { registerResendWebhookRoutes } from './routes/resendWebhook'
 import { registerSuccessorRoutes } from './routes/successor'
@@ -128,6 +130,10 @@ export async function createApp() {
 
   // Register device routes
   await registerDeviceRoutes(server)
+
+  // Register audit and reports routes
+  await registerAuditRoutes(server)
+  await registerReportRoutes(server)
 
   // Register passkey routes
   await registerPasskeyRoutes(server)
