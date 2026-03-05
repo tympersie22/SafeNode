@@ -173,6 +173,72 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
       // Only enforce the subscription cap when creating a new device record.
       const deviceLimit = await checkSubscriptionLimits(user.id, 'devices')
       if (!deviceLimit.allowed && deviceLimit.limit !== -1) {
+        // Safety migration path:
+        // If user is on a strict single-device plan (1/1), allow replacing the lone active web device.
+        // This prevents lockouts when browser origin changes (e.g. www -> apex) but user remains on same machine.
+        if (deviceLimit.limit === 1 && platform === 'web') {
+          const activeDevices = await prisma.device.findMany({
+            where: {
+              userId: user.id,
+              isActive: true
+            },
+            orderBy: {
+              lastSeen: 'desc'
+            },
+            take: 2
+          })
+
+          const lone = activeDevices.length === 1 ? activeDevices[0] : null
+          if (lone && lone.platform === 'web' && !lone.requiresReapproval) {
+            const oldDeviceId = lone.deviceId
+            const migrated = await prisma.device.update({
+              where: { id: lone.id },
+              data: {
+                deviceId,
+                name,
+                platform,
+                isActive: true,
+                requiresReapproval: false,
+                removedAt: null,
+                lastSeen: new Date()
+              }
+            })
+
+            await revokeDeviceSessions(user.id, oldDeviceId, 'device_id_migrated')
+            if (user.sessionId) {
+              await bindSessionToDevice(user.sessionId, user.id, migrated.deviceId)
+            }
+
+            createAuditLog({
+              userId: user.id,
+              action: 'device_registered',
+              resourceType: 'device',
+              resourceId: migrated.id,
+              metadata: {
+                migratedFromDeviceId: oldDeviceId,
+                migratedToDeviceId: migrated.deviceId,
+                migrationReason: 'single_device_origin_change',
+                platform
+              },
+              ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+              userAgent: request.headers['user-agent'] || undefined
+            }).catch(err => request.log.warn({ error: err }, 'Failed to create device migration audit log'))
+
+            return {
+              success: true,
+              migrated: true,
+              device: {
+                id: migrated.id,
+                deviceId: migrated.deviceId,
+                name: migrated.name,
+                platform: migrated.platform,
+                lastSeen: migrated.lastSeen.getTime(),
+                registeredAt: migrated.registeredAt.getTime()
+              }
+            }
+          }
+        }
+
         const userRecord = await findUserById(user.id)
         const currentPlan = await resolveEffectivePlan(user.id, userRecord?.subscriptionTier || 'free')
         const guidance = getPlanUpgradeGuidance(currentPlan, deviceLimit.current, deviceLimit.limit)
