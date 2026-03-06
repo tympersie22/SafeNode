@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  ChartNoAxesCombined,
   Tags,
   Wifi
 } from 'lucide-react'
@@ -52,6 +53,7 @@ interface VaultDashboardProps {
   onOpenTeams: () => void
   onOpenAudit: () => void
   onOpenBilling: () => void
+  onOpenReports: () => void
   onOpenPasswordGenerator: () => void
   onStrengthenPasswords: () => void
   onSelectEntry: (entry: VaultEntry) => void
@@ -114,6 +116,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   onOpenTeams,
   onOpenAudit,
   onOpenBilling,
+  onOpenReports,
   onOpenPasswordGenerator,
   onStrengthenPasswords,
   onSelectEntry,
@@ -518,6 +521,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                 {[
                   { label: 'Manage passkeys', description: 'WebAuthn and biometric access.', action: onOpenPasskeys, icon: <KeyRound className="h-4 w-4" /> },
                   { label: 'Audit trail', description: 'Sessions, blocked devices, events.', action: onOpenAudit, icon: <BellRing className="h-4 w-4" /> },
+                  { label: 'Reports', description: 'Security trends and CSV exports.', action: onOpenReports, icon: <ChartNoAxesCombined className="h-4 w-4" /> },
                   { label: 'Teams', description: 'Shared vaults and collaboration.', action: onOpenTeams, icon: <FolderKanban className="h-4 w-4" /> },
                   { label: 'Billing', description: 'Plan limits and upgrade path.', action: onOpenBilling, icon: <CreditCard className="h-4 w-4" /> }
                 ].map((item) => (
