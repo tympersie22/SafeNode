@@ -53,8 +53,19 @@ function getHeaders(): Record<string, string> {
   }
 }
 
-export async function getReportOverview(days = 30): Promise<ReportOverview> {
-  const response = await fetch(`${API_BASE}/api/reports/overview?days=${days}`, {
+export async function getReportOverview(params: {
+  days?: number
+  includeSystem?: boolean
+  includeSessionActivity?: boolean
+  includeInformational?: boolean
+} = {}): Promise<ReportOverview> {
+  const query = new URLSearchParams()
+  query.set('days', String(params.days ?? 30))
+  if (typeof params.includeSystem === 'boolean') query.set('includeSystem', String(params.includeSystem))
+  if (typeof params.includeSessionActivity === 'boolean') query.set('includeSessionActivity', String(params.includeSessionActivity))
+  if (typeof params.includeInformational === 'boolean') query.set('includeInformational', String(params.includeInformational))
+
+  const response = await fetch(`${API_BASE}/api/reports/overview?${query.toString()}`, {
     headers: getHeaders()
   })
   if (!response.ok) {
@@ -70,6 +81,10 @@ export async function getReportEvents(params: {
   action?: string
   limit?: number
   offset?: number
+  includeSystem?: boolean
+  includeSessionActivity?: boolean
+  includeInformational?: boolean
+  source?: 'manual' | 'auto'
 }): Promise<ReportEventsResponse> {
   const query = new URLSearchParams()
   if (params.days) query.set('days', String(params.days))
@@ -77,6 +92,10 @@ export async function getReportEvents(params: {
   if (params.action) query.set('action', params.action)
   if (typeof params.limit === 'number') query.set('limit', String(params.limit))
   if (typeof params.offset === 'number') query.set('offset', String(params.offset))
+  if (typeof params.includeSystem === 'boolean') query.set('includeSystem', String(params.includeSystem))
+  if (typeof params.includeSessionActivity === 'boolean') query.set('includeSessionActivity', String(params.includeSessionActivity))
+  if (typeof params.includeInformational === 'boolean') query.set('includeInformational', String(params.includeInformational))
+  if (params.source) query.set('source', params.source)
 
   const response = await fetch(`${API_BASE}/api/reports/events?${query.toString()}`, {
     headers: getHeaders()
@@ -92,11 +111,17 @@ export async function exportReportCsv(params: {
   days?: number
   severity?: 'all' | 'high' | 'medium' | 'info'
   action?: string
+  includeSystem?: boolean
+  includeSessionActivity?: boolean
+  includeInformational?: boolean
 }): Promise<void> {
   const query = new URLSearchParams()
   if (params.days) query.set('days', String(params.days))
   if (params.severity) query.set('severity', params.severity)
   if (params.action) query.set('action', params.action)
+  if (typeof params.includeSystem === 'boolean') query.set('includeSystem', String(params.includeSystem))
+  if (typeof params.includeSessionActivity === 'boolean') query.set('includeSessionActivity', String(params.includeSessionActivity))
+  if (typeof params.includeInformational === 'boolean') query.set('includeInformational', String(params.includeInformational))
 
   const response = await fetch(`${API_BASE}/api/reports/export?${query.toString()}`, {
     headers: getHeaders()

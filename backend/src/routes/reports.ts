@@ -6,6 +6,7 @@ import { getPrismaClient } from '../db/prisma'
 import { createAuditLog } from '../services/auditLogService'
 
 type ReportSeverity = 'high' | 'medium' | 'info'
+const booleanQuery = z.string().optional().default('false').transform((val) => val === 'true')
 
 const reportQuerySchema = z.object({
   days: z
@@ -30,7 +31,11 @@ const reportQuerySchema = z.object({
       return Number.isNaN(parsed) ? 0 : Math.max(0, parsed)
     }),
   action: z.string().optional(),
-  severity: z.enum(['all', 'high', 'medium', 'info']).optional().default('all')
+  severity: z.enum(['all', 'high', 'medium', 'info']).optional().default('all'),
+  includeSystem: booleanQuery,
+  includeSessionActivity: booleanQuery,
+  includeInformational: booleanQuery,
+  source: z.enum(['manual', 'auto']).optional().default('manual')
 })
 
 function getSeverity(action: string, metadata: Record<string, any> | null | undefined): ReportSeverity {
@@ -59,6 +64,14 @@ function isSecurityAction(action: string): boolean {
     'vault_locked',
     'vault_unlocked'
   ].includes(action)
+}
+
+function isSystemAction(action: string): boolean {
+  return action.startsWith('report_')
+}
+
+function isSessionHeartbeatAction(action: string): boolean {
+  return action === 'vault_locked' || action === 'vault_unlocked'
 }
 
 function toCsvRow(values: Array<string | number | null | undefined>): string {
@@ -99,7 +112,7 @@ export async function registerReportRoutes(server: FastifyInstance) {
         })
       }
 
-      const { days } = validation.data
+      const { days, includeSystem, includeSessionActivity, includeInformational } = validation.data
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
       const prisma = getPrismaClient()
 
@@ -131,7 +144,13 @@ export async function registerReportRoutes(server: FastifyInstance) {
         })
       ])
 
-      const securityEvents = events.filter((event) => isSecurityAction(event.action))
+      const securityEvents = events.filter((event) => {
+        if (!isSecurityAction(event.action)) return false
+        if (!includeSystem && isSystemAction(event.action)) return false
+        if (!includeSessionActivity && isSessionHeartbeatAction(event.action)) return false
+        if (!includeInformational && getSeverity(event.action, (event.metadata as any) || {}) === 'info') return false
+        return true
+      })
       const blockedDeviceAttempts = securityEvents.filter((event) => event.action === 'device_access_denied').length
       const sessionTakeovers = securityEvents.filter((event) => event.action === 'session_replaced').length
       const vaultAccessEvents = securityEvents.filter((event) => event.action === 'vault_unlocked' || event.action === 'vault_locked').length
@@ -175,7 +194,13 @@ export async function registerReportRoutes(server: FastifyInstance) {
       await writeReportAudit(
         user.id,
         'report_viewed',
-        { report: 'overview', days },
+        {
+          report: 'overview',
+          days,
+          includeSystem,
+          includeSessionActivity,
+          includeInformational
+        },
         request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
         request.headers['user-agent'] || undefined
       )
@@ -218,7 +243,7 @@ export async function registerReportRoutes(server: FastifyInstance) {
         })
       }
 
-      const { days, limit, offset, action, severity } = validation.data
+      const { days, limit, offset, action, severity, includeSystem, includeSessionActivity, includeInformational, source } = validation.data
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
       const prisma = getPrismaClient()
 
@@ -232,7 +257,7 @@ export async function registerReportRoutes(server: FastifyInstance) {
         prisma.auditLog.findMany({
           where,
           orderBy: { createdAt: 'desc' },
-          take: Math.min(limit * 3, 1200),
+          take: Math.min(limit * 10, 2000),
           skip: offset
         }),
         prisma.auditLog.count({ where })
@@ -250,16 +275,34 @@ export async function registerReportRoutes(server: FastifyInstance) {
           createdAt: event.createdAt.getTime(),
           severity: getSeverity(event.action, event.metadata as Record<string, any> | null)
         }))
-        .filter((event) => (severity === 'all' ? true : event.severity === severity))
+        .filter((event) => {
+          if (!includeSystem && isSystemAction(event.action)) return false
+          if (!includeSessionActivity && isSessionHeartbeatAction(event.action)) return false
+          if (!includeInformational && event.severity === 'info') return false
+          if (severity !== 'all' && event.severity !== severity) return false
+          return true
+        })
         .slice(0, limit)
 
-      await writeReportAudit(
-        user.id,
-        'report_filter_applied',
-        { report: 'events', days, action: action || null, severity, limit, offset },
-        request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
-        request.headers['user-agent'] || undefined
-      )
+      if (source !== 'auto') {
+        await writeReportAudit(
+          user.id,
+          'report_filter_applied',
+          {
+            report: 'events',
+            days,
+            action: action || null,
+            severity,
+            includeSystem,
+            includeSessionActivity,
+            includeInformational,
+            limit,
+            offset
+          },
+          request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
+          request.headers['user-agent'] || undefined
+        )
+      }
 
       return {
         events: mapped,
@@ -293,7 +336,7 @@ export async function registerReportRoutes(server: FastifyInstance) {
         })
       }
 
-      const { days, action, severity } = validation.data
+      const { days, action, severity, includeSystem, includeSessionActivity, includeInformational } = validation.data
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
       const prisma = getPrismaClient()
       const where: any = {
@@ -310,6 +353,9 @@ export async function registerReportRoutes(server: FastifyInstance) {
 
       const filtered = rawEvents.filter((event) => {
         const eventSeverity = getSeverity(event.action, event.metadata as Record<string, any> | null)
+        if (!includeSystem && isSystemAction(event.action)) return false
+        if (!includeSessionActivity && isSessionHeartbeatAction(event.action)) return false
+        if (!includeInformational && eventSeverity === 'info') return false
         return severity === 'all' ? true : eventSeverity === severity
       })
 
@@ -332,7 +378,16 @@ export async function registerReportRoutes(server: FastifyInstance) {
       await writeReportAudit(
         user.id,
         'report_exported',
-        { report: 'events', days, action: action || null, severity, rows: filtered.length },
+        {
+          report: 'events',
+          days,
+          action: action || null,
+          severity,
+          includeSystem,
+          includeSessionActivity,
+          includeInformational,
+          rows: filtered.length
+        },
         request.ip || (request.headers['x-forwarded-for'] as string) || undefined,
         request.headers['user-agent'] || undefined
       )

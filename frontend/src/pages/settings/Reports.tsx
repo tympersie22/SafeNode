@@ -18,6 +18,9 @@ export const ReportsSettings: React.FC = () => {
   const [days, setDays] = useState(30)
   const [severity, setSeverity] = useState<'all' | 'high' | 'medium' | 'info'>('all')
   const [action, setAction] = useState('')
+  const [includeSystem, setIncludeSystem] = useState(false)
+  const [includeSessionActivity, setIncludeSessionActivity] = useState(false)
+  const [includeInformational, setIncludeInformational] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -37,8 +40,23 @@ export const ReportsSettings: React.FC = () => {
       setError(null)
       try {
         const [overviewData, eventsData] = await Promise.all([
-          getReportOverview(days),
-          getReportEvents({ days, severity, action: action || undefined, limit: 100, offset: 0 })
+          getReportOverview({
+            days,
+            includeSystem,
+            includeSessionActivity,
+            includeInformational
+          }),
+          getReportEvents({
+            days,
+            severity,
+            action: action || undefined,
+            includeSystem,
+            includeSessionActivity,
+            includeInformational,
+            source: mode === 'refresh' ? 'auto' : 'manual',
+            limit: 100,
+            offset: 0
+          })
         ])
         if (!cancelled) {
           setOverview(overviewData)
@@ -70,7 +88,7 @@ export const ReportsSettings: React.FC = () => {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [days, severity, action])
+  }, [days, severity, action, includeSystem, includeSessionActivity, includeInformational])
 
   const actionOptions = useMemo(() => {
     const set = new Set(events.map((event) => event.action))
@@ -123,8 +141,23 @@ export const ReportsSettings: React.FC = () => {
                   setIsRefreshing(true)
                   try {
                     const [overviewData, eventsData] = await Promise.all([
-                      getReportOverview(days),
-                      getReportEvents({ days, severity, action: action || undefined, limit: 100, offset: 0 })
+                      getReportOverview({
+                        days,
+                        includeSystem,
+                        includeSessionActivity,
+                        includeInformational
+                      }),
+                      getReportEvents({
+                        days,
+                        severity,
+                        action: action || undefined,
+                        includeSystem,
+                        includeSessionActivity,
+                        includeInformational,
+                        source: 'manual',
+                        limit: 100,
+                        offset: 0
+                      })
                     ])
                     setOverview(overviewData)
                     setEvents(eventsData.events || [])
@@ -146,7 +179,14 @@ export const ReportsSettings: React.FC = () => {
                 onClick={async () => {
                   setIsExporting(true)
                   try {
-                    await exportReportCsv({ days, severity, action: action || undefined })
+                    await exportReportCsv({
+                      days,
+                      severity,
+                      action: action || undefined,
+                      includeSystem,
+                      includeSessionActivity,
+                      includeInformational
+                    })
                   } catch (err: any) {
                     setError(err.message || 'Failed to export report')
                   } finally {
@@ -161,9 +201,26 @@ export const ReportsSettings: React.FC = () => {
             </div>
           </div>
         </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+            <input type="checkbox" checked={includeSystem} onChange={(e) => setIncludeSystem(e.target.checked)} />
+            Include system report events
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+            <input type="checkbox" checked={includeSessionActivity} onChange={(e) => setIncludeSessionActivity(e.target.checked)} />
+            Include session lock/unlock
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+            <input type="checkbox" checked={includeInformational} onChange={(e) => setIncludeInformational(e.target.checked)} />
+            Include low-signal informational
+          </label>
+        </div>
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
           Live updates every {Math.floor(REALTIME_REFRESH_MS / 1000)}s
           {lastUpdatedAt ? ` • Last updated ${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''}
+        </p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Default signal profile excludes self-generated report logs, lock/unlock heartbeats, and informational-only entries.
         </p>
       </div>
 
