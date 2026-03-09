@@ -184,6 +184,22 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
               One working surface for vault health, session state, and credential triage. Navigation stays in the left sidebar. The dashboard body only shows what needs action now.
             </p>
           </div>
+
+          <aside className="w-full xl:max-w-sm">
+            <div className="rounded-[20px] border border-slate-200/80 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-950/85">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Right rail</p>
+              <h3 className="mt-2 text-base font-semibold text-slate-900 dark:text-slate-100">Reports</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Live security trends, blocked access attempts, and CSV exports.
+              </p>
+              <div className="mt-4">
+                <Button onClick={onOpenReports} variant="primary" size="sm">
+                  <ChartNoAxesCombined className="h-4 w-4" />
+                  Open Reports
+                </Button>
+              </div>
+            </div>
+          </aside>
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
