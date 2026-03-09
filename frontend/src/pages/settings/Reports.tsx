@@ -134,7 +134,7 @@ export const ReportsSettings: React.FC = () => {
           </label>
 
           <div className="flex items-end">
-            <div className="grid w-full grid-cols-2 gap-2">
+            <div className="flex w-full justify-end gap-2">
               <button
                 type="button"
                 onClick={async () => {
@@ -169,7 +169,7 @@ export const ReportsSettings: React.FC = () => {
                     setIsRefreshing(false)
                   }
                 }}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
                 disabled={isRefreshing}
               >
                 {isRefreshing ? 'Refreshing…' : 'Refresh'}
@@ -193,7 +193,7 @@ export const ReportsSettings: React.FC = () => {
                     setIsExporting(false)
                   }
                 }}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
                 disabled={isExporting}
               >
                 {isExporting ? 'Exporting…' : 'Export CSV'}
