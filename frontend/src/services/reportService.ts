@@ -180,9 +180,13 @@ export function openReportStream(params: {
       const decoder = new TextDecoder()
       let buffer = ''
 
-      while (true) {
+      let streamOpen = true
+      while (streamOpen) {
         const { value, done } = await reader.read()
-        if (done) break
+        if (done) {
+          streamOpen = false
+          break
+        }
         buffer += decoder.decode(value, { stream: true })
 
         let boundary = buffer.indexOf('\n\n')

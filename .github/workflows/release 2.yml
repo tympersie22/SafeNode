@@ -91,7 +91,7 @@ jobs:
         working-directory: ./frontend
         run: npm run build
         env:
-          VITE_API_URL: https://api.safenode.app
+          VITE_API_URL: https://safe-node-99hv-backend.vercel.app
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
@@ -100,4 +100,3 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./frontend
-

@@ -112,7 +112,11 @@ describe('Authentication Service', () => {
         expect.stringContaining('/api/auth/register'),
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-Device-ID': expect.any(String)
+          }),
           body: JSON.stringify({
             email: 'newuser@example.com',
             password: 'Password123!',
@@ -141,7 +145,7 @@ describe('Authentication Service', () => {
       await expect(register({
         email: 'test@example.com',
         password: 'Password123!'
-      })).rejects.toThrow('Unable to connect to server')
+      })).rejects.toThrow('Unable to connect to the SafeNode backend')
     })
 
   })
