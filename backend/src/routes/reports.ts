@@ -80,6 +80,45 @@ function toCsvRow(values: Array<string | number | null | undefined>): string {
     .join(',')
 }
 
+function filterAndMapEvents(
+  rawEvents: Array<{
+    id: string
+    action: string
+    resourceType: string | null
+    resourceId: string | null
+    metadata: any
+    ipAddress: string | null
+    userAgent: string | null
+    createdAt: Date
+  }>,
+  options: {
+    includeSystem: boolean
+    includeSessionActivity: boolean
+    includeInformational: boolean
+    severity: 'all' | 'high' | 'medium' | 'info'
+  }
+) {
+  return rawEvents
+    .map((event) => ({
+      id: event.id,
+      action: event.action,
+      resourceType: event.resourceType,
+      resourceId: event.resourceId,
+      metadata: event.metadata as Record<string, any> | null,
+      ipAddress: event.ipAddress,
+      userAgent: event.userAgent,
+      createdAt: event.createdAt.getTime(),
+      severity: getSeverity(event.action, event.metadata as Record<string, any> | null)
+    }))
+    .filter((event) => {
+      if (!options.includeSystem && isSystemAction(event.action)) return false
+      if (!options.includeSessionActivity && isSessionHeartbeatAction(event.action)) return false
+      if (!options.includeInformational && event.severity === 'info') return false
+      if (options.severity !== 'all' && event.severity !== options.severity) return false
+      return true
+    })
+}
+
 async function writeReportAudit(
   userId: string,
   action: 'report_viewed' | 'report_exported' | 'report_filter_applied',
@@ -320,6 +359,127 @@ export async function registerReportRoutes(server: FastifyInstance) {
         message: 'Failed to load report events'
       })
     }
+  })
+
+  server.get('/api/reports/stream', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    const user = (request as any).user
+    const validation = reportQuerySchema.safeParse(request.query as any)
+    if (!validation.success) {
+      return reply.code(400).send({
+        error: 'validation_error',
+        message: 'Invalid query parameters',
+        details: validation.error.errors
+      })
+    }
+
+    const { days, action, severity, includeSystem, includeSessionActivity, includeInformational } = validation.data
+    const prisma = getPrismaClient()
+
+    reply.raw.setHeader('Content-Type', 'text/event-stream')
+    reply.raw.setHeader('Cache-Control', 'no-cache, no-transform')
+    reply.raw.setHeader('Connection', 'keep-alive')
+    reply.raw.setHeader('X-Accel-Buffering', 'no')
+    reply.raw.flushHeaders?.()
+
+    let closed = false
+    let lastSignature = ''
+
+    const send = (type: string, payload: any) => {
+      if (closed) return
+      reply.raw.write(`event: ${type}\n`)
+      reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`)
+    }
+
+    const emitSnapshot = async () => {
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      const where: any = {
+        userId: user.id,
+        createdAt: { gte: startDate }
+      }
+      if (action) where.action = action
+
+      const [rawEvents, deviceCount, pendingReapprovals] = await Promise.all([
+        prisma.auditLog.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: 300
+        }),
+        prisma.device.count({
+          where: {
+            userId: user.id,
+            isActive: true
+          }
+        }),
+        prisma.device.count({
+          where: {
+            userId: user.id,
+            requiresReapproval: true
+          }
+        })
+      ])
+
+      const mapped = filterAndMapEvents(rawEvents, {
+        includeSystem,
+        includeSessionActivity,
+        includeInformational,
+        severity
+      })
+
+      const securityEventCount = mapped.length
+      const blockedDeviceAttempts = mapped.filter((event) => event.action === 'device_access_denied').length
+      const sessionTakeovers = mapped.filter((event) => event.action === 'session_replaced').length
+      const vaultAccessEvents = mapped.filter((event) => event.action === 'vault_unlocked' || event.action === 'vault_locked').length
+
+      const summary = {
+        securityEventCount,
+        blockedDeviceAttempts,
+        sessionTakeovers,
+        vaultAccessEvents,
+        activeDeviceCount: deviceCount,
+        pendingReapprovals
+      }
+
+      const signature = `${mapped[0]?.id || 'none'}:${mapped.length}:${summary.securityEventCount}:${summary.blockedDeviceAttempts}:${summary.sessionTakeovers}:${summary.vaultAccessEvents}`
+      if (signature !== lastSignature) {
+        lastSignature = signature
+        send('snapshot', {
+          generatedAt: Date.now(),
+          periodDays: days,
+          summary,
+          events: mapped.slice(0, 100)
+        })
+      }
+    }
+
+    const intervalId = setInterval(() => {
+      void emitSnapshot().catch((error) => {
+        request.log.error(error)
+        send('error', { message: 'Stream refresh failed' })
+      })
+    }, 2000)
+
+    const hardStop = setTimeout(() => {
+      if (!closed) {
+        send('end', { reason: 'refresh_window_complete' })
+        closed = true
+        clearInterval(intervalId)
+        reply.raw.end()
+      }
+    }, 25000)
+
+    request.raw.on('close', () => {
+      closed = true
+      clearInterval(intervalId)
+      clearTimeout(hardStop)
+    })
+
+    send('ready', { connectedAt: Date.now() })
+    void emitSnapshot().catch((error) => {
+      request.log.error(error)
+      send('error', { message: 'Initial stream snapshot failed' })
+    })
   })
 
   server.get('/api/reports/export', {

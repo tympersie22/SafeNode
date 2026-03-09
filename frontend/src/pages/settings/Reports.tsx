@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { getReportEvents, getReportOverview, exportReportCsv, type ReportEvent, type ReportOverview } from '../../services/reportService'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { getReportEvents, getReportOverview, exportReportCsv, openReportStream, type ReportEvent, type ReportOverview } from '../../services/reportService'
 
 const DAYS_OPTIONS = [7, 30, 90, 180]
-const REALTIME_REFRESH_MS = 5000
+const STREAM_RECONNECT_MS = 1200
 
 function severityTone(severity: 'high' | 'medium' | 'info'): string {
   if (severity === 'high') return 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
@@ -28,67 +28,110 @@ export const ReportsSettings: React.FC = () => {
   const [overview, setOverview] = useState<ReportOverview | null>(null)
   const [events, setEvents] = useState<ReportEvent[]>([])
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
+  const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting'>('connecting')
+
+  const loadReports = useCallback(async (mode: 'initial' | 'manual' = 'initial') => {
+    if (mode === 'initial') {
+      setIsLoading(true)
+    } else {
+      setIsRefreshing(true)
+    }
+    setError(null)
+    try {
+      const [overviewData, eventsData] = await Promise.all([
+        getReportOverview({
+          days,
+          includeSystem,
+          includeSessionActivity,
+          includeInformational
+        }),
+        getReportEvents({
+          days,
+          severity,
+          action: action || undefined,
+          includeSystem,
+          includeSessionActivity,
+          includeInformational,
+          source: mode === 'manual' ? 'manual' : 'auto',
+          limit: 100,
+          offset: 0
+        })
+      ])
+      setOverview(overviewData)
+      setEvents(eventsData.events || [])
+      setLastUpdatedAt(Date.now())
+    } catch (err: any) {
+      setError(err.message || 'Failed to load reports')
+    } finally {
+      if (mode === 'initial') {
+        setIsLoading(false)
+      } else {
+        setIsRefreshing(false)
+      }
+    }
+  }, [days, severity, action, includeSystem, includeSessionActivity, includeInformational])
 
   useEffect(() => {
     let cancelled = false
-    async function load(mode: 'initial' | 'refresh' = 'initial') {
-      if (mode === 'initial') {
-        setIsLoading(true)
-      } else {
-        setIsRefreshing(true)
-      }
-      setError(null)
-      try {
-        const [overviewData, eventsData] = await Promise.all([
-          getReportOverview({
-            days,
-            includeSystem,
-            includeSessionActivity,
-            includeInformational
-          }),
-          getReportEvents({
-            days,
-            severity,
-            action: action || undefined,
-            includeSystem,
-            includeSessionActivity,
-            includeInformational,
-            source: mode === 'refresh' ? 'auto' : 'manual',
-            limit: 100,
-            offset: 0
+    let cleanupStream: (() => void) | null = null
+    let reconnectTimer: number | null = null
+
+    const connectStream = () => {
+      if (cancelled) return
+      setStreamStatus((prev) => (prev === 'live' ? prev : 'connecting'))
+      cleanupStream = openReportStream({
+        days,
+        severity,
+        action: action || undefined,
+        includeSystem,
+        includeSessionActivity,
+        includeInformational
+      }, {
+        onReady: () => {
+          if (!cancelled) setStreamStatus('live')
+        },
+        onSnapshot: (snapshot) => {
+          if (cancelled) return
+          setOverview((prev) => {
+            const baseTopActions = prev?.topActions || []
+            const baseActivitySeries = prev?.activitySeries || []
+            const baseRecentAlerts = prev?.recentAlerts || []
+            return {
+              generatedAt: snapshot.generatedAt,
+              periodDays: snapshot.periodDays,
+              summary: snapshot.summary,
+              topActions: baseTopActions,
+              activitySeries: baseActivitySeries,
+              recentAlerts: baseRecentAlerts
+            }
           })
-        ])
-        if (!cancelled) {
-          setOverview(overviewData)
-          setEvents(eventsData.events || [])
+          setEvents(snapshot.events || [])
           setLastUpdatedAt(Date.now())
+          setError(null)
+        },
+        onError: (message) => {
+          if (!cancelled) setError(message || 'Stream connection failed')
+        },
+        onEnd: () => {
+          if (cancelled) return
+          setStreamStatus('reconnecting')
+          reconnectTimer = window.setTimeout(() => {
+            connectStream()
+          }, STREAM_RECONNECT_MS)
         }
-      } catch (err: any) {
-        if (!cancelled) setError(err.message || 'Failed to load reports')
-      } finally {
-        if (!cancelled) {
-          if (mode === 'initial') {
-            setIsLoading(false)
-          } else {
-            setIsRefreshing(false)
-          }
-        }
-      }
+      })
     }
 
-    void load('initial')
-
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void load('refresh')
-      }
-    }, REALTIME_REFRESH_MS)
+    void loadReports('initial').then(() => {
+      if (!cancelled) connectStream()
+    })
 
     return () => {
       cancelled = true
-      window.clearInterval(intervalId)
+      if (cleanupStream) cleanupStream()
+      if (reconnectTimer) window.clearTimeout(reconnectTimer)
     }
-  }, [days, severity, action, includeSystem, includeSessionActivity, includeInformational])
+  }, [days, severity, action, includeSystem, includeSessionActivity, includeInformational, loadReports])
 
   const actionOptions = useMemo(() => {
     const set = new Set(events.map((event) => event.action))
@@ -137,38 +180,7 @@ export const ReportsSettings: React.FC = () => {
             <div className="flex w-full justify-end gap-2">
               <button
                 type="button"
-                onClick={async () => {
-                  setIsRefreshing(true)
-                  try {
-                    const [overviewData, eventsData] = await Promise.all([
-                      getReportOverview({
-                        days,
-                        includeSystem,
-                        includeSessionActivity,
-                        includeInformational
-                      }),
-                      getReportEvents({
-                        days,
-                        severity,
-                        action: action || undefined,
-                        includeSystem,
-                        includeSessionActivity,
-                        includeInformational,
-                        source: 'manual',
-                        limit: 100,
-                        offset: 0
-                      })
-                    ])
-                    setOverview(overviewData)
-                    setEvents(eventsData.events || [])
-                    setLastUpdatedAt(Date.now())
-                    setError(null)
-                  } catch (err: any) {
-                    setError(err.message || 'Failed to refresh report')
-                  } finally {
-                    setIsRefreshing(false)
-                  }
-                }}
+                onClick={() => void loadReports('manual')}
                 className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
                 disabled={isRefreshing}
               >
@@ -216,7 +228,7 @@ export const ReportsSettings: React.FC = () => {
           </label>
         </div>
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-          Live updates every {Math.floor(REALTIME_REFRESH_MS / 1000)}s
+          Stream status: {streamStatus}
           {lastUpdatedAt ? ` • Last updated ${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''}
         </p>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
