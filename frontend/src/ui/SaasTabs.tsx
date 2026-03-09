@@ -25,6 +25,13 @@ export const SaasTabs: React.FC<SaasTabsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
 
+  React.useEffect(() => {
+    if (!defaultTab) return
+    if (tabs.some((tab) => tab.id === defaultTab) && defaultTab !== activeTab) {
+      setActiveTab(defaultTab)
+    }
+  }, [defaultTab, tabs, activeTab])
+
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
     onChange?.(tabId)
@@ -88,4 +95,3 @@ export const SaasTabs: React.FC<SaasTabsProps> = ({
     </div>
   )
 }
-
