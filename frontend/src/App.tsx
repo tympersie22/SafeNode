@@ -956,6 +956,14 @@ const App: React.FC = () => {
       onClick: () => setIsWatchtowerOpen(true)
     },
     {
+      id: 'reports',
+      label: 'Reports',
+      description: 'Security trends and exports',
+      section: 'Operations',
+      icon: <span>◴</span>,
+      onClick: () => navigate('/settings?tab=reports')
+    },
+    {
       id: 'passkeys',
       label: 'Passkeys',
       description: 'WebAuthn and biometric access',
@@ -970,14 +978,6 @@ const App: React.FC = () => {
       section: 'Security',
       icon: <span>⎘</span>,
       onClick: () => setIsAuditLogsOpen(true)
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      description: 'Security trends and exports',
-      section: 'Security',
-      icon: <span>◴</span>,
-      onClick: () => navigate('/settings?tab=reports')
     },
     {
       id: 'teams',
