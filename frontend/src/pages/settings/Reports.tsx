@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { getReportEvents, getReportOverview, exportReportCsv, type ReportEvent, type ReportOverview } from '../../services/reportService'
 
 const DAYS_OPTIONS = [7, 30, 90, 180]
-const REALTIME_REFRESH_MS = 15000
+const REALTIME_REFRESH_MS = 5000
 
 function severityTone(severity: 'high' | 'medium' | 'info'): string {
   if (severity === 'high') return 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'

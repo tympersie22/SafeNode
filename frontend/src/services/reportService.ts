@@ -66,7 +66,8 @@ export async function getReportOverview(params: {
   if (typeof params.includeInformational === 'boolean') query.set('includeInformational', String(params.includeInformational))
 
   const response = await fetch(`${API_BASE}/api/reports/overview?${query.toString()}`, {
-    headers: getHeaders()
+    headers: getHeaders(),
+    cache: 'no-store'
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Failed to load report overview' }))
@@ -98,7 +99,8 @@ export async function getReportEvents(params: {
   if (params.source) query.set('source', params.source)
 
   const response = await fetch(`${API_BASE}/api/reports/events?${query.toString()}`, {
-    headers: getHeaders()
+    headers: getHeaders(),
+    cache: 'no-store'
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Failed to load report events' }))
@@ -124,7 +126,8 @@ export async function exportReportCsv(params: {
   if (typeof params.includeInformational === 'boolean') query.set('includeInformational', String(params.includeInformational))
 
   const response = await fetch(`${API_BASE}/api/reports/export?${query.toString()}`, {
-    headers: getHeaders()
+    headers: getHeaders(),
+    cache: 'no-store'
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Failed to export report CSV' }))
