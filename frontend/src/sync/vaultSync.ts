@@ -102,10 +102,10 @@ export class VaultSync {
           encryptedVault: vaultData.encryptedVault,
           iv: vaultData.iv,
           salt: vaultData.salt,
-          version: vaultData.version || Date.now()
+          version: vaultData.version ?? currentVersion ?? 0
         },
         upToDate: false,
-        version: vaultData.version || Date.now()
+        version: vaultData.version ?? currentVersion ?? 0
       };
     } catch (error) {
       console.warn('Failed to fetch server vault:', error);

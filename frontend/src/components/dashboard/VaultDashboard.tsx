@@ -89,6 +89,34 @@ function getEntryBadge(entry: VaultEntry): { label: string; tone: string } {
   return { label: 'Review', tone: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }
 }
 
+function getCategoryIcon(entry: VaultEntry) {
+  switch (entry.category) {
+    case 'credit-card':
+      return <CreditCard className="h-4 w-4" />
+    case 'note':
+      return <FolderKanban className="h-4 w-4" />
+    case 'otp':
+      return <KeyRound className="h-4 w-4" />
+    case 'file':
+      return <Layers3 className="h-4 w-4" />
+    case 'password':
+    default:
+      return <LockKeyhole className="h-4 w-4" />
+  }
+}
+
+function formatUpdatedAt(timestamp?: number): string {
+  if (!timestamp) return 'No recent update'
+  const diffMs = Date.now() - timestamp
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffHours < 1) return 'Updated just now'
+  if (diffHours < 24) return `Updated ${diffHours}h ago`
+  if (diffDays < 7) return `Updated ${diffDays}d ago`
+  return `Updated ${new Date(timestamp).toLocaleDateString()}`
+}
+
 export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   entries,
   filteredEntries,
@@ -226,41 +254,93 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower priority</p>
-            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security posture at a glance</h3>
+            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security posture queue</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A compact remediation view for the highest-risk credentials and current posture totals.</p>
           </div>
           <Button onClick={onOpenWatchtower} variant="outline" size="sm">
             Open Watchtower
           </Button>
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.2fr)]">
-          {[
-            { label: 'Compromised', value: breachedEntries, tone: 'text-rose-600 dark:text-rose-300' },
-            { label: 'Weak', value: weakEntries, tone: 'text-amber-600 dark:text-amber-300' },
-            { label: 'Reused', value: healthSummary?.reusedCount ?? 0, tone: 'text-sky-600 dark:text-sky-300' }
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{stat.label}</p>
-              <p className={`mt-3 text-3xl font-semibold ${stat.tone}`}>{stat.value}</p>
+        <div className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70">
+          <div className="grid gap-3 border-b border-slate-200 bg-slate-50/80 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/80 lg:grid-cols-[220px_minmax(0,1fr)]">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Compromised', value: breachedEntries, tone: 'text-rose-600 dark:text-rose-300' },
+                { label: 'Weak', value: weakEntries, tone: 'text-amber-600 dark:text-amber-300' },
+                { label: 'Reused', value: healthSummary?.reusedCount ?? 0, tone: 'text-sky-600 dark:text-sky-300' }
+              ].map((stat) => (
+                <div key={stat.label} className="min-w-0 rounded-[16px] border border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950">
+                  <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400 sm:text-[10px]" title={stat.label}>
+                    {stat.label}
+                  </p>
+                  <p className={`mt-2 text-2xl font-semibold ${stat.tone}`}>{stat.value}</p>
+                </div>
+              ))}
             </div>
-          ))}
+            <div className="flex items-center justify-between rounded-[16px] border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+              <div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Watchtower score</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Combined view of breach, reuse, and weak password posture.</p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{healthSummary?.score ?? 100}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">current baseline</p>
+              </div>
+            </div>
+          </div>
 
-          <div className="rounded-[18px] border border-slate-200 p-4 dark:border-slate-800">
+          <div className="hidden grid-cols-[minmax(0,1.5fr)_120px_160px] gap-4 border-b border-slate-200 bg-slate-50/60 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400 lg:grid">
+            <span>Issue</span>
+            <span>Severity</span>
+            <span>Action</span>
+          </div>
+
+          <div className="max-h-[320px] overflow-y-auto">
             {priorityIssues.length === 0 ? (
-              <>
+              <div className="px-5 py-6">
                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">No urgent password issues</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   No high-priority password risks are open right now.
                 </p>
-              </>
+              </div>
             ) : (
-              <>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{priorityIssues[0].entryName}</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{priorityIssues[0].message}</p>
-                <span className={`mt-3 inline-flex rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${priorityIssues[0].severity === 'high' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>
-                  {priorityIssues[0].severity}
-                </span>
-              </>
+              priorityIssues.map((issue, index) => (
+                <div
+                  key={`${issue.entryName}-${issue.message}`}
+                  className={`grid gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-800 lg:grid-cols-[minmax(0,1.5fr)_120px_160px] lg:items-center lg:px-5 ${
+                    index === priorityIssues.length - 1 ? 'border-b-0' : ''
+                  } ${index === 0 ? 'bg-rose-50/40 dark:bg-rose-950/10' : 'bg-white dark:bg-slate-950/70'}`}
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {index === 0 ? (
+                        <span className="rounded-full bg-rose-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                          Immediate
+                        </span>
+                      ) : null}
+                      <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{issue.entryName}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{issue.message}</p>
+                  </div>
+
+                  <div>
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                      issue.severity === 'high'
+                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                    }`}>
+                      {issue.severity}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <Button onClick={onOpenWatchtower} variant="ghost" size="sm">
+                      Review
+                    </Button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -319,15 +399,16 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             </div>
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
-            <Button onClick={onRunBreachScan} variant="outline" size="sm" loading={isScanningBreaches}>
-              <ScanSearch className="h-4 w-4" />
+            <Button onClick={onRunBreachScan} variant="outline" size="sm" className="min-w-[84px] justify-center rounded-full px-3 py-1 text-[12px] leading-none" loading={isScanningBreaches}>
+              <ScanSearch className="h-4.5 w-4.5" />
               {isScanningBreaches ? 'Scanning' : 'Run scan'}
             </Button>
-            <Button onClick={onStrengthenPasswords} variant="ghost" size="sm">
-              <Sparkles className="h-4 w-4" />
+            <Button onClick={onStrengthenPasswords} variant="ghost" size="sm" className="rounded-full px-3 py-1 text-[12px] leading-none">
+              <Sparkles className="h-4.5 w-4.5" />
               Strengthen
             </Button>
-            <Button onClick={onOpenPasswordGenerator} variant="ghost" size="sm">
+            <Button onClick={onOpenPasswordGenerator} variant="ghost" size="sm" className="rounded-full px-3 py-1 text-[12px] leading-none">
+              <KeyRound className="h-4.5 w-4.5" />
               Generate
             </Button>
           </div>
@@ -445,45 +526,84 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Adjust your search or tag filter, or add a new secure record.</p>
               </div>
             ) : (
-              <div className="mt-6 overflow-hidden rounded-[22px] border border-slate-200 dark:border-slate-800">
-                <div className="hidden grid-cols-[minmax(0,1.2fr)_140px_180px_220px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
+              <div className="mt-6 overflow-hidden rounded-[22px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70">
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Credential queue</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {quickEntries.length} highest-priority records shown. Sorted by breach risk, weak credentials, and freshness.
+                    </p>
+                  </div>
+                  <div className="hidden rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900 dark:text-slate-300 sm:inline-flex">
+                    Compact inventory view
+                  </div>
+                </div>
+
+                <div className="hidden grid-cols-[minmax(0,1.7fr)_120px_150px_180px_180px] gap-4 border-b border-slate-200 bg-slate-50/80 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
                   <span>Credential</span>
                   <span>State</span>
+                  <span>Updated</span>
                   <span>Tags</span>
-                  <span>Actions</span>
+                  <span className="text-right">Actions</span>
                 </div>
-                {quickEntries.map((entry, index) => {
+
+                <div className="max-h-[420px] overflow-y-auto">
+                  {quickEntries.map((entry, index) => {
                   const badge = getEntryBadge(entry)
                   return (
                     <div
                       key={entry.id}
-                      className={`grid gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800 lg:grid-cols-[minmax(0,1.2fr)_140px_180px_220px] lg:items-center ${
+                      className={`grid gap-3 border-b border-slate-200 px-4 py-4 transition-colors hover:bg-slate-50/90 dark:border-slate-800 dark:hover:bg-slate-900/60 lg:grid-cols-[minmax(0,1.7fr)_120px_150px_180px_180px] lg:items-center lg:px-5 ${
                         index === quickEntries.length - 1 ? 'border-b-0' : ''
-                      } ${index === 0 ? 'bg-emerald-50/60 dark:bg-emerald-950/10' : 'bg-white dark:bg-slate-950/70'}`}
+                      } ${index === 0 ? 'bg-emerald-50/60 dark:bg-emerald-950/10' : ''}`}
                     >
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                            {getCategoryIcon(entry)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
                           {index === 0 && (
                             <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                               Priority
                             </span>
                           )}
-                          <span className="text-xs uppercase tracking-[0.16em] text-slate-400">{formatDomain(entry.url)}</span>
+                              <span className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                                {entry.category.replace('-', ' ')}
+                              </span>
+                              <span className="hidden text-xs text-slate-300 dark:text-slate-700 sm:inline">•</span>
+                              <span className="truncate text-xs text-slate-500 dark:text-slate-400">{formatDomain(entry.url)}</span>
+                            </div>
+                            <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-[15px]">{entry.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                              <span className="truncate">{entry.username || 'No username stored'}</span>
+                              {entry.totpSecret && <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">2FA</span>}
+                              {entry.breachCount ? <span className="rounded-full bg-rose-100 px-2 py-0.5 font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{entry.breachCount} breach</span> : null}
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-2 truncate text-base font-semibold text-slate-900 dark:text-slate-100">{entry.name}</p>
-                        <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{entry.username || 'No username stored'}</p>
                       </div>
 
                       <div>
                         <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.tone}`}>{badge.label}</span>
                       </div>
 
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatUpdatedAt(entry.updatedAt)}
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
-                        {(entry.tags || []).slice(0, 3).map((tag) => (
+                        {(entry.tags || []).slice(0, 2).map((tag) => (
                           <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
                             {tag}
                           </span>
                         ))}
+                        {(entry.tags || []).length > 2 ? (
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                            +{(entry.tags || []).length - 2}
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -492,7 +612,6 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                         </Button>
                         <Button onClick={() => onCopyPassword(entry)} variant="ghost" size="sm">
                           <Copy className="h-4 w-4" />
-                          Copy
                         </Button>
                         <Button onClick={() => onShare(entry)} variant="ghost" size="sm">
                           Share
@@ -503,7 +622,8 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                       </div>
                     </div>
                   )
-                })}
+                  })}
+                </div>
               </div>
             )}
           </section>

@@ -5,7 +5,8 @@
 
 import dotenv from 'dotenv'
 
-// Load environment variables from .env file
+// Load local development overrides first, then fallback defaults.
+dotenv.config({ path: '.env.local', override: true })
 dotenv.config()
 
 export interface Config {

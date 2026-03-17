@@ -8,7 +8,7 @@ import { handleSSOCallback, isSSOCallback } from '../services/ssoService'
 import { useAuth } from '../contexts/AuthContext'
 import Input from '../ui/Input'
 import Button from '../components/ui/Button'
-import { login as authLogin, register as authRegister, verifyLoginTwoFactor } from '../services/authService'
+import { login as authLogin, register as authRegister, verifyLoginTwoFactor, getCurrentUser } from '../services/authService'
 import { showToast } from '../components/ui/Toast'
 import { devLog } from '../utils/debug'
 
@@ -47,12 +47,10 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
         try {
           const result = await handleSSOCallback()
           if (result) {
-            // SSO callback returns { token, userId, user }
             // Token is already stored by handleSSOCallback
-            // Use user data from result directly - NO getCurrentUser call
-            if (result.user && result.token) {
-              setAuthUser(result.user, result.token)
-            }
+            // Fetch user profile to populate auth context
+            const user = await getCurrentUser()
+            setAuthUser(user, result.token)
             setIsLoading(false)
             // NO NAVIGATION - PublicRoute will redirect authenticated users to /vault
           } else {
@@ -102,15 +100,14 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       
       // Use flushSync to ensure state updates synchronously before navigation
       flushSync(() => {
-        setAuthUser(result.user, result.token)
+        setAuthUser(result.user, result.token!)
       })
       devLog('[Auth] Auth context updated synchronously')
-      
+
       setIsLoading(false)
       isProcessingRef.current = false
-      
-      // NO NAVIGATION - PublicRoute will redirect authenticated users to /vault
-      // This ensures route guards own all navigation decisions
+
+      navigate('/vault', { replace: true })
     } catch (err: any) {
       const errorMsg = err.message || 'Invalid email or password. Please try again.';
       setError(errorMsg);
@@ -144,6 +141,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setTwoFactorCode('')
       setIsLoading(false)
       isProcessingRef.current = false
+      navigate('/vault', { replace: true })
     } catch (err: any) {
       const errorMsg = err.message || 'Invalid 2FA code. Please try again.'
       setError(errorMsg)
@@ -173,15 +171,14 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       
       // Use flushSync to ensure state updates synchronously before navigation
       flushSync(() => {
-        setAuthUser(result.user, result.token)
+        setAuthUser(result.user, result.token!)
       })
       devLog('[Auth] Auth context updated synchronously')
-      
+
       setIsLoading(false)
       isProcessingRef.current = false
-      
-      // NO NAVIGATION - PublicRoute will redirect authenticated users to /vault
-      // This ensures route guards own all navigation decisions
+
+      navigate('/vault', { replace: true })
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.')
       setIsLoading(false)

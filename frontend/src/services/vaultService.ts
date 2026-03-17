@@ -51,6 +51,8 @@ export interface VaultEntry {
 export interface Vault {
   entries: VaultEntry[]
   version: number
+  /** Base64 salt returned by unlockVault — consumed by the caller, not persisted. */
+  _salt?: string
 }
 
 export interface EncryptedVault {
@@ -325,6 +327,10 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
     throw new Error('Vault data is in an invalid format. Please reinitialize your vault.')
   }
 
+  // Attach raw salt so the caller can pass it to handleVaultUnlocked without
+  // a separate GET /api/auth/vault/salt round-trip.
+  vault._salt = data.salt
+
   // Store encrypted vault in IndexedDB for future unlocks and saves
   // This ensures the vault is available for subsequent operations
   try {
@@ -335,7 +341,7 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
       data.encryptedVault,
       data.iv,
       data.salt,
-      data.version || Date.now()
+      data.version ?? 0
     )
     await vaultStorage.storeVault(storedVault)
   } catch (error: any) {
@@ -356,8 +362,16 @@ export async function saveVault(vault: Vault, masterPassword: string): Promise<n
     throw new Error('Not authenticated')
   }
 
-  // Get vault salt
-  const saltBase64 = await getVaultSalt()
+  // Get vault salt — prefer IndexedDB (already stored during unlock) to avoid
+  // an extra round-trip; fall back to server only if cache is cold.
+  let saltBase64: string
+  try {
+    await vaultStorage.init()
+    const cached = await vaultStorage.getVault()
+    saltBase64 = cached?.salt ?? await getVaultSalt()
+  } catch {
+    saltBase64 = await getVaultSalt()
+  }
   const salt = base64ToArrayBuffer(saltBase64)
 
   // Encrypt vault
@@ -393,26 +407,30 @@ export async function saveVault(vault: Vault, masterPassword: string): Promise<n
 }
 
 /**
- * Check if vault exists for current user
+ * Check if vault exists for current user.
+ * Returns false for ANY non-200 response so the caller can proceed
+ * to vault setup. A 403 means device not yet registered
+ * (requireRegisteredDevice middleware) — treat as "no vault" so the
+ * setup flow runs and registers the device + initialises the vault.
  */
 export async function vaultExists(): Promise<boolean> {
   const token = localStorage.getItem('safenode_token')
-  
-  if (!token) {
-    return false
-  }
+
+  if (!token) return false
 
   try {
     const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         ...getCurrentDeviceHeaders()
-      }
+      },
+      credentials: 'include'
     })
 
-    if (!response.ok) {
-      return false
-    }
+    // 403 = requireRegisteredDevice blocked (first login on this device).
+    // Treat the same as "no vault" — setup flow will handle device registration.
+    if (response.status === 403) return false
+    if (!response.ok) return false
 
     const data = await response.json()
     return data.exists === true

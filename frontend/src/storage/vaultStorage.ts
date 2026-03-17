@@ -142,9 +142,9 @@ export class VaultStorage {
     return navigator.onLine;
   }
 
-  // Generate a unique version number (timestamp)
-  generateVersion(): number {
-    return Date.now();
+  // Vault versions are monotonic counters shared with the backend sync model.
+  generateVersion(currentVersion = 0): number {
+    return Math.max(0, currentVersion) + 1;
   }
 
   // Compare versions and determine if sync is needed
@@ -165,7 +165,7 @@ export class VaultStorage {
       encryptedVault,
       iv,
       salt,
-      version: version || now,
+      version: version ?? 0,
       lastModified: now,
       isOffline: !this.isOnline()
     };

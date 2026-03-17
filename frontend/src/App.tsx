@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, startTransition, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
@@ -28,7 +29,6 @@ import type { VaultBackup } from './storage/backupStorage';
 import { API_BASE } from './config/api';
 import type { VaultEntry, VaultAttachment } from './types/vault';
 import { evaluatePasswordHealth, type PasswordHealthSummary } from './health/passwordHealth';
-import PasskeysModal from './components/PasskeysModal';
 import WatchtowerModal, { watchtowerIssueKey } from './components/WatchtowerModal';
 import { useTravelMode } from './utils/travelMode';
 import { useDarkMode } from './utils/darkMode';
@@ -36,7 +36,6 @@ import AccountSwitcher from './components/AccountSwitcher';
 import AuditLogsModal from './components/AuditLogsModal';
 import TeamVaultsModal from './components/TeamVaultsModal';
 import PINSetupModal from './components/PINSetupModal';
-import BiometricSetupModal from './components/BiometricSetupModal';
 import { accountStorage, type Account } from './storage/accountStorage';
 import { auditLogStorage } from './storage/auditLogs';
 import { teamVaultStorage } from './storage/teamVaults';
@@ -115,7 +114,11 @@ const App: React.FC = () => {
   const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
   const [isStrengthenPasswordsOpen, setIsStrengthenPasswordsOpen] = useState(false);
   const [selectedEntryDetail, setSelectedEntryDetail] = useState<VaultEntry | null>(null);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  // Use a ref for sessionStartTime so user-activity resets don't trigger a full re-render
+  const sessionStartTimeRef = useRef<number | null>(null);
+
+  const PasskeysModal = React.useMemo(() => React.lazy(() => import('./components/PasskeysModal')), []);
+  const BiometricSetupModal = React.useMemo(() => React.lazy(() => import('./components/BiometricSetupModal')), []);
   const [sessionTimeoutMinutes] = useState(30); // 30 minute session timeout
   const [remainingSessionTime, setRemainingSessionTime] = useState<number | null>(null);
   const [syncPendingCount, setSyncPendingCount] = useState(0);
@@ -136,39 +139,38 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Session timeout tracking
+  // Session timeout tracking — ref-based so activity resets don't cause re-renders
   useEffect(() => {
-    if (vaultStatus === 'UNLOCKED' && !sessionStartTime) {
-      setSessionStartTime(Date.now());
+    if (vaultStatus === 'UNLOCKED' && !sessionStartTimeRef.current) {
+      sessionStartTimeRef.current = Date.now();
     } else if (vaultStatus === 'LOCKED') {
-      setSessionStartTime(null);
+      sessionStartTimeRef.current = null;
       setRemainingSessionTime(null);
     }
-  }, [vaultStatus, sessionStartTime]);
+  }, [vaultStatus]);
 
-  // Update remaining session time (real-time)
+  // Update remaining session time every 60 s (minute-level precision is enough for the label)
   useEffect(() => {
-    if (!sessionStartTime || vaultStatus !== 'UNLOCKED') {
+    if (vaultStatus !== 'UNLOCKED') {
       setRemainingSessionTime(null);
       return;
     }
 
     const updateTimer = () => {
-      if (!sessionStartTime) return;
-      
+      const startTime = sessionStartTimeRef.current;
+      if (!startTime) return;
+
       const now = Date.now();
-      const elapsed = (now - sessionStartTime) / 1000; // elapsed seconds
+      const elapsed = (now - startTime) / 1000;
       const totalTimeoutSeconds = sessionTimeoutMinutes * 60;
       const remainingSeconds = totalTimeoutSeconds - elapsed;
       const remainingMinutes = remainingSeconds / 60;
-      
-      // Update state every second for real-time countdown (this triggers re-render)
+
       setRemainingSessionTime(Math.max(0, remainingMinutes));
 
       // Show warning at 2 minutes remaining (only once per session)
-      if (remainingMinutes > 0 && remainingMinutes <= 2 && remainingMinutes > 1.98) {
-        // Use a ref or state to track if warning was shown
-        const warningKey = `warning-${sessionStartTime}`;
+      if (remainingMinutes > 0 && remainingMinutes <= 2) {
+        const warningKey = `warning-${startTime}`;
         if (!sessionStorage.getItem(warningKey)) {
           sessionStorage.setItem(warningKey, 'true');
           showToast.info('Your session will expire in 2 minutes. Click anywhere to extend.');
@@ -182,36 +184,31 @@ const App: React.FC = () => {
       }
     };
 
-    // Update immediately for instant display
     updateTimer();
-    
-    // Update every second for real-time countdown
-    const interval = setInterval(updateTimer, 1000);
-    
+
+    // 60-second tick: updates the label once per minute instead of once per second,
+    // eliminating 59 unnecessary full-App re-renders per minute.
+    const interval = setInterval(updateTimer, 60_000);
+
     return () => {
       clearInterval(interval);
-      // Clear warning flag when component unmounts or session changes
-      if (sessionStartTime) {
-        sessionStorage.removeItem(`warning-${sessionStartTime}`);
-      }
+      const startTime = sessionStartTimeRef.current;
+      if (startTime) sessionStorage.removeItem(`warning-${startTime}`);
     };
-  }, [sessionStartTime, vaultStatus, sessionTimeoutMinutes]);
+  }, [vaultStatus, sessionTimeoutMinutes]);
 
-  // Extend session on user activity
+  // Extend session on user activity — write to ref only, no state update → no re-render
   useEffect(() => {
     if (vaultStatus !== 'UNLOCKED') return;
 
     const extendSession = () => {
-      if (sessionStartTime) {
-        setSessionStartTime(Date.now());
-      }
+      sessionStartTimeRef.current = Date.now();
     };
 
-    // Extend on any user interaction
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
     events.forEach(event => window.addEventListener(event, extendSession, { passive: true }));
     return () => events.forEach(event => window.removeEventListener(event, extendSession));
-  }, [vaultStatus, sessionStartTime]);
+  }, [vaultStatus]);
 
   // Sync auth mode from URL query params
   useEffect(() => {
@@ -375,40 +372,8 @@ const App: React.FC = () => {
       showToast.info('Could not enable biometric unlock. You can set this up later in settings.');
     });
     
-    // Store encrypted vault in IndexedDB for future saves (fire-and-forget)
-    // This ensures saveVaultToServer can access the salt
-    vaultStorage.init().then(async () => {
-      try {
-        // Get the encrypted vault from server to store it
-        const token = localStorage.getItem('safenode_token');
-        if (token) {
-          const vaultResponse = await fetch(`${API_BASE}/api/auth/vault/latest`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              ...getCurrentDeviceHeaders()
-            }
-          });
-          
-          if (vaultResponse.ok) {
-            const vaultData = await vaultResponse.json();
-            if (vaultData.encryptedVault && vaultData.iv && vaultData.salt) {
-              const storedVault = vaultStorage.createVault(
-                vaultData.encryptedVault,
-                vaultData.iv,
-                vaultData.salt,
-                vaultData.version || Date.now()
-              );
-              await vaultStorage.storeVault(storedVault);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to store vault in IndexedDB:', error);
-        // Non-critical - we can still save using state salt
-      }
-    }).catch(error => {
-      console.warn('Failed to init vault storage:', error);
-    });
+    // IndexedDB storage is handled inside unlockVault() itself —
+    // no redundant GET /api/auth/vault/latest needed here.
   };
 
   const handleLock = () => {
@@ -419,7 +384,7 @@ const App: React.FC = () => {
     setVaultStatus('LOCKED');
     setMasterPassword('');
     setVaultSalt(null);
-    setSessionStartTime(null);
+    sessionStartTimeRef.current = null;
     setRemainingSessionTime(null);
     syncManager.stop();
     // Clear any revealed passwords
@@ -438,7 +403,7 @@ const App: React.FC = () => {
       setMasterPassword('');
       setVaultSalt(null);
       setCurrentAccount(null);
-      setSessionStartTime(null);
+      sessionStartTimeRef.current = null;
       setRemainingSessionTime(null);
       
       // Stop sync
@@ -701,10 +666,12 @@ const App: React.FC = () => {
       const vaultJson = JSON.stringify(vaultData);
       const encrypted = await encrypt(vaultJson, masterPassword, salt);
       
+      const nextVersion = Math.max(0, Number(storedVault?.version || 0)) + 1;
+
       const payload = {
         encryptedVault: arrayBufferToBase64(encrypted.encrypted),
         iv: arrayBufferToBase64(encrypted.iv),
-        version: Date.now()
+        version: nextVersion
       };
 
       const performVaultMutation = async () => {
@@ -752,8 +719,10 @@ const App: React.FC = () => {
       console.error('Failed to save vault:', error);
       // Provide more detailed error message
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      // error.code contains the actual backend error (from errorData.error field in the API response)
       console.error('Error details:', {
         message: errorMessage,
+        backendError: error?.code,   // ← actual Prisma / server exception message
         operation,
         entryId,
         hasToken: !!localStorage.getItem('safenode_token'),
@@ -897,12 +866,15 @@ const App: React.FC = () => {
         <MasterPasswordSetup
           email={user.email}
           onComplete={(vault, masterPassword, salt) => {
-            // After master password setup, vault is initialized and unlocked
-            if (vault && masterPassword && salt) {
-              // Unlock the vault immediately
-              handleVaultUnlocked(vault, masterPassword, salt)
-            }
-            setShowMasterPasswordSetup(false)
+            // Commit state BEFORE navigate so React never renders an intermediate
+            // LOCKED frame when React Router triggers a re-render from navigate().
+            flushSync(() => {
+              if (vault && masterPassword && salt) {
+                handleVaultUnlocked(vault, masterPassword, salt)
+              }
+              setShowMasterPasswordSetup(false)
+            })
+            // By the time navigate runs, vaultStatus is already UNLOCKED.
             navigate('/vault')
           }}
           onSkip={() => {
@@ -922,6 +894,11 @@ const App: React.FC = () => {
       <UnlockVault 
         onVaultUnlocked={handleVaultUnlocked}
         onSetupMasterPassword={() => {
+          // Navigate to /vault first so the URL is correct during setup,
+          // making the navigate() in onComplete a harmless no-op.
+          if (!location.pathname.startsWith('/vault')) {
+            navigate('/vault')
+          }
           setShowMasterPasswordSetup(true)
         }}
         onLogout={() => {
@@ -1295,7 +1272,11 @@ const App: React.FC = () => {
         setVault(updated)
         // Persist via existing save function if available
       }} />
-      <PasskeysModal isOpen={isPasskeysOpen} onClose={() => setIsPasskeysOpen(false)} />
+      {isPasskeysOpen && (
+        <React.Suspense fallback={null}>
+          <PasskeysModal isOpen={isPasskeysOpen} onClose={() => setIsPasskeysOpen(false)} />
+        </React.Suspense>
+      )}
       <WatchtowerModal
         isOpen={isWatchtowerOpen}
         onClose={() => setIsWatchtowerOpen(false)}
@@ -1331,15 +1312,19 @@ const App: React.FC = () => {
           // PIN setup successful
         }}
       />
-      <BiometricSetupModal
-        isOpen={isBiometricSetupOpen}
-        onClose={() => setIsBiometricSetupOpen(false)}
-        userId={user?.email || 'demo@safe-node.app'}
-        userName={user?.email || 'Demo User'}
-        onSuccess={() => {
-          // Biometric setup successful
-        }}
-      />
+      {isBiometricSetupOpen && (
+        <React.Suspense fallback={null}>
+          <BiometricSetupModal
+            isOpen={isBiometricSetupOpen}
+            onClose={() => setIsBiometricSetupOpen(false)}
+            userId={user?.email || 'demo@safe-node.app'}
+            userName={user?.email || 'Demo User'}
+            onSuccess={() => {
+              // Biometric setup successful
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {isBackupModalOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4">
