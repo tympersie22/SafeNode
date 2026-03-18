@@ -25,12 +25,14 @@ export const SaasTabs: React.FC<SaasTabsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
 
+  // Only sync when the defaultTab prop itself changes (e.g. URL query param changes).
+  // Intentionally omitting `tabs` and `activeTab` from deps: including them caused
+  // the tab to reset to defaultTab on every render after a user clicked a different tab.
   React.useEffect(() => {
     if (!defaultTab) return
-    if (tabs.some((tab) => tab.id === defaultTab) && defaultTab !== activeTab) {
-      setActiveTab(defaultTab)
-    }
-  }, [defaultTab, tabs, activeTab])
+    setActiveTab(defaultTab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultTab])
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)

@@ -24,7 +24,10 @@ export const SettingsPage: React.FC = () => {
     const tab = params.get('tab')
     return tab || 'security'
   }, [location.search])
-  const tabs: Tab[] = [
+
+  // Memoised so the array reference is stable across renders — prevents the
+  // SaasTabs useEffect from firing on every render and resetting the active tab.
+  const tabs: Tab[] = React.useMemo(() => [
     { id: 'security', label: 'Security', icon: '🔒', content: <SecuritySettings /> },
     { id: 'privacy', label: 'Privacy', icon: '🛡️', content: <PrivacySettings /> },
     { id: 'data', label: 'Data', icon: '💾', content: <DataSettings /> },
@@ -33,7 +36,7 @@ export const SettingsPage: React.FC = () => {
     { id: 'reports', label: 'Reports', icon: '📊', content: <ReportsSettings /> },
     { id: 'account', label: 'Account', icon: '👤', content: <AccountSettings /> },
     { id: 'billing', label: 'Billing', icon: '💳', content: <BillingSettings /> }
-  ]
+  ], [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 py-8 px-4">
@@ -66,6 +69,7 @@ export const SettingsPage: React.FC = () => {
         <SaasTabs
           tabs={tabs}
           defaultTab={tabFromQuery}
+          onChange={(id) => navigate(`/settings?tab=${id}`, { replace: true })}
           className="mb-8"
         />
       </div>

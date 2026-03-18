@@ -57,7 +57,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
           className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gray-950/5"
           aria-hidden="true"
         >
-          <Logo variant="icon" size="sm" />
+          <Logo variant="default" size="sm" />
         </div>
         <h2 
           id="login-heading"

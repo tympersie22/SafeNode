@@ -21,5 +21,7 @@ export interface VaultEntry {
   breachCount?: number | null;
   lastBreachCheck?: number | null;
   passwordUpdatedAt?: number | null;
+  updatedAt?: number;
+  createdAt?: number;
 }
 

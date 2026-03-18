@@ -139,8 +139,8 @@ export const AdvancedSettings: React.FC = () => {
             </h3>
             <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <p>SafeNode v1.0.0</p>
-              <p>Build: {process.env.REACT_APP_BUILD_DATE || 'Development'}</p>
-              <p>Environment: {process.env.NODE_ENV || 'development'}</p>
+              <p>Build: {import.meta.env.VITE_BUILD_DATE || 'Development'}</p>
+              <p>Environment: {import.meta.env.MODE || 'development'}</p>
             </div>
           </div>
         </div>

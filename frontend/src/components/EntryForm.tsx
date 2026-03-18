@@ -350,17 +350,26 @@ const EntryForm: React.FC<EntryFormProps> = ({
   const isFormValid = formData.name.trim() && formData.username.trim() && Object.values(errors).filter(v => v).length === 0;
 
   return (
+    <>
+    {/* Two separate AnimatePresence wrappers — one per child avoids the
+        duplicate-empty-key warning that fires when both `{isOpen && ...}`
+        expressions evaluate to `false` inside a single AnimatePresence. */}
     <AnimatePresence>
       {isOpen && (
-        <>
           <motion.div
+            key="entry-form-backdrop"
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[69]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
+      )}
+    </AnimatePresence>
+    <AnimatePresence>
+      {isOpen && (
           <motion.div
+            key="entry-form-modal"
             className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
             initial={{ opacity: 0, scale: 0.98, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -728,14 +737,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
               </form>
             </div>
           </motion.div>
-        </>
       )}
-      <PasswordGeneratorModal
-        isOpen={showPasswordGenerator}
-        onClose={() => setShowPasswordGenerator(false)}
-        onGenerate={handlePasswordGenerated}
-      />
     </AnimatePresence>
+    <PasswordGeneratorModal
+      isOpen={showPasswordGenerator}
+      onClose={() => setShowPasswordGenerator(false)}
+      onGenerate={handlePasswordGenerated}
+    />
+    </>
   );
 };
 

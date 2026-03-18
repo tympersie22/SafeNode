@@ -31,9 +31,10 @@ function getExpectedOrigins(): string[] {
     'https://safe-node.app',
     'https://www.safe-node.app',
     'http://localhost:5173',
+    'http://localhost:5174', // common Vite fallback port
   ])
 
-  const envOrigins = [process.env.FRONTEND_URL, process.env.SSO_CALLBACK_BASE_URL, process.env.CORS_ORIGIN]
+  const envOrigins = [process.env.FRONTEND_URL, process.env.SSO_CALLBACK_BASE_URL, process.env.CORS_ORIGIN, process.env.WEBAUTHN_ORIGIN]
   for (const value of envOrigins) {
     if (!value) continue
     for (const item of value.split(',')) {

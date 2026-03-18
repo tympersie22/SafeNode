@@ -250,14 +250,15 @@ export async function createApp() {
       
       return { 
         ok: true, 
-        version: updated.vaultVersion,
+        version: Number(updated.vaultVersion), // BigInt → Number for JSON serialisation
         message: 'Entry created successfully' 
       }
     } catch (error: any) {
-      request.log.error(error)
-      return reply.code(500).send({ 
-        error: error?.message || 'server_error', 
-        message: 'Failed to create vault entry' 
+      request.log.error({ err: error, userId: (request as any).user?.id }, 'vault/entry POST failed')
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to create vault entry',
+        ...(config.nodeEnv !== 'production' && { detail: error?.message, type: error?.constructor?.name })
       })
     }
   })
@@ -288,7 +289,7 @@ export async function createApp() {
       
       return { 
         ok: true, 
-        version: updated.vaultVersion,
+        version: Number(updated.vaultVersion), // BigInt → Number for JSON serialisation
         message: `Entry ${id} updated successfully` 
       }
     } catch (error: any) {
@@ -326,7 +327,7 @@ export async function createApp() {
       
       return { 
         ok: true, 
-        version: updated.vaultVersion,
+        version: Number(updated.vaultVersion), // BigInt → Number for JSON serialisation
         message: `Entry ${id} deleted successfully` 
       }
     } catch (error: any) {

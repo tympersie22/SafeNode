@@ -44,7 +44,7 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
       setTimeout(() => setShowConfirmDelete(false), 3000);
     } else {
       onDelete(entry);
-      showToast.success(`${entry.title} deleted`);
+      showToast.success(`${entry.name} deleted`);
     }
   };
 
@@ -89,7 +89,7 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
           {/* Title + URL */}
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
-              {entry.title}
+              {entry.name}
             </h3>
             {entry.url && (
               <a
@@ -208,10 +208,10 @@ export const VaultEntryCard: React.FC<VaultEntryCardProps> = ({
           )}
 
           {/* Footer: Last Modified */}
-          {entry.modifiedAt && (
+          {entry.updatedAt && (
             <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                Last modified {new Date(entry.modifiedAt).toLocaleDateString()}
+                Last modified {new Date(entry.updatedAt).toLocaleDateString()}
               </div>
             </div>
           )}

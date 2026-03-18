@@ -191,6 +191,13 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
 
+      // Auto-verify email in non-production so dev accounts can login immediately
+      if (config.nodeEnv !== 'production') {
+        await updateUser(verifiedUser.id, { emailVerified: true }).catch(err => {
+          request.log.warn({ err }, '[dev] Failed to auto-verify email')
+        })
+      }
+
       // Create and send verification email (fire-and-forget)
       createVerificationToken(verifiedUser.id, verifiedUser.email, verifiedUser.displayName).catch(error => {
         request.log.error({ error, userId: verifiedUser.id }, 'Failed to send verification email')
@@ -546,7 +553,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       return {
         success: true,
         message: 'Vault initialized successfully',
-        version: updated.vaultVersion
+        version: Number(updated.vaultVersion)
       }
     } catch (error: any) {
       request.log.error(error)
@@ -631,7 +638,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
 
       return {
         success: true,
-        version: updated.vaultVersion
+        version: Number(updated.vaultVersion)
       }
     } catch (error: any) {
       request.log.error(error)
@@ -701,10 +708,11 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       // Check if client has latest version
       if (query?.since) {
         const since = parseInt(query.since, 10)
-        if (!isNaN(since) && userData.vaultVersion && since >= userData.vaultVersion) {
+        const currentVersion = Number(userData.vaultVersion)
+        if (!isNaN(since) && currentVersion && since >= currentVersion) {
           return {
             upToDate: true,
-            version: userData.vaultVersion
+            version: currentVersion
           }
         }
       }
@@ -714,7 +722,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         exists: true,
         encryptedVault: userData.vaultEncrypted,
         iv: userData.vaultIV,
-        version: userData.vaultVersion,
+        version: Number(userData.vaultVersion),
         salt: userData.vaultSalt
       }
     } catch (error: any) {

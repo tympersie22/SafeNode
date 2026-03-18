@@ -93,7 +93,7 @@ export const prismaUserAdapter = {
         vaultSalt: user.vaultSalt,
         vaultEncrypted: user.vaultEncrypted,
         vaultIV: user.vaultIV,
-        vaultVersion: user.vaultVersion,
+        vaultVersion: BigInt(Math.round(user.vaultVersion)),
         twoFactorEnabled: user.twoFactorEnabled,
         twoFactorSecret: user.twoFactorSecret,
         twoFactorBackupCodes: user.twoFactorBackupCodes || [],
@@ -233,7 +233,7 @@ export const prismaUserAdapter = {
     if (input.vaultSalt !== undefined) updateData.vaultSalt = input.vaultSalt
     if (input.vaultEncrypted !== undefined) updateData.vaultEncrypted = input.vaultEncrypted
     if (input.vaultIV !== undefined) updateData.vaultIV = input.vaultIV
-    if (input.vaultVersion !== undefined) updateData.vaultVersion = input.vaultVersion
+    if (input.vaultVersion !== undefined) updateData.vaultVersion = BigInt(Math.round(input.vaultVersion))
     if (input.twoFactorEnabled !== undefined) updateData.twoFactorEnabled = input.twoFactorEnabled
     if (input.twoFactorSecret !== undefined) {
       updateData.twoFactorSecret = input.twoFactorSecret === undefined || input.twoFactorSecret === null ? null : input.twoFactorSecret
