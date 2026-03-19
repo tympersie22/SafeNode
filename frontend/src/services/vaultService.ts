@@ -64,6 +64,18 @@ export interface EncryptedVault {
   format?: string
 }
 
+export class VaultAccessError extends Error {
+  status?: number
+  code?: string
+
+  constructor(message: string, status?: number, code?: string) {
+    super(message)
+    this.name = 'VaultAccessError'
+    this.status = status
+    this.code = code
+  }
+}
+
 /**
  * Get vault salt from server
  */
@@ -408,10 +420,9 @@ export async function saveVault(vault: Vault, masterPassword: string): Promise<n
 
 /**
  * Check if vault exists for current user.
- * Returns false for ANY non-200 response so the caller can proceed
- * to vault setup. A 403 means device not yet registered
- * (requireRegisteredDevice middleware) — treat as "no vault" so the
- * setup flow runs and registers the device + initialises the vault.
+ * Returns false only when the server positively indicates that no vault exists.
+ * Access-control or transport errors must never be treated as "no vault",
+ * because that can route an existing user into destructive re-initialization.
  */
 export async function vaultExists(): Promise<boolean> {
   const token = localStorage.getItem('safenode_token')
@@ -427,14 +438,24 @@ export async function vaultExists(): Promise<boolean> {
       credentials: 'include'
     })
 
-    // 403 = requireRegisteredDevice blocked (first login on this device).
-    // Treat the same as "no vault" — setup flow will handle device registration.
-    if (response.status === 403) return false
-    if (!response.ok) return false
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        message: 'Failed to verify vault access',
+        error: 'vault_access_error'
+      }))
+      throw new VaultAccessError(
+        error.message || 'Failed to verify vault access',
+        response.status,
+        error.code || error.error
+      )
+    }
 
     const data = await response.json()
     return data.exists === true
-  } catch {
-    return false
+  } catch (error) {
+    if (error instanceof VaultAccessError) {
+      throw error
+    }
+    throw new VaultAccessError('Unable to verify vault access', undefined, 'NETWORK_ERROR')
   }
 }

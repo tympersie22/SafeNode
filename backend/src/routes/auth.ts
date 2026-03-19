@@ -44,6 +44,15 @@ const vaultUpdateSchema = z.object({
   version: z.number().int().positive('Version must be a positive integer')
 })
 
+function hasConfiguredVault(user: Partial<User> | null | undefined): boolean {
+  return Boolean(
+    user?.vaultEncrypted &&
+    user?.vaultIV &&
+    typeof user?.vaultSalt === 'string' &&
+    user.vaultSalt.trim().length > 0
+  )
+}
+
 /**
  * Register authentication routes
  */
@@ -257,6 +266,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
                   subscriptionStatus: verifiedUser.subscriptionStatus,
                   twoFactorEnabled: verifiedUser.twoFactorEnabled,
                   biometricEnabled: verifiedUser.biometricEnabled,
+                  hasVault: hasConfiguredVault(verifiedUser),
                   createdAt: verifiedUser.createdAt,
                   lastLoginAt: verifiedUser.lastLoginAt
                 }
@@ -444,9 +454,11 @@ export async function registerAuthRoutes(server: FastifyInstance) {
           displayName: user.displayName,
           emailVerified: user.emailVerified,
           subscriptionTier: user.subscriptionTier,
+          subscriptionStatus: user.subscriptionStatus,
           lastLoginAt: user.lastLoginAt,
           twoFactorEnabled: user.twoFactorEnabled,
-          biometricEnabled: user.biometricEnabled
+          biometricEnabled: user.biometricEnabled,
+          hasVault: hasConfiguredVault(user)
         }
       })
     } catch (error: any) {
@@ -503,6 +515,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         subscriptionStatus: userData.subscriptionStatus,
         twoFactorEnabled: userData.twoFactorEnabled,
         biometricEnabled: userData.biometricEnabled,
+        hasVault: hasConfiguredVault(userData),
         devices: userData.devices,
         createdAt: userData.createdAt,
         lastLoginAt: userData.lastLoginAt
@@ -527,6 +540,22 @@ export async function registerAuthRoutes(server: FastifyInstance) {
     try {
       const user = (request as any).user
       const body = request.body as any
+      const userData = await findUserById(user.id)
+
+      if (!userData) {
+        return reply.code(404).send({
+          error: 'user_not_found',
+          message: 'User not found'
+        })
+      }
+
+      if (hasConfiguredVault(userData)) {
+        return reply.code(409).send({
+          error: 'vault_already_initialized',
+          code: 'VAULT_ALREADY_INITIALIZED',
+          message: 'This account already has a configured vault. Unlock the existing vault instead of creating a new one.'
+        })
+      }
 
       // Validate input
       const validation = vaultUpdateSchema.safeParse(body)

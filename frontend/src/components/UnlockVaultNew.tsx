@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
-import { unlockVault, vaultExists } from '../services/vaultService'
+import { VaultAccessError, unlockVault, vaultExists } from '../services/vaultService'
 import { logout } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
 import { SaasButton, SaasInput, SaasCard } from '../ui'
@@ -39,6 +39,7 @@ interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
   onSetupMasterPassword?: () => void
   onLogout?: () => void
+  vaultPresenceHint?: boolean | null
 }
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   onVaultUnlocked,
   onSetupMasterPassword,
   onLogout,
+  vaultPresenceHint = null,
 }) => {
   const [masterPassword, setMasterPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -78,7 +80,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
    *   false = no vault found → auto-trigger setup (useEffect below)
    *   true  = vault exists  → render unlock form
    */
-  const [hasVault, setHasVault] = useState<boolean | null>(null)
+  const [hasVault, setHasVault] = useState<boolean | null>(vaultPresenceHint)
 
   // Rate-limiting state
   const [unlockAttempts, setUnlockAttempts] = useState(0)
@@ -101,11 +103,22 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   const setupCallbackRef = useRef(onSetupMasterPassword)
   useEffect(() => { setupCallbackRef.current = onSetupMasterPassword }, [onSetupMasterPassword])
 
+  useEffect(() => {
+    if (typeof vaultPresenceHint === 'boolean') {
+      setHasVault(vaultPresenceHint)
+    }
+  }, [vaultPresenceHint])
+
   // ── Check vault existence once per user ────────────────────────────────────
   useEffect(() => {
     if (!user?.id) {
       lastCheckedUserId.current = null
       setHasVault(null)
+      return
+    }
+
+    if (typeof vaultPresenceHint === 'boolean') {
+      lastCheckedUserId.current = user.id
       return
     }
 
@@ -118,8 +131,22 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       .then((exists) => setHasVault(exists))
       .catch((err) => {
         devWarn('[UnlockVault] vault existence check failed:', err)
-        // On any error treat as "no vault" so user can always reach setup
-        setHasVault(false)
+        if (err instanceof VaultAccessError) {
+          if (err.status === 403) {
+            setError(err.message || 'This device is not approved to access your existing vault yet.')
+          } else if (err.status === 401) {
+            setError(err.message || 'Your session is no longer active. Please sign in again.')
+          } else {
+            setError(err.message || 'Unable to verify your existing vault right now.')
+          }
+        } else {
+          setError('Unable to verify your existing vault right now.')
+        }
+
+        // Never convert an access or network error into "no vault".
+        // If we have a positive hint from auth, preserve it. Otherwise keep the
+        // user on the current unlock path instead of destructive setup.
+        setHasVault(true)
       })
       .finally(() => {
         checkInProgress.current = false
