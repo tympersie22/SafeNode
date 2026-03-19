@@ -9,10 +9,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://127.0.0.1:4000',
         changeOrigin: true,
         secure: false,
-        // Forward cookies and credentials
+        timeout: 15000,
+        proxyTimeout: 15000,
         cookieDomainRewrite: '',
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
@@ -73,6 +74,6 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 700,
-    sourcemap: false // Disable sourcemaps in production for smaller builds
+    sourcemap: false
   }
 })

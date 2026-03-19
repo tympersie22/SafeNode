@@ -114,6 +114,7 @@ const App: React.FC = () => {
   const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
   const [isStrengthenPasswordsOpen, setIsStrengthenPasswordsOpen] = useState(false);
   const [selectedEntryDetail, setSelectedEntryDetail] = useState<VaultEntry | null>(null);
+  const [knownHasVault, setKnownHasVault] = useState<boolean | null>(typeof user?.hasVault === 'boolean' ? user.hasVault : null);
   // Use a ref for sessionStartTime so user-activity resets don't trigger a full re-render
   const sessionStartTimeRef = useRef<number | null>(null);
 
@@ -127,6 +128,10 @@ const App: React.FC = () => {
   // Auth is now handled by AuthProvider - no need for local auth checking
   const syncStartedFor = useRef<string | null>(null); // Track which user/vault combo we started sync for
   
+  useEffect(() => {
+    setKnownHasVault(typeof user?.hasVault === 'boolean' ? user.hasVault : null);
+  }, [user?.id, user?.hasVault]);
+
   useEffect(() => {
     const unsubscribe = syncManager.subscribe((status, info) => {
       setSyncState({ status, lastSyncedAt: info.lastSyncedAt });
@@ -326,6 +331,7 @@ const App: React.FC = () => {
     // Update vault state ONLY - pure state update, no side effects
     setVault(unlockedVault);
     setVaultStatus('UNLOCKED');
+    setKnownHasVault(true);
     setMasterPassword(password);
     setVaultSalt(salt);
     
@@ -402,6 +408,7 @@ const App: React.FC = () => {
       setVaultStatus('LOCKED');
       setMasterPassword('');
       setVaultSalt(null);
+      setKnownHasVault(null);
       setCurrentAccount(null);
       sessionStartTimeRef.current = null;
       setRemainingSessionTime(null);
@@ -893,6 +900,7 @@ const App: React.FC = () => {
     return (
       <UnlockVault 
         onVaultUnlocked={handleVaultUnlocked}
+        vaultPresenceHint={knownHasVault}
         onSetupMasterPassword={() => {
           // Navigate to /vault first so the URL is correct during setup,
           // making the navigate() in onComplete a harmless no-op.

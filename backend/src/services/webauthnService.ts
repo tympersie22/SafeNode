@@ -15,6 +15,10 @@ function getRpId(): string {
   const explicit = process.env.WEBAUTHN_RP_ID
   if (explicit) return explicit
 
+  if ((process.env.NODE_ENV || 'development') !== 'production') {
+    return 'localhost'
+  }
+
   if (process.env.SSO_CALLBACK_BASE_URL) {
     try {
       return new URL(process.env.SSO_CALLBACK_BASE_URL).hostname
@@ -32,6 +36,8 @@ function getExpectedOrigins(): string[] {
     'https://www.safe-node.app',
     'http://localhost:5173',
     'http://localhost:5174', // common Vite fallback port
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
   ])
 
   const envOrigins = [process.env.FRONTEND_URL, process.env.SSO_CALLBACK_BASE_URL, process.env.CORS_ORIGIN, process.env.WEBAUTHN_ORIGIN]

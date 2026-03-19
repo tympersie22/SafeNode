@@ -17,7 +17,7 @@ const PROD_API_FALLBACK = 'https://safe-node-99hv-backend.vercel.app'
  * 
  * Priority:
  * 1. VITE_API_URL env var (required in production)
- * 2. In development: Empty string (uses Vite proxy from vite.config.ts)
+ * 2. In development: Empty string (uses Vite proxy from vite.config.mjs)
  */
 export function getApiBase(): string {
   // In production, VITE_API_URL must be set
@@ -30,7 +30,7 @@ export function getApiBase(): string {
   }
   
   // In development, use empty string to leverage Vite proxy
-  // Vite proxy in vite.config.ts forwards /api/* to http://localhost:4000/api/*
+  // Vite proxy in vite.config.mjs forwards /api/* to http://127.0.0.1:4000/api/*
   return ''
 }
 
@@ -44,7 +44,7 @@ if (typeof window !== 'undefined' && (mode === 'development' || mode === 'dev'))
   console.log('[API Config] API_BASE:', API_BASE || '(using Vite proxy - relative URLs)')
   
   if (!API_BASE) {
-    console.log('[API Config] Using Vite proxy - requests to /api/* will be forwarded to http://localhost:4000/api/*')
+    console.log('[API Config] Using Vite proxy - requests to /api/* will be forwarded to http://127.0.0.1:4000/api/*')
     console.log('[API Config] withCredentials: true (cookies enabled)')
   }
 }

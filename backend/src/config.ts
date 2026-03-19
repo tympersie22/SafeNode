@@ -6,7 +6,8 @@
 import dotenv from 'dotenv'
 
 // Load local development overrides first, then fallback defaults.
-dotenv.config({ path: '.env.local', override: true })
+// Note: existing process.env vars (set before startup) take precedence over .env.local
+dotenv.config({ path: '.env.local' })
 dotenv.config()
 
 export interface Config {

@@ -12,8 +12,6 @@
 
 import { config } from '../config'
 import { fileAdapter } from './fileAdapter'
-import { prismaAdapter } from './prismaAdapter'
-import { mongoAdapter } from './mongoAdapter'
 
 export interface StorageAdapter {
   init(): Promise<void>
@@ -23,18 +21,22 @@ export interface StorageAdapter {
 }
 
 /**
- * Gets the configured storage adapter
+ * Gets the configured storage adapter (lazy-loads Prisma/Mongo to avoid native binary errors)
  */
 function getAdapter(): StorageAdapter {
   switch (config.dbAdapter) {
-    case 'prisma':
+    case 'prisma': {
       console.log('📦 Using Prisma adapter (SQL database)')
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prismaAdapter } = require('./prismaAdapter')
       return prismaAdapter
-    
-    case 'mongo':
+    }
+    case 'mongo': {
       console.log('📦 Using MongoDB adapter')
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { mongoAdapter } = require('./mongoAdapter')
       return mongoAdapter
-    
+    }
     case 'file':
     default:
       console.log('📦 Using file adapter (in-memory)')

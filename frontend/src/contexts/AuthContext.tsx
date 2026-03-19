@@ -128,21 +128,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
 
-    // Ensure initialization always completes, even if there's an error
-    // Add a safety timeout to force initialization after 15 seconds
+    // Do not let auth hydration block the entire app shell for long.
+    // If /api/auth/me is slow or the proxy/backend is degraded, we fail open
+    // and continue resolving the user in the background.
+    const failOpenTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[AuthContext] Hydration slow - continuing without blocking initial render')
+        setIsAuthInitialized(true)
+      }
+    }, 2000)
+
+    // Ensure initialization always completes, even if there's an error.
     const safetyTimeout = setTimeout(() => {
       if (isMounted) {
         console.warn('[AuthContext] Initialization timeout - forcing completion')
         setUser(null)
         setIsAuthInitialized(true)
       }
-    }, 15000) // 15 second safety timeout
+    }, 8000)
 
     initAuth()
       .then(() => {
+        clearTimeout(failOpenTimeout)
         clearTimeout(safetyTimeout)
       })
       .catch((error) => {
+        clearTimeout(failOpenTimeout)
         clearTimeout(safetyTimeout)
         console.error('[AuthContext] Fatal error during initialization:', error)
         if (isMounted) {

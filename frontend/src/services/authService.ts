@@ -16,6 +16,7 @@ export interface User {
   subscriptionStatus: 'active' | 'cancelled' | 'past_due'
   twoFactorEnabled: boolean
   biometricEnabled: boolean
+  hasVault?: boolean
   lastLoginAt?: number
   createdAt: number
 }
@@ -340,7 +341,7 @@ export async function getCurrentUser(): Promise<User> {
         if (!controller.signal.aborted) {
           controller.abort()
         }
-      }, 30000) // 30 second timeout (reasonable for production)
+      }, 8000) // Keep hydration snappy in dev/runtime; don't stall the whole app
 
       const response = await fetch(`${API_BASE}/api/auth/me`, {
         headers: {
