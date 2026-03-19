@@ -53,6 +53,25 @@ function hasConfiguredVault(user: Partial<User> | null | undefined): boolean {
   )
 }
 
+function serializeAuthUser(user: Partial<User> | null | undefined) {
+  if (!user) return null
+  const createdAt = user.createdAt as Date | number | undefined
+  const lastLoginAt = user.lastLoginAt as Date | number | undefined
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    emailVerified: Boolean(user.emailVerified),
+    subscriptionTier: user.subscriptionTier,
+    subscriptionStatus: user.subscriptionStatus,
+    twoFactorEnabled: Boolean(user.twoFactorEnabled),
+    biometricEnabled: Boolean(user.biometricEnabled),
+    hasVault: hasConfiguredVault(user),
+    createdAt: createdAt instanceof Date ? createdAt.getTime() : createdAt,
+    lastLoginAt: lastLoginAt instanceof Date ? lastLoginAt.getTime() : lastLoginAt
+  }
+}
+
 /**
  * Register authentication routes
  */
@@ -257,19 +276,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
                 success: true,
                 token,
                 userId: verifiedUser.id,
-                user: {
-                  id: verifiedUser.id,
-                  email: verifiedUser.email,
-                  displayName: verifiedUser.displayName,
-                  emailVerified: verifiedUser.emailVerified,
-                  subscriptionTier: verifiedUser.subscriptionTier,
-                  subscriptionStatus: verifiedUser.subscriptionStatus,
-                  twoFactorEnabled: verifiedUser.twoFactorEnabled,
-                  biometricEnabled: verifiedUser.biometricEnabled,
-                  hasVault: hasConfiguredVault(verifiedUser),
-                  createdAt: verifiedUser.createdAt,
-                  lastLoginAt: verifiedUser.lastLoginAt
-                }
+                user: serializeAuthUser(verifiedUser)
               })
             } catch (error: any) {
               request.log.error(error)
@@ -375,10 +382,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
           requiresTwoFactor: true,
           message: '2FA verification required',
           user: {
-            id: user.id,
-            email: user.email,
-            displayName: user.displayName,
-            emailVerified: user.emailVerified,
+            ...serializeAuthUser(user),
             twoFactorEnabled: true
           }
         })
@@ -448,18 +452,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         success: true,
         token,
         userId: user.id,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          emailVerified: user.emailVerified,
-          subscriptionTier: user.subscriptionTier,
-          subscriptionStatus: user.subscriptionStatus,
-          lastLoginAt: user.lastLoginAt,
-          twoFactorEnabled: user.twoFactorEnabled,
-          biometricEnabled: user.biometricEnabled,
-          hasVault: hasConfiguredVault(user)
-        }
+        user: serializeAuthUser(user)
       })
     } catch (error: any) {
       request.log.error({ error, stack: error?.stack, email: (request.body as any)?.email }, 'Login error')
@@ -798,11 +791,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
 
       return {
         token: newToken,
-        user: {
-          id: userData.id,
-          email: userData.email,
-          displayName: userData.displayName
-        }
+        user: serializeAuthUser(userData)
       }
     } catch (error: any) {
       request.log.error({ error: error?.message }, 'Token refresh failed')
@@ -853,11 +842,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       
       return {
         valid: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName
-        }
+        user: serializeAuthUser(user)
       }
     } catch (error: any) {
       request.log.error(error)
@@ -1234,16 +1219,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       return {
         success: true,
         token,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          emailVerified: user.emailVerified,
-          subscriptionTier: user.subscriptionTier,
-          lastLoginAt: user.lastLoginAt,
-          twoFactorEnabled: user.twoFactorEnabled,
-          biometricEnabled: user.biometricEnabled
-        }
+        user: serializeAuthUser(user)
       }
     } catch (error: any) {
       request.log.error(error)

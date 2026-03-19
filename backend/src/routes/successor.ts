@@ -32,6 +32,15 @@ const claimCompleteSchema = z.object({
   displayName: z.string().max(120).optional().or(z.literal(''))
 })
 
+function hasConfiguredVault(user: any): boolean {
+  return Boolean(
+    user?.vaultEncrypted &&
+    user?.vaultIV &&
+    typeof user?.vaultSalt === 'string' &&
+    user.vaultSalt.trim().length > 0
+  )
+}
+
 export async function registerSuccessorRoutes(server: FastifyInstance) {
   server.get('/api/account/successor', {
     preHandler: [requireAuth, requireRegisteredDevice]
@@ -182,6 +191,7 @@ export async function registerSuccessorRoutes(server: FastifyInstance) {
           subscriptionStatus: user.subscriptionStatus,
           twoFactorEnabled: user.twoFactorEnabled,
           biometricEnabled: user.biometricEnabled,
+          hasVault: hasConfiguredVault(user),
           createdAt: user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
           lastLoginAt: user.lastLoginAt instanceof Date ? user.lastLoginAt.getTime() : user.lastLoginAt
         }
