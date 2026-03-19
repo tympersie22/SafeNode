@@ -198,6 +198,18 @@ export async function createTeamVault(
   return response.vault
 }
 
+export async function createTeamVaultShell(
+  teamId: string,
+  name: string,
+  description?: string
+): Promise<TeamVaultSummary> {
+  const ephemeralPassphrase = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `team-vault-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+
+  return createTeamVault(teamId, name, ephemeralPassphrase, description)
+}
+
 export async function getTeamVault(teamId: string, vaultId: string): Promise<TeamVaultRecord> {
   return apiGet<TeamVaultRecord>(`/api/teams/${teamId}/vaults/${vaultId}`, {
     requireAuth: true

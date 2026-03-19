@@ -82,7 +82,10 @@ export async function createTeam(
   // Check team limits
   const teamLimit = await checkSubscriptionLimits(userId, 'teamMembers')
   if (!teamLimit.allowed && teamLimit.limit !== -1) {
-    throw new Error(`Team limit exceeded. Your plan allows ${teamLimit.limit} team members.`)
+    if (teamLimit.limit === 0) {
+      throw new Error('Teams require a Teams subscription. Upgrade your plan to create a shared team workspace.')
+    }
+    throw new Error(`Team member limit exceeded. Your plan allows up to ${teamLimit.limit} team members across managed teams.`)
   }
 
   // Generate slug from name

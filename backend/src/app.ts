@@ -24,6 +24,7 @@ import { registerReportRoutes } from './routes/reports'
 import { registerPasskeyRoutes } from './routes/passkeys'
 import { registerResendWebhookRoutes } from './routes/resendWebhook'
 import { registerSuccessorRoutes } from './routes/successor'
+import { registerTeamRoutes } from './routes/teams'
 import { requireAuth } from './middleware/auth'
 import { requireRegisteredDevice } from './middleware/deviceAccess'
 import { getLatestVault, saveVault, saveVaultAlias } from './controllers/vaultController'
@@ -143,6 +144,9 @@ export async function createApp() {
 
   // Register successor routes
   await registerSuccessorRoutes(server)
+
+  // Register teams routes
+  await registerTeamRoutes(server)
 
   server.post('/api/biometric/register/options', { preHandler: requireAuth }, async (request, reply) => {
     try {

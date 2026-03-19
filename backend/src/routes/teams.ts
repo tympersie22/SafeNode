@@ -101,6 +101,20 @@ export async function registerTeamRoutes(server: FastifyInstance) {
       }
     } catch (error: any) {
       request.log.error(error)
+      if (error?.message?.includes('Teams require a Teams subscription')) {
+        return reply.code(403).send({
+          error: 'subscription_required',
+          message: error.message
+        })
+      }
+
+      if (error?.message?.includes('Team member limit exceeded')) {
+        return reply.code(409).send({
+          error: 'limit_exceeded',
+          message: error.message
+        })
+      }
+
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to create team'
@@ -321,6 +335,13 @@ export async function registerTeamRoutes(server: FastifyInstance) {
         })
       }
 
+      if (error.message?.includes('Vault limit exceeded') || error.message?.includes('Teams require a Teams subscription')) {
+        return reply.code(403).send({
+          error: 'subscription_required',
+          message: error.message
+        })
+      }
+
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to create team vault'
@@ -523,6 +544,13 @@ export async function registerTeamRoutes(server: FastifyInstance) {
       if (error.message?.includes('not a member') || error.message?.includes('permission')) {
         return reply.code(403).send({
           error: 'forbidden',
+          message: error.message
+        })
+      }
+
+      if (error.message?.includes('Team member limit exceeded') || error.message?.includes('Teams require a Teams subscription')) {
+        return reply.code(403).send({
+          error: 'subscription_required',
           message: error.message
         })
       }
