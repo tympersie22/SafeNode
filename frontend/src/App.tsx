@@ -1309,7 +1309,7 @@ const App: React.FC = () => {
       <TeamVaultsModal
         isOpen={isTeamVaultsOpen}
         onClose={() => setIsTeamVaultsOpen(false)}
-        currentUserId={user?.email || 'demo@safe-node.app'}
+        currentUserId={user?.id || ''}
       />
       <PINSetupModal
         isOpen={isPINSetupOpen}

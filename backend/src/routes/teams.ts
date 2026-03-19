@@ -5,6 +5,7 @@
 
 import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth'
+import { requireRegisteredDevice } from '../middleware/deviceAccess'
 import { createAuditLog } from '../services/auditLogService'
 import {
   createTeam,
@@ -29,6 +30,12 @@ const createTeamVaultSchema = z.object({
   description: z.string().optional()
 })
 
+const updateTeamVaultSchema = z.object({
+  encryptedVault: z.string().min(1, 'Encrypted vault is required'),
+  iv: z.string().min(1, 'IV is required'),
+  version: z.number().int().positive('Version must be a positive integer')
+})
+
 const inviteMemberSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['owner', 'admin', 'manager', 'member', 'viewer']).optional(),
@@ -43,6 +50,27 @@ const updateRoleSchema = z.object({
  * Register team routes
  */
 export async function registerTeamRoutes(server: FastifyInstance) {
+  async function getTeamAccess(teamId: string, userId: string) {
+    const prisma = getPrismaClient()
+    const membership = await prisma.teamMember.findUnique({
+      where: {
+        teamId_userId: {
+          teamId,
+          userId
+        }
+      }
+    })
+
+    if (!membership) {
+      return null
+    }
+
+    return {
+      membership,
+      permissions: getPermissionsForRole(membership.role as any)
+    }
+  }
+
   /**
    * POST /api/teams
    * Create a new team (requires authentication)
@@ -296,6 +324,166 @@ export async function registerTeamRoutes(server: FastifyInstance) {
       return reply.code(500).send({
         error: error?.message || 'server_error',
         message: 'Failed to create team vault'
+      })
+    }
+  })
+
+  /**
+   * GET /api/teams/:teamId/vaults/:vaultId
+   * Fetch encrypted team vault payload for an authorized member
+   */
+  server.get('/api/teams/:teamId/vaults/:vaultId', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const { teamId, vaultId } = request.params as { teamId: string; vaultId: string }
+      const prisma = getPrismaClient()
+
+      const access = await getTeamAccess(teamId, user.id)
+      if (!access) {
+        return reply.code(403).send({
+          error: 'forbidden',
+          message: 'You are not a member of this team'
+        })
+      }
+
+      if (!access.permissions.canView) {
+        return reply.code(403).send({
+          error: 'forbidden',
+          message: 'You do not have permission to view this team vault'
+        })
+      }
+
+      const vault = await prisma.teamVault.findFirst({
+        where: {
+          id: vaultId,
+          teamId
+        }
+      })
+
+      if (!vault) {
+        return reply.code(404).send({
+          error: 'vault_not_found',
+          message: 'Team vault not found'
+        })
+      }
+
+      return {
+        id: vault.id,
+        teamId: vault.teamId,
+        name: vault.name,
+        description: vault.description,
+        encryptedVault: vault.encryptedVault,
+        iv: vault.iv,
+        version: vault.version,
+        createdAt: vault.createdAt.getTime(),
+        updatedAt: vault.updatedAt.getTime()
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to fetch team vault'
+      })
+    }
+  })
+
+  /**
+   * PUT /api/teams/:teamId/vaults/:vaultId
+   * Save encrypted team vault payload for an authorized member
+   */
+  server.put('/api/teams/:teamId/vaults/:vaultId', {
+    preHandler: [requireAuth, requireRegisteredDevice]
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const { teamId, vaultId } = request.params as { teamId: string; vaultId: string }
+      const body = request.body as any
+      const prisma = getPrismaClient()
+
+      const validation = updateTeamVaultSchema.safeParse(body)
+      if (!validation.success) {
+        return reply.code(400).send({
+          error: 'validation_error',
+          message: 'Invalid team vault payload',
+          details: validation.error.errors
+        })
+      }
+
+      const access = await getTeamAccess(teamId, user.id)
+      if (!access) {
+        return reply.code(403).send({
+          error: 'forbidden',
+          message: 'You are not a member of this team'
+        })
+      }
+
+      if (!access.permissions.canEdit) {
+        return reply.code(403).send({
+          error: 'forbidden',
+          message: 'You do not have permission to edit this team vault'
+        })
+      }
+
+      const existing = await prisma.teamVault.findFirst({
+        where: {
+          id: vaultId,
+          teamId
+        }
+      })
+
+      if (!existing) {
+        return reply.code(404).send({
+          error: 'vault_not_found',
+          message: 'Team vault not found'
+        })
+      }
+
+      const { encryptedVault, iv, version } = validation.data
+
+      if (version <= existing.version) {
+        return reply.code(409).send({
+          error: 'version_conflict',
+          message: 'Team vault version is out of date. Refresh the latest team vault and retry.',
+          currentVersion: existing.version
+        })
+      }
+
+      const updated = await prisma.teamVault.update({
+        where: { id: existing.id },
+        data: {
+          encryptedVault,
+          iv,
+          version
+        }
+      })
+
+      await createAuditLog({
+        userId: user.id,
+        action: 'entry_updated',
+        resourceType: 'vault',
+        resourceId: updated.id,
+        metadata: {
+          teamId,
+          vaultName: updated.name,
+          version: updated.version
+        }
+      }).catch(() => {})
+
+      return {
+        success: true,
+        vault: {
+          id: updated.id,
+          version: updated.version,
+          updatedAt: updated.updatedAt.getTime()
+        }
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({
+        error: error?.message || 'server_error',
+        message: 'Failed to save team vault'
       })
     }
   })
@@ -713,4 +901,3 @@ export async function registerTeamRoutes(server: FastifyInstance) {
     }
   })
 }
-

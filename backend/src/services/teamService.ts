@@ -10,6 +10,7 @@ import { checkSubscriptionLimits } from './stripeService'
 export type TeamRole = 'owner' | 'admin' | 'manager' | 'member' | 'viewer'
 
 export interface TeamPermissions {
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -22,6 +23,7 @@ export function getPermissionsForRole(role: TeamRole): TeamPermissions {
     case 'owner':
     case 'admin':
       return {
+        canView: true,
         canCreate: true,
         canEdit: true,
         canDelete: true,
@@ -30,6 +32,7 @@ export function getPermissionsForRole(role: TeamRole): TeamPermissions {
       }
     case 'manager':
       return {
+        canView: true,
         canCreate: true,
         canEdit: true,
         canDelete: false,
@@ -38,6 +41,7 @@ export function getPermissionsForRole(role: TeamRole): TeamPermissions {
       }
     case 'member':
       return {
+        canView: true,
         canCreate: true,
         canEdit: true,
         canDelete: false,
@@ -46,6 +50,7 @@ export function getPermissionsForRole(role: TeamRole): TeamPermissions {
       }
     case 'viewer':
       return {
+        canView: true,
         canCreate: false,
         canEdit: false,
         canDelete: false,
@@ -54,6 +59,7 @@ export function getPermissionsForRole(role: TeamRole): TeamPermissions {
       }
     default:
       return {
+        canView: false,
         canCreate: false,
         canEdit: false,
         canDelete: false,
@@ -85,23 +91,25 @@ export async function createTeam(
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '') + '-' + Date.now()
 
-  // Create team
-  const team = await prisma.team.create({
-    data: {
-      name,
-      slug,
-      description: description || null
-    }
-  })
+  const team = await prisma.$transaction(async (tx) => {
+    const createdTeam = await tx.team.create({
+      data: {
+        name,
+        slug,
+        description: description || null
+      }
+    })
 
-  // Add creator as owner
-  await prisma.teamMember.create({
-    data: {
-      teamId: team.id,
-      userId,
-      role: 'owner',
-      joinedAt: new Date()
-    }
+    await tx.teamMember.create({
+      data: {
+        teamId: createdTeam.id,
+        userId,
+        role: 'owner',
+        joinedAt: new Date()
+      }
+    })
+
+    return createdTeam
   })
 
   // Log team creation
@@ -404,6 +412,14 @@ export async function updateTeamMemberRole(
     throw new Error('Team member not found')
   }
 
+  if (member.userId === updaterUserId) {
+    throw new Error('You cannot change your own team role')
+  }
+
+  if (newRole === 'owner' && updater.role !== 'owner') {
+    throw new Error('Only owners can assign the owner role')
+  }
+
   // Cannot change owner role
   if (member.role === 'owner' && newRole !== 'owner') {
     const ownerCount = await prisma.teamMember.count({
@@ -416,6 +432,10 @@ export async function updateTeamMemberRole(
     if (ownerCount === 1) {
       throw new Error('Cannot change the last owner role')
     }
+  }
+
+  if (member.role === 'owner' && updater.role !== 'owner') {
+    throw new Error('Only owners can change another owner role')
   }
 
   // Update role
@@ -441,4 +461,3 @@ export async function updateTeamMemberRole(
     role: updated.role
   }
 }
-
