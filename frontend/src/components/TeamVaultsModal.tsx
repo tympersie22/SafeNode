@@ -1,18 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Button from '../ui/Button'
+import EntryForm from './EntryForm'
+import VaultEntryCard from './VaultEntryCard'
+import type { VaultEntry } from '../types/vault'
 import {
   createTeam,
-  createTeamVaultShell,
+  createTeamVault,
   deleteTeamVault,
   getTeam,
   getTeams,
   inviteTeamMember,
+  saveTeamVault,
+  unlockTeamVault,
   updateTeamMemberRole,
   type TeamDetails,
   type TeamMember,
   type TeamRole,
-  type TeamSummary
+  type TeamSummary,
+  type TeamVaultDocument,
+  type TeamVaultEntry,
+  type TeamVaultSummary,
+  type UnlockedTeamVault
 } from '../services/teamService'
 
 interface TeamVaultsModalProps {
@@ -37,6 +46,8 @@ const roleBadgeClass: Record<TeamRole, string> = {
   viewer: 'bg-slate-100 text-slate-700'
 }
 
+const teamVaultCategories = ['Login', 'Secure Note', 'Credit Card', 'One-Time Code']
+
 const formatDate = (timestamp?: number | null) => {
   if (!timestamp) return 'Unknown'
   return new Date(timestamp).toLocaleDateString()
@@ -45,6 +56,12 @@ const formatDate = (timestamp?: number | null) => {
 const formatDateTime = (timestamp?: number | null) => {
   if (!timestamp) return 'Unknown'
   return new Date(timestamp).toLocaleString()
+}
+
+const stripTeamVaultMetadata = (description?: string | null) => {
+  if (!description) return null
+  const visible = description.replace(/\s*\[vault-salt:[A-Za-z0-9+/=]+\]\s*$/u, '').trim()
+  return visible || null
 }
 
 const canManageMembers = (team: TeamDetails | TeamSummary | null) => {
@@ -57,12 +74,67 @@ const canManageVaults = (team: TeamDetails | TeamSummary | null) => {
   return team.role === 'owner' || team.role === 'admin' || team.permissions.canCreate || team.permissions.canDelete
 }
 
+const mapTeamEntryToVaultEntry = (entry: TeamVaultEntry): VaultEntry => ({
+  id: entry.id,
+  name: entry.name,
+  username: entry.username || '',
+  password: entry.password || '',
+  url: entry.url || '',
+  notes: entry.notes || '',
+  tags: entry.tags || [],
+  category:
+    entry.category === 'note'
+      ? 'Secure Note'
+      : entry.category === 'credit-card'
+        ? 'Credit Card'
+        : entry.category === 'otp'
+          ? 'One-Time Code'
+          : 'Login',
+  createdAt: entry.createdAt,
+  updatedAt: entry.updatedAt
+})
+
+const mapVaultEntryToTeamEntry = (entry: VaultEntry): TeamVaultEntry => {
+  const normalizedCategory = (() => {
+    switch ((entry.category || '').toLowerCase()) {
+      case 'secure note':
+      case 'note':
+        return 'note'
+      case 'credit card':
+      case 'credit-card':
+        return 'credit-card'
+      case 'one-time code':
+      case 'otp':
+        return 'otp'
+      default:
+        return 'password'
+    }
+  })()
+
+  return {
+    id: entry.id,
+    name: entry.name,
+    username: entry.username || undefined,
+    password: entry.password || undefined,
+    url: entry.url || undefined,
+    notes: entry.notes || undefined,
+    tags: entry.tags || [],
+    category: normalizedCategory,
+    createdAt: entry.createdAt || Date.now(),
+    updatedAt: Date.now()
+  }
+}
+
 const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, currentUserId }) => {
   const [teams, setTeams] = useState<TeamSummary[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<TeamDetails | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
+  const [vaultError, setVaultError] = useState<string | null>(null)
+  const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(false)
+  const [isMutatingTeam, setIsMutatingTeam] = useState(false)
+  const [isUnlockingVault, setIsUnlockingVault] = useState(false)
+  const [isSavingVault, setIsSavingVault] = useState(false)
 
   const [teamName, setTeamName] = useState('')
   const [teamDescription, setTeamDescription] = useState('')
@@ -71,15 +143,47 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
   const [inviteRole, setInviteRole] = useState<TeamRole>('member')
   const [vaultName, setVaultName] = useState('')
   const [vaultDescription, setVaultDescription] = useState('')
+  const [vaultPassphrase, setVaultPassphrase] = useState('')
+  const [vaultPassphraseConfirm, setVaultPassphraseConfirm] = useState('')
+
+  const [selectedVaultId, setSelectedVaultId] = useState<string | null>(null)
+  const [unlockPassphrase, setUnlockPassphrase] = useState('')
+  const [unlockedVault, setUnlockedVault] = useState<UnlockedTeamVault | null>(null)
+  const [isEntryFormOpen, setIsEntryFormOpen] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<VaultEntry | null>(null)
 
   const selectedSummary = useMemo(
     () => teams.find(team => team.id === selectedTeamId) || null,
     [teams, selectedTeamId]
   )
 
+  const selectedVaultSummary = useMemo(
+    () => selectedTeam?.vaults.find(vault => vault.id === selectedVaultId) || null,
+    [selectedTeam, selectedVaultId]
+  )
+
+  const unlockedEntries = useMemo(
+    () => unlockedVault?.document.entries.map(mapTeamEntryToVaultEntry) || [],
+    [unlockedVault]
+  )
+
+  const applyVaultSummaryUpdate = useCallback((vaultId: string, version: number, updatedAt: number) => {
+    setSelectedTeam(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        vaults: prev.vaults.map(vault => (
+          vault.id === vaultId
+            ? { ...vault, version, updatedAt }
+            : vault
+        ))
+      }
+    })
+  }, [])
+
   const loadWorkspace = useCallback(async (preferredTeamId?: string | null) => {
-    setIsLoading(true)
-    setError(null)
+    setIsWorkspaceLoading(true)
+    setWorkspaceError(null)
 
     try {
       const { teams: loadedTeams } = await getTeams()
@@ -92,34 +196,41 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
       if (!nextTeamId) {
         setSelectedTeamId(null)
         setSelectedTeam(null)
+        setSelectedVaultId(null)
+        setUnlockedVault(null)
         return
       }
 
       const detail = await getTeam(nextTeamId)
       setSelectedTeamId(nextTeamId)
       setSelectedTeam(detail)
+      setSelectedVaultId(current => detail.vaults.some(vault => vault.id === current) ? current : null)
     } catch (err: any) {
       console.error('Failed to load team workspace:', err)
-      setError(err?.message || 'Failed to load team workspace')
+      setWorkspaceError(err?.message || 'Failed to load team workspace')
       setSelectedTeam(null)
     } finally {
-      setIsLoading(false)
+      setIsWorkspaceLoading(false)
     }
   }, [])
 
   const loadTeamDetail = useCallback(async (teamId: string) => {
-    setIsLoading(true)
-    setError(null)
+    setIsWorkspaceLoading(true)
+    setWorkspaceError(null)
 
     try {
       const detail = await getTeam(teamId)
       setSelectedTeamId(teamId)
       setSelectedTeam(detail)
+      setSelectedVaultId(null)
+      setUnlockedVault(null)
+      setVaultError(null)
+      setUnlockPassphrase('')
     } catch (err: any) {
       console.error('Failed to load team details:', err)
-      setError(err?.message || 'Failed to load team details')
+      setWorkspaceError(err?.message || 'Failed to load team details')
     } finally {
-      setIsLoading(false)
+      setIsWorkspaceLoading(false)
     }
   }, [])
 
@@ -127,18 +238,25 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
     if (isOpen) {
       void loadWorkspace(selectedTeamId)
     }
-  }, [isOpen, loadWorkspace])
+  }, [isOpen, loadWorkspace, selectedTeamId])
 
   const refreshCurrentTeam = useCallback(async () => {
     await loadWorkspace(selectedTeamId)
   }, [loadWorkspace, selectedTeamId])
 
+  const resetVaultComposer = () => {
+    setVaultName('')
+    setVaultDescription('')
+    setVaultPassphrase('')
+    setVaultPassphraseConfirm('')
+  }
+
   const handleCreateTeam = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!teamName.trim()) return
 
-    setIsLoading(true)
-    setError(null)
+    setIsMutatingTeam(true)
+    setWorkspaceError(null)
 
     try {
       const created = await createTeam(teamName.trim(), teamDescription.trim() || undefined)
@@ -147,9 +265,9 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
       await loadWorkspace(created.id)
     } catch (err: any) {
       console.error('Failed to create team:', err)
-      setError(err?.message || 'Failed to create team')
+      setWorkspaceError(err?.message || 'Failed to create team')
     } finally {
-      setIsLoading(false)
+      setIsMutatingTeam(false)
     }
   }
 
@@ -157,19 +275,35 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
     event.preventDefault()
     if (!selectedTeamId || !vaultName.trim()) return
 
-    setIsLoading(true)
-    setError(null)
+    if (vaultPassphrase.length < 12) {
+      setVaultError('Use a team-vault passphrase with at least 12 characters.')
+      return
+    }
+
+    if (vaultPassphrase !== vaultPassphraseConfirm) {
+      setVaultError('Team-vault passphrases do not match.')
+      return
+    }
+
+    setIsMutatingTeam(true)
+    setVaultError(null)
 
     try {
-      await createTeamVaultShell(selectedTeamId, vaultName.trim(), vaultDescription.trim() || undefined)
-      setVaultName('')
-      setVaultDescription('')
+      const createdVault = await createTeamVault(
+        selectedTeamId,
+        vaultName.trim(),
+        vaultPassphrase,
+        vaultDescription.trim() || undefined
+      )
+      resetVaultComposer()
       await loadWorkspace(selectedTeamId)
+      setSelectedVaultId(createdVault.id)
+      setUnlockPassphrase(vaultPassphrase)
     } catch (err: any) {
       console.error('Failed to create team vault:', err)
-      setError(err?.message || 'Failed to create team vault')
+      setVaultError(err?.message || 'Failed to create team vault')
     } finally {
-      setIsLoading(false)
+      setIsMutatingTeam(false)
     }
   }
 
@@ -177,8 +311,8 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
     event.preventDefault()
     if (!selectedTeamId || !inviteEmail.trim()) return
 
-    setIsLoading(true)
-    setError(null)
+    setIsMutatingTeam(true)
+    setWorkspaceError(null)
 
     try {
       await inviteTeamMember(selectedTeamId, {
@@ -192,9 +326,9 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
       await loadWorkspace(selectedTeamId)
     } catch (err: any) {
       console.error('Failed to invite team member:', err)
-      setError(err?.message || 'Failed to invite team member')
+      setWorkspaceError(err?.message || 'Failed to invite team member')
     } finally {
-      setIsLoading(false)
+      setIsMutatingTeam(false)
     }
   }
 
@@ -202,35 +336,39 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
     if (!selectedTeamId) return
     if (member.userId && member.userId === currentUserId) return
 
-    setIsLoading(true)
-    setError(null)
+    setIsMutatingTeam(true)
+    setWorkspaceError(null)
 
     try {
       await updateTeamMemberRole(selectedTeamId, member.id, role)
       await loadWorkspace(selectedTeamId)
     } catch (err: any) {
       console.error('Failed to update team member role:', err)
-      setError(err?.message || 'Failed to update team member role')
+      setWorkspaceError(err?.message || 'Failed to update team member role')
     } finally {
-      setIsLoading(false)
+      setIsMutatingTeam(false)
     }
   }
 
-  const handleDeleteVault = async (vaultId: string, vaultName: string) => {
+  const handleDeleteVault = async (vaultId: string, vaultNameToDelete: string) => {
     if (!selectedTeamId) return
-    if (!window.confirm(`Delete ${vaultName}? This cannot be undone.`)) return
+    if (!window.confirm(`Delete ${vaultNameToDelete}? This cannot be undone.`)) return
 
-    setIsLoading(true)
-    setError(null)
+    setIsMutatingTeam(true)
+    setVaultError(null)
 
     try {
       await deleteTeamVault(selectedTeamId, vaultId)
+      if (selectedVaultId === vaultId) {
+        setSelectedVaultId(null)
+        setUnlockedVault(null)
+      }
       await loadWorkspace(selectedTeamId)
     } catch (err: any) {
       console.error('Failed to delete team vault:', err)
-      setError(err?.message || 'Failed to delete team vault')
+      setVaultError(err?.message || 'Failed to delete team vault')
     } finally {
-      setIsLoading(false)
+      setIsMutatingTeam(false)
     }
   }
 
@@ -238,6 +376,115 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
     if (teamId === selectedTeamId && selectedTeam) return
     await loadTeamDetail(teamId)
   }
+
+  const handleSelectVault = (vaultId: string) => {
+    setSelectedVaultId(vaultId)
+    setUnlockedVault(null)
+    setVaultError(null)
+    setUnlockPassphrase('')
+  }
+
+  const handleUnlockVault = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selectedTeam || !selectedVaultSummary || !unlockPassphrase) return
+
+    setIsUnlockingVault(true)
+    setVaultError(null)
+
+    try {
+      const unlocked = await unlockTeamVault(selectedTeam.id, selectedVaultSummary, unlockPassphrase)
+      setUnlockedVault(unlocked)
+    } catch (err: any) {
+      console.error('Failed to unlock team vault:', err)
+      setVaultError(err?.message || 'Failed to unlock team vault')
+      setUnlockedVault(null)
+    } finally {
+      setIsUnlockingVault(false)
+    }
+  }
+
+  const persistUnlockedVaultDocument = useCallback(async (nextDocument: TeamVaultDocument) => {
+    if (!selectedTeam || !unlockedVault) return
+
+    setIsSavingVault(true)
+    setVaultError(null)
+
+    try {
+      const response = await saveTeamVault(
+        selectedTeam.id,
+        unlockedVault.vault.id,
+        unlockedVault.passphrase,
+        unlockedVault.salt,
+        nextDocument,
+        unlockedVault.document.version
+      )
+
+      const updatedDocument: TeamVaultDocument = {
+        ...nextDocument,
+        version: response.vault.version,
+        updatedAt: response.vault.updatedAt
+      }
+
+      setUnlockedVault(prev => prev ? {
+        ...prev,
+        document: updatedDocument,
+        vault: {
+          ...prev.vault,
+          version: response.vault.version,
+          updatedAt: response.vault.updatedAt
+        }
+      } : prev)
+      applyVaultSummaryUpdate(unlockedVault.vault.id, response.vault.version, response.vault.updatedAt)
+    } catch (err: any) {
+      console.error('Failed to save team vault:', err)
+      setVaultError(err?.message || 'Failed to save team vault')
+      throw err
+    } finally {
+      setIsSavingVault(false)
+    }
+  }, [applyVaultSummaryUpdate, selectedTeam, unlockedVault])
+
+  const handleSaveEntry = async (entry: VaultEntry) => {
+    if (!unlockedVault) return
+
+    const teamEntry = mapVaultEntryToTeamEntry(entry)
+    const existingIndex = unlockedVault.document.entries.findIndex(current => current.id === teamEntry.id)
+    const nextEntries = [...unlockedVault.document.entries]
+
+    if (existingIndex >= 0) {
+      nextEntries[existingIndex] = teamEntry
+    } else {
+      nextEntries.unshift(teamEntry)
+    }
+
+    const nextDocument: TeamVaultDocument = {
+      ...unlockedVault.document,
+      entries: nextEntries,
+      updatedAt: Date.now()
+    }
+
+    await persistUnlockedVaultDocument(nextDocument)
+    setIsEntryFormOpen(false)
+    setEditingEntry(null)
+  }
+
+  const handleDeleteEntry = async (entry: VaultEntry) => {
+    if (!unlockedVault) return
+    if (!window.confirm(`Delete ${entry.name}? This cannot be undone.`)) return
+
+    const nextDocument: TeamVaultDocument = {
+      ...unlockedVault.document,
+      entries: unlockedVault.document.entries.filter(current => current.id !== entry.id),
+      updatedAt: Date.now()
+    }
+
+    await persistUnlockedVaultDocument(nextDocument)
+  }
+
+  const canOpenVault = Boolean(selectedTeam?.permissions.canView)
+  const canCreateEntries = Boolean(selectedTeam?.permissions.canCreate)
+  const canEditEntries = Boolean(selectedTeam?.permissions.canEdit)
+  const canDeleteEntries = Boolean(selectedTeam?.permissions.canDelete)
 
   if (!isOpen) return null
 
@@ -264,7 +511,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
             aria-describedby="team-vaults-description"
           >
             <div
-              className="w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+              className="w-full max-w-7xl max-h-[94vh] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
@@ -273,11 +520,11 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                     Team Workspace
                   </h2>
                   <p id="team-vaults-description" className="mt-1 text-sm text-slate-500">
-                    Manage team membership and shared vaults from the backend-backed workspace.
+                    Shared teams, encrypted team vaults, membership, and operational access in one workspace.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button onClick={() => void refreshCurrentTeam()} variant="ghost" size="sm" loading={isLoading}>
+                  <Button onClick={() => void refreshCurrentTeam()} variant="ghost" size="sm" loading={isWorkspaceLoading || isMutatingTeam}>
                     Refresh
                   </Button>
                   <Button onClick={onClose} variant="ghost" size="sm" aria-label="Close team workspace">
@@ -286,7 +533,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                 </div>
               </div>
 
-              <div className="grid max-h-[calc(92vh-73px)] grid-cols-1 gap-4 overflow-y-auto bg-slate-50 p-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="grid max-h-[calc(94vh-73px)] grid-cols-1 gap-4 overflow-y-auto bg-slate-50 p-4 lg:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
@@ -294,13 +541,13 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                         <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Teams</h3>
                         <p className="text-sm text-slate-500">{teams.length} total</p>
                       </div>
-                      <Button onClick={() => void refreshCurrentTeam()} variant="outline" size="sm" loading={isLoading}>
+                      <Button onClick={() => void refreshCurrentTeam()} variant="outline" size="sm" loading={isWorkspaceLoading}>
                         Reload
                       </Button>
                     </div>
 
                     <div className="mt-4 space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                      {isLoading && teams.length === 0 ? (
+                      {isWorkspaceLoading && teams.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
                           Loading teams...
                         </div>
@@ -370,7 +617,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                           placeholder="Shared workspace for releases and ops"
                         />
                       </div>
-                      <Button type="submit" variant="primary" className="w-full" loading={isLoading}>
+                      <Button type="submit" variant="primary" className="w-full" loading={isMutatingTeam}>
                         Create Team
                       </Button>
                     </form>
@@ -378,17 +625,17 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                 </aside>
 
                 <main className="space-y-4">
-                  {error && (
+                  {workspaceError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
+                      {workspaceError}
                     </div>
                   )}
 
-                  {!selectedSummary && !selectedTeam && !isLoading && (
+                  {!selectedSummary && !selectedTeam && !isWorkspaceLoading && (
                     <section className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm">
                       <h3 className="text-lg font-semibold text-slate-900">Select a team</h3>
                       <p className="mt-2 text-sm text-slate-500">
-                        Choose a team from the sidebar to manage members and vaults.
+                        Choose a team from the sidebar to manage members and encrypted shared vaults.
                       </p>
                     </section>
                   )}
@@ -434,7 +681,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                         </div>
                       </section>
 
-                      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
                         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                           <div className="flex items-center justify-between gap-3">
                             <div>
@@ -461,11 +708,6 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${roleBadgeClass[member.role]}`}>
                                           {roleLabel[member.role]}
                                         </span>
-                                        {isSelf && (
-                                          <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                                            Current user
-                                          </span>
-                                        )}
                                       </div>
                                       <p className="mt-1 truncate text-sm text-slate-500">{member.email}</p>
                                       {member.joinedAt && (
@@ -480,7 +722,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                         <select
                                           value={member.role}
                                           onChange={e => void handleUpdateMemberRole(member, e.target.value as TeamRole)}
-                                          disabled={isLoading}
+                                          disabled={isMutatingTeam}
                                           className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none"
                                         >
                                           <option value="viewer">Viewer</option>
@@ -502,7 +744,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                             <form onSubmit={handleInviteMember} className="mt-6 space-y-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4">
                               <div>
                                 <h5 className="font-semibold text-slate-900">Invite member</h5>
-                                <p className="text-sm text-slate-500">Send a new team invitation.</p>
+                                <p className="text-sm text-slate-500">Invite an existing SafeNode user into this shared workspace.</p>
                               </div>
 
                               <div className="grid gap-3 md:grid-cols-2">
@@ -543,7 +785,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                     <option value="admin">Admin</option>
                                   </select>
                                 </div>
-                                <Button type="submit" variant="primary" loading={isLoading}>
+                                <Button type="submit" variant="primary" loading={isMutatingTeam}>
                                   Invite Member
                                 </Button>
                               </div>
@@ -552,11 +794,17 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                         </div>
 
                         <div className="space-y-4">
+                          {vaultError && (
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                              {vaultError}
+                            </div>
+                          )}
+
                           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <h4 className="text-lg font-semibold text-slate-900">Vaults</h4>
-                                <p className="text-sm text-slate-500">Provision team vault shells for future content sync.</p>
+                                <h4 className="text-lg font-semibold text-slate-900">Team Vaults</h4>
+                                <p className="text-sm text-slate-500">Reusable encrypted vaults for credentials the team owns together.</p>
                               </div>
                               {canManageVaults(selectedTeam) && (
                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -568,50 +816,76 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                             <div className="mt-4 space-y-3">
                               {selectedTeam.vaults.length === 0 ? (
                                 <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-                                  No vaults yet.
+                                  No shared vaults yet.
                                 </div>
                               ) : (
-                                selectedTeam.vaults.map(vault => (
-                                  <div key={vault.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                      <div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <p className="font-medium text-slate-900">{vault.name}</p>
-                                          <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                                            v{vault.version}
-                                          </span>
+                                selectedTeam.vaults.map(vault => {
+                                  const isSelected = vault.id === selectedVaultId
+                                  return (
+                                    <div
+                                      key={vault.id}
+                                      className={`rounded-2xl border p-4 transition-colors ${isSelected ? 'border-secondary-400 bg-secondary-50' : 'border-slate-200 bg-slate-50'}`}
+                                    >
+                                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <p className="font-medium text-slate-900">{vault.name}</p>
+                                            <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                                              v{vault.version}
+                                            </span>
+                                            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                                              Encrypted shared vault
+                                            </span>
+                                          </div>
+                                          {stripTeamVaultMetadata(vault.description) && (
+                                            <p className="mt-1 text-sm text-slate-500">{stripTeamVaultMetadata(vault.description)}</p>
+                                          )}
+                                          <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+                                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                              <span className="font-semibold text-slate-700">Created</span>
+                                              <p className="mt-1 text-slate-500">{formatDateTime(vault.createdAt)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                              <span className="font-semibold text-slate-700">Updated</span>
+                                              <p className="mt-1 text-slate-500">{formatDateTime(vault.updatedAt ?? vault.createdAt)}</p>
+                                            </div>
+                                          </div>
                                         </div>
-                                        {vault.description && (
-                                          <p className="mt-1 text-sm text-slate-500">{vault.description}</p>
-                                        )}
-                                        <p className="mt-1 text-xs text-slate-400">
-                                          Created {formatDateTime(vault.createdAt)}
-                                          {vault.updatedAt ? ` • Updated ${formatDateTime(vault.updatedAt)}` : ''}
-                                        </p>
-                                      </div>
 
-                                      {canManageVaults(selectedTeam) && (
-                                        <Button
-                                          onClick={() => void handleDeleteVault(vault.id, vault.name)}
-                                          variant="danger"
-                                          size="sm"
-                                          loading={isLoading}
-                                        >
-                                          Delete
-                                        </Button>
-                                      )}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          {canOpenVault && (
+                                            <Button
+                                              onClick={() => handleSelectVault(vault.id)}
+                                              variant={isSelected ? 'primary' : 'outline'}
+                                              size="sm"
+                                            >
+                                              {isSelected ? 'Selected' : 'Open Vault'}
+                                            </Button>
+                                          )}
+                                          {canManageVaults(selectedTeam) && (
+                                            <Button
+                                              onClick={() => void handleDeleteVault(vault.id, vault.name)}
+                                              variant="danger"
+                                              size="sm"
+                                              loading={isMutatingTeam}
+                                            >
+                                              Delete
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))
+                                  )
+                                })
                               )}
                             </div>
                           </section>
 
                           {canManageVaults(selectedTeam) && (
                             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                              <h4 className="text-lg font-semibold text-slate-900">Create Vault</h4>
+                              <h4 className="text-lg font-semibold text-slate-900">Create Shared Vault</h4>
                               <p className="mt-1 text-sm text-slate-500">
-                                Creates an empty team vault shell. Content editing is intentionally deferred.
+                                Create a real team vault with a stable encryption secret, not a placeholder shell.
                               </p>
 
                               <form onSubmit={handleCreateVault} className="mt-4 space-y-4">
@@ -636,12 +910,144 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                     placeholder="Production accounts and shared access tokens"
                                   />
                                 </div>
-                                <Button type="submit" variant="primary" className="w-full" loading={isLoading}>
-                                  Create Vault
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-700">Team vault passphrase</label>
+                                    <input
+                                      type="password"
+                                      value={vaultPassphrase}
+                                      onChange={e => setVaultPassphrase(e.target.value)}
+                                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                      placeholder="At least 12 characters"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-700">Confirm passphrase</label>
+                                    <input
+                                      type="password"
+                                      value={vaultPassphraseConfirm}
+                                      onChange={e => setVaultPassphraseConfirm(e.target.value)}
+                                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                      placeholder="Repeat passphrase"
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                                <Button type="submit" variant="primary" className="w-full" loading={isMutatingTeam}>
+                                  Create Shared Vault
                                 </Button>
                               </form>
                             </section>
                           )}
+
+                          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <h4 className="text-lg font-semibold text-slate-900">Vault Access</h4>
+                                <p className="text-sm text-slate-500">Unlock and manage the selected team vault.</p>
+                              </div>
+                              {unlockedVault && (
+                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                  Unlocked
+                                </span>
+                              )}
+                            </div>
+
+                            {!selectedVaultSummary ? (
+                              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                                Select a vault above to unlock it.
+                              </div>
+                            ) : unlockedVault ? (
+                              <div className="mt-4 space-y-4">
+                                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
+                                  <div>
+                                    <p className="font-medium text-slate-900">{unlockedVault.vault.name}</p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                      {unlockedEntries.length} items in this shared vault
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {canCreateEntries && (
+                                      <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingEntry(null)
+                                          setIsEntryFormOpen(true)
+                                        }}
+                                      >
+                                        Add Entry
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setUnlockedVault(null)
+                                        setUnlockPassphrase('')
+                                      }}
+                                    >
+                                      Lock Vault
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                {isSavingVault && (
+                                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                                    Saving encrypted team vault changes...
+                                  </div>
+                                )}
+
+                                {unlockedEntries.length === 0 ? (
+                                  <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                                    This team vault is empty. Add the first shared credential.
+                                  </div>
+                                ) : (
+                                  <div className="grid gap-3 xl:grid-cols-2">
+                                    {unlockedEntries.map(entry => (
+                                      <VaultEntryCard
+                                        key={entry.id}
+                                        entry={entry}
+                                        onEdit={(nextEntry) => {
+                                          if (!canEditEntries) return
+                                          setEditingEntry(nextEntry)
+                                          setIsEntryFormOpen(true)
+                                        }}
+                                        onDelete={(nextEntry) => {
+                                          if (!canDeleteEntries) return
+                                          void handleDeleteEntry(nextEntry)
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <form onSubmit={handleUnlockVault} className="mt-4 space-y-4">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                  <p className="font-medium text-slate-900">{selectedVaultSummary.name}</p>
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    Enter the team-vault passphrase to decrypt the shared entries for this vault.
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-sm font-medium text-slate-700">Team vault passphrase</label>
+                                  <input
+                                    type="password"
+                                    value={unlockPassphrase}
+                                    onChange={e => setUnlockPassphrase(e.target.value)}
+                                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                    placeholder="Enter the shared vault passphrase"
+                                    required
+                                  />
+                                </div>
+                                <Button type="submit" variant="primary" className="w-full" loading={isUnlockingVault}>
+                                  Unlock Shared Vault
+                                </Button>
+                              </form>
+                            )}
+                          </section>
                         </div>
                       </section>
                     </motion.section>
@@ -650,6 +1056,19 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
               </div>
             </div>
           </motion.div>
+
+          <EntryForm
+            isOpen={isEntryFormOpen}
+            entry={editingEntry}
+            onClose={() => {
+              setIsEntryFormOpen(false)
+              setEditingEntry(null)
+            }}
+            onSave={(entry) => {
+              void handleSaveEntry(entry)
+            }}
+            categories={teamVaultCategories}
+          />
         </>
       )}
     </AnimatePresence>

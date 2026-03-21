@@ -89,6 +89,7 @@ export interface TeamVaultDocument {
 
 export interface TeamVaultRecord extends TeamVaultSummary {
   teamId: string
+  vaultSalt?: string | null
   encryptedVault: string
   iv: string
 }
@@ -151,11 +152,6 @@ function parseTeamVaultSalt(description?: string | null): string | null {
   return match?.[1] || null
 }
 
-function withTeamVaultSalt(description: string | undefined, salt: string): string {
-  const base = (description || '').replace(/\s*\[vault-salt:[A-Za-z0-9+/=]+\]\s*$/u, '').trim()
-  return base ? `${base} [vault-salt:${salt}]` : `[vault-salt:${salt}]`
-}
-
 export async function getTeams(page = 1, limit = 50): Promise<TeamListResponse> {
   return apiGet<TeamListResponse>(`/api/teams?page=${page}&limit=${limit}`, {
     requireAuth: true
@@ -188,7 +184,8 @@ export async function createTeamVault(
   const encrypted = await createEncryptedTeamVaultPayload(passphrase)
   const response = await apiPost<{ success: boolean; vault: TeamVaultSummary }>(`/api/teams/${teamId}/vaults`, {
     name,
-    description: withTeamVaultSalt(description?.trim() || undefined, encrypted.salt),
+    description: description?.trim() || undefined,
+    vaultSalt: encrypted.salt,
     encryptedVault: encrypted.encryptedVault,
     iv: encrypted.iv
   }, {
@@ -196,18 +193,6 @@ export async function createTeamVault(
   })
 
   return response.vault
-}
-
-export async function createTeamVaultShell(
-  teamId: string,
-  name: string,
-  description?: string
-): Promise<TeamVaultSummary> {
-  const ephemeralPassphrase = typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `team-vault-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-
-  return createTeamVault(teamId, name, ephemeralPassphrase, description)
 }
 
 export async function getTeamVault(teamId: string, vaultId: string): Promise<TeamVaultRecord> {
@@ -218,7 +203,7 @@ export async function getTeamVault(teamId: string, vaultId: string): Promise<Tea
 
 export async function unlockTeamVault(teamId: string, vault: TeamVaultSummary, passphrase: string): Promise<UnlockedTeamVault> {
   const record = await getTeamVault(teamId, vault.id)
-  const salt = parseTeamVaultSalt(record.description)
+  const salt = record.vaultSalt || parseTeamVaultSalt(record.description)
   if (!salt) {
     throw new Error('This team vault is missing its vault salt metadata and cannot be unlocked.')
   }

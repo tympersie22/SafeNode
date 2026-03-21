@@ -136,6 +136,7 @@ export async function createTeamVault(
   name: string,
   encryptedVault: string,
   iv: string,
+  vaultSalt: string,
   description?: string
 ): Promise<any> {
   const prisma = getPrismaClient()
@@ -184,6 +185,7 @@ export async function createTeamVault(
       teamId,
       name,
       description: description || null,
+      vaultSalt,
       encryptedVault,
       iv,
       version: 1

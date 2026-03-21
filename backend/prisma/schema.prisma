@@ -212,6 +212,7 @@ model TeamVault {
   teamId String @map("team_id")
   name String
   description String?
+  vaultSalt String? @map("vault_salt")
   encryptedVault String @map("encrypted_vault")
   iv String
   version Int @default(0)

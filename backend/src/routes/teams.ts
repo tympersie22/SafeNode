@@ -27,6 +27,7 @@ const createTeamVaultSchema = z.object({
   name: z.string().min(1, 'Vault name is required'),
   encryptedVault: z.string().min(1, 'Encrypted vault is required'),
   iv: z.string().min(1, 'IV is required'),
+  vaultSalt: z.string().min(1, 'Vault salt is required'),
   description: z.string().optional()
 })
 
@@ -45,6 +46,44 @@ const inviteMemberSchema = z.object({
 const updateRoleSchema = z.object({
   role: z.enum(['owner', 'admin', 'manager', 'member', 'viewer'])
 })
+
+function parseLegacyTeamVaultSalt(description?: string | null) {
+  if (!description) return null
+  const match = description.match(/\[vault-salt:([A-Za-z0-9+/=]+)\]/u)
+  return match?.[1] || null
+}
+
+function sanitizeTeamVaultDescription(description?: string | null) {
+  if (!description) return null
+  const cleaned = description.replace(/\s*\[vault-salt:[A-Za-z0-9+/=]+\]\s*$/u, '').trim()
+  return cleaned || null
+}
+
+function presentTeamVault(vault: {
+  id: string
+  teamId: string
+  name: string
+  description: string | null
+  encryptedVault: string
+  iv: string
+  version: number
+  createdAt: Date
+  updatedAt: Date
+  vaultSalt?: string | null
+}) {
+  return {
+    id: vault.id,
+    teamId: vault.teamId,
+    name: vault.name,
+    description: sanitizeTeamVaultDescription(vault.description),
+    vaultSalt: vault.vaultSalt || parseLegacyTeamVaultSalt(vault.description),
+    encryptedVault: vault.encryptedVault,
+    iv: vault.iv,
+    version: vault.version,
+    createdAt: vault.createdAt.getTime(),
+    updatedAt: vault.updatedAt.getTime()
+  }
+}
 
 /**
  * Register team routes
@@ -274,7 +313,7 @@ export async function registerTeamRoutes(server: FastifyInstance) {
         vaults: team.vaults.map(v => ({
           id: v.id,
           name: v.name,
-          description: v.description,
+          description: sanitizeTeamVaultDescription(v.description),
           version: v.version,
           createdAt: v.createdAt.getTime(),
           updatedAt: v.updatedAt.getTime()
@@ -311,19 +350,13 @@ export async function registerTeamRoutes(server: FastifyInstance) {
         })
       }
 
-      const { name, encryptedVault, iv, description } = validation.data
+      const { name, encryptedVault, iv, vaultSalt, description } = validation.data
 
-      const vault = await createTeamVault(id, user.id, name, encryptedVault, iv, description)
+      const vault = await createTeamVault(id, user.id, name, encryptedVault, iv, vaultSalt, sanitizeTeamVaultDescription(description) || undefined)
 
       return {
         success: true,
-        vault: {
-          id: vault.id,
-          name: vault.name,
-          description: vault.description,
-          version: vault.version,
-          createdAt: vault.createdAt.getTime()
-        }
+        vault: presentTeamVault(vault)
       }
     } catch (error: any) {
       request.log.error(error)
@@ -390,17 +423,7 @@ export async function registerTeamRoutes(server: FastifyInstance) {
         })
       }
 
-      return {
-        id: vault.id,
-        teamId: vault.teamId,
-        name: vault.name,
-        description: vault.description,
-        encryptedVault: vault.encryptedVault,
-        iv: vault.iv,
-        version: vault.version,
-        createdAt: vault.createdAt.getTime(),
-        updatedAt: vault.updatedAt.getTime()
-      }
+      return presentTeamVault(vault)
     } catch (error: any) {
       request.log.error(error)
       return reply.code(500).send({
