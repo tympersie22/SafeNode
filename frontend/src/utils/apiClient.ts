@@ -37,7 +37,7 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<T> {
-  const { requireAuth = false, skipCorrelationId = false, headers = {}, ...fetchOptions } = options
+  const { requireAuth = false, skipCorrelationId = false, headers = {}, body, ...fetchOptions } = options
 
   // Get token if auth is required
   const token = requireAuth ? localStorage.getItem('safenode_token') : null
@@ -47,8 +47,11 @@ export async function apiRequest<T = any>(
 
   // Build headers as a record (compatible with HeadersInit)
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(headers as Record<string, string>)
+  }
+
+  if (body !== undefined && !requestHeaders['Content-Type']) {
+    requestHeaders['Content-Type'] = 'application/json'
   }
 
   // Add correlation ID
@@ -68,6 +71,7 @@ export async function apiRequest<T = any>(
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...fetchOptions,
+      body,
       headers: requestHeaders,
       credentials: 'include'
     })

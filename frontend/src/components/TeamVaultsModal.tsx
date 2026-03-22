@@ -803,7 +803,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <h4 className="text-lg font-semibold text-slate-900">Team Vaults</h4>
+                                <h4 className="text-lg font-semibold text-slate-900">Shared Vaults</h4>
                                 <p className="text-sm text-slate-500">Reusable encrypted vaults for credentials the team owns together.</p>
                               </div>
                               {canManageVaults(selectedTeam) && (
@@ -885,7 +885,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                               <h4 className="text-lg font-semibold text-slate-900">Create Shared Vault</h4>
                               <p className="mt-1 text-sm text-slate-500">
-                                Create a real team vault with a stable encryption secret, not a placeholder shell.
+                                Create a reusable shared vault with its own stable encryption secret.
                               </p>
 
                               <form onSubmit={handleCreateVault} className="mt-4 space-y-4">
@@ -944,14 +944,18 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <h4 className="text-lg font-semibold text-slate-900">Vault Access</h4>
-                                <p className="text-sm text-slate-500">Unlock and manage the selected team vault.</p>
+                                <h4 className="text-lg font-semibold text-slate-900">Shared Vault Access</h4>
+                                <p className="text-sm text-slate-500">Unlock, review, and maintain the currently selected shared vault.</p>
                               </div>
-                              {unlockedVault && (
-                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                  Unlocked
-                                </span>
-                              )}
+                              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                unlockedVault
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : selectedVaultSummary
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {unlockedVault ? 'Unlocked' : selectedVaultSummary ? 'Ready to unlock' : 'No vault selected'}
+                              </span>
                             </div>
 
                             {!selectedVaultSummary ? (
@@ -962,6 +966,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                               <div className="mt-4 space-y-4">
                                 <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
                                   <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Selected vault</p>
                                     <p className="font-medium text-slate-900">{unlockedVault.vault.name}</p>
                                     <p className="mt-1 text-sm text-slate-500">
                                       {unlockedEntries.length} items in this shared vault
@@ -1026,6 +1031,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                             ) : (
                               <form onSubmit={handleUnlockVault} className="mt-4 space-y-4">
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Selected vault</p>
                                   <p className="font-medium text-slate-900">{selectedVaultSummary.name}</p>
                                   <p className="mt-1 text-sm text-slate-500">
                                     Enter the team-vault passphrase to decrypt the shared entries for this vault.
