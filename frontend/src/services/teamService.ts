@@ -76,6 +76,18 @@ export interface TeamVaultEntry {
   notes?: string
   tags?: string[]
   category: 'password' | 'note' | 'otp' | 'credit-card'
+  totpSecret?: string
+  attachments?: Array<{
+    id: string
+    name: string
+    size: number
+    type: string
+    data: string
+    createdAt: number
+  }>
+  breachCount?: number | null
+  lastBreachCheck?: number | null
+  passwordUpdatedAt?: number | null
   createdAt: number
   updatedAt: number
 }

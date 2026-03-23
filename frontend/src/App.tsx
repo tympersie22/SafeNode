@@ -35,6 +35,7 @@ import { useDarkMode } from './utils/darkMode';
 import AccountSwitcher from './components/AccountSwitcher';
 import AuditLogsModal from './components/AuditLogsModal';
 import TeamVaultsModal from './components/TeamVaultsModal';
+import TeamVaultWorkspace from './components/team/TeamVaultWorkspace';
 import PINSetupModal from './components/PINSetupModal';
 import { accountStorage, type Account } from './storage/accountStorage';
 import { auditLogStorage } from './storage/auditLogs';
@@ -223,6 +224,23 @@ const App: React.FC = () => {
       setAuthMode(mode)
     }
   }, [location.search])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (
+      location.pathname === '/vault' &&
+      params.get('teams') === '1' &&
+      isAuthenticated &&
+      vaultStatus === 'UNLOCKED'
+    ) {
+      setIsTeamVaultsOpen(true)
+      params.delete('teams')
+      navigate({
+        pathname: '/vault',
+        search: params.toString() ? `?${params.toString()}` : ''
+      }, { replace: true })
+    }
+  }, [isAuthenticated, location.pathname, location.search, navigate, vaultStatus])
 
   useEffect(() => {
     const isOnVaultPage = location.pathname.startsWith('/vault');
@@ -864,7 +882,7 @@ const App: React.FC = () => {
   if (location.pathname.startsWith('/billing')) {
     return <SubscribePage />;
   }
-  
+
   // Check if user needs to set up master password (only if explicitly triggered)
   // Don't check user.needsMasterPassword as it may be stale - let UnlockVault handle vault existence check
   if (showMasterPasswordSetup) {
@@ -995,6 +1013,22 @@ const App: React.FC = () => {
         : syncState.lastSyncedAt
           ? formatLastSynced(syncState.lastSyncedAt)
           : 'No remote sync yet'
+
+  if (location.pathname.startsWith('/vault/team/')) {
+    return (
+      <TeamVaultWorkspace
+        currentUserId={user.id || ''}
+        userName={userName}
+        userEmail={user.email || 'Signed in'}
+        userPlan={userPlan}
+        passkeySupported={passkeySupported}
+        onBackToPersonalVault={() => navigate('/vault')}
+        onOpenTeamCenter={() => navigate('/vault?teams=1')}
+        onOpenBilling={() => navigate('/billing')}
+        onLockPersonalVault={handleLock}
+      />
+    );
+  }
 
   return (
     <DashboardLayout
