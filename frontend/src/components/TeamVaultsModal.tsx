@@ -47,6 +47,9 @@ const roleBadgeClass: Record<TeamRole, string> = {
 }
 
 const teamVaultCategories = ['Login', 'Secure Note', 'Credit Card', 'One-Time Code']
+const fieldClass = 'w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20'
+const fieldClassMultiline = `${fieldClass} resize-y`
+const selectClass = 'w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none'
 
 const formatDate = (timestamp?: number | null) => {
   if (!timestamp) return 'Unknown'
@@ -602,7 +605,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                           type="text"
                           value={teamName}
                           onChange={e => setTeamName(e.target.value)}
-                          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                          className={fieldClass}
                           placeholder="Engineering"
                           required
                         />
@@ -612,7 +615,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                         <textarea
                           value={teamDescription}
                           onChange={e => setTeamDescription(e.target.value)}
-                          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                          className={fieldClassMultiline}
                           rows={3}
                           placeholder="Shared workspace for releases and ops"
                         />
@@ -652,7 +655,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="truncate text-2xl font-semibold text-slate-900">{selectedTeam.name}</h3>
+                              <h3 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{selectedTeam.name}</h3>
                               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${roleBadgeClass[selectedTeam.role]}`}>
                                 Your role: {roleLabel[selectedTeam.role]}
                               </span>
@@ -702,28 +705,28 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                               return (
                                 <div key={member.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <p className="font-medium text-slate-900">{isSelf ? `${member.name} (You)` : member.name}</p>
+                                        <p className="min-w-0 break-words font-medium text-slate-900">{isSelf ? `${member.name} (You)` : member.name}</p>
                                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${roleBadgeClass[member.role]}`}>
                                           {roleLabel[member.role]}
                                         </span>
                                       </div>
-                                      <p className="mt-1 truncate text-sm text-slate-500">{member.email}</p>
+                                      <p className="mt-1 break-all text-sm text-slate-500">{member.email}</p>
                                       {member.joinedAt && (
                                         <p className="mt-1 text-xs text-slate-400">Joined {formatDateTime(member.joinedAt)}</p>
                                       )}
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 self-start md:self-auto">
                                       {member.role === 'owner' ? (
-                                        <span className="text-sm text-slate-500">Owner permissions locked</span>
+                                        <span className="text-sm text-slate-500 md:text-right">Owner permissions locked</span>
                                       ) : canEditRole ? (
                                         <select
                                           value={member.role}
                                           onChange={e => void handleUpdateMemberRole(member, e.target.value as TeamRole)}
                                           disabled={isMutatingTeam}
-                                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none"
+                                          className={`${selectClass} min-w-[132px]`}
                                         >
                                           <option value="viewer">Viewer</option>
                                           <option value="member">Member</option>
@@ -731,7 +734,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                           <option value="admin">Admin</option>
                                         </select>
                                       ) : (
-                                        <span className="text-sm text-slate-500">Role managed by team admins</span>
+                                        <span className="text-sm text-slate-500 md:text-right">Role managed by team admins</span>
                                       )}
                                     </div>
                                   </div>
@@ -754,7 +757,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                     type="text"
                                     value={inviteName}
                                     onChange={e => setInviteName(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                    className={fieldClass}
                                     placeholder="Jane Doe"
                                   />
                                 </div>
@@ -764,7 +767,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                     type="email"
                                     value={inviteEmail}
                                     onChange={e => setInviteEmail(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                    className={fieldClass}
                                     placeholder="jane@company.com"
                                     required
                                   />
@@ -777,7 +780,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                   <select
                                     value={inviteRole}
                                     onChange={e => setInviteRole(e.target.value as TeamRole)}
-                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none"
+                                    className={selectClass}
                                   >
                                     <option value="viewer">Viewer</option>
                                     <option value="member">Member</option>
@@ -829,7 +832,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                         <div className="min-w-0 flex-1">
                                           <div className="flex flex-wrap items-center gap-2">
-                                            <p className="font-medium text-slate-900">{vault.name}</p>
+                                            <p className="min-w-0 break-words font-medium text-slate-900">{vault.name}</p>
                                             <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
                                               v{vault.version}
                                             </span>
@@ -838,7 +841,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                             </span>
                                           </div>
                                           {stripTeamVaultMetadata(vault.description) && (
-                                            <p className="mt-1 text-sm text-slate-500">{stripTeamVaultMetadata(vault.description)}</p>
+                                            <p className="mt-1 break-words text-sm text-slate-500">{stripTeamVaultMetadata(vault.description)}</p>
                                           )}
                                           <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
                                             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -852,7 +855,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                           </div>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
                                           {canOpenVault && (
                                             <Button
                                               onClick={() => handleSelectVault(vault.id)}
@@ -895,7 +898,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                     type="text"
                                     value={vaultName}
                                     onChange={e => setVaultName(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                    className={fieldClass}
                                     placeholder="Shared Credentials"
                                     required
                                   />
@@ -905,7 +908,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                   <textarea
                                     value={vaultDescription}
                                     onChange={e => setVaultDescription(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                    className={fieldClassMultiline}
                                     rows={3}
                                     placeholder="Production accounts and shared access tokens"
                                   />
@@ -917,7 +920,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                       type="password"
                                       value={vaultPassphrase}
                                       onChange={e => setVaultPassphrase(e.target.value)}
-                                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                      className={fieldClass}
                                       placeholder="At least 12 characters"
                                       required
                                     />
@@ -928,7 +931,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                       type="password"
                                       value={vaultPassphraseConfirm}
                                       onChange={e => setVaultPassphraseConfirm(e.target.value)}
-                                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                      className={fieldClass}
                                       placeholder="Repeat passphrase"
                                       required
                                     />
@@ -967,7 +970,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                 <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
                                   <div>
                                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Selected vault</p>
-                                    <p className="font-medium text-slate-900">{unlockedVault.vault.name}</p>
+                                    <p className="break-words font-medium text-slate-900">{unlockedVault.vault.name}</p>
                                     <p className="mt-1 text-sm text-slate-500">
                                       {unlockedEntries.length} items in this shared vault
                                     </p>
@@ -1032,7 +1035,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                               <form onSubmit={handleUnlockVault} className="mt-4 space-y-4">
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Selected vault</p>
-                                  <p className="font-medium text-slate-900">{selectedVaultSummary.name}</p>
+                                  <p className="break-words font-medium text-slate-900">{selectedVaultSummary.name}</p>
                                   <p className="mt-1 text-sm text-slate-500">
                                     Enter the team-vault passphrase to decrypt the shared entries for this vault.
                                   </p>
@@ -1043,7 +1046,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                                     type="password"
                                     value={unlockPassphrase}
                                     onChange={e => setUnlockPassphrase(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-secondary-500 focus:outline-none focus:ring-2 focus:ring-secondary-500/20"
+                                    className={fieldClass}
                                     placeholder="Enter the shared vault passphrase"
                                     required
                                   />
