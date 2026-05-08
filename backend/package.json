@@ -32,7 +32,7 @@
     "db:seed": "ts-node src/db/seed.ts",
     "seed": "ts-node src/db/seed-cli.ts",
     "reset": "ts-node src/db/seed-cli.ts --reset",
-    "reset-vault": "ts-node scripts/reset-demo-vault.ts"
+    "reset-vault": "ts-node scripts/reset-vault.ts"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",

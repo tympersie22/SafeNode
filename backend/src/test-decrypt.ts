@@ -22,8 +22,12 @@ async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey
 }
 
 async function main() {
-  const baseUrl = 'http://localhost:4000'
-  const password = 'demo-password'
+  const baseUrl = process.env.SAFENODE_TEST_BASE_URL || 'http://localhost:4000'
+  const password = process.env.SAFENODE_TEST_MASTER_PASSWORD
+
+  if (!password) {
+    throw new Error('Set SAFENODE_TEST_MASTER_PASSWORD before running this script.')
+  }
 
   const saltRes = await fetch(`${baseUrl}/api/user/salt`)
   const { salt } = await saltRes.json() as { salt: string }
