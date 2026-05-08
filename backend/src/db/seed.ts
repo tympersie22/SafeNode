@@ -1,8 +1,7 @@
 /**
  * Database Seed
- * Idempotent seeding with stable demo user ID
- * Only seeds when DB is empty or SEED_ON_BOOT=true
- * Never drops users on dev restart unless explicitly requested
+ * Idempotent seeding for explicitly enabled demo data only.
+ * Never creates demo credentials unless ENABLE_DEMO_ACCOUNT=true.
  */
 
 import { db } from '../services/database'
@@ -13,6 +12,10 @@ import { argon2id } from 'hash-wasm'
 
 const DEMO_EMAIL = 'demo@safe-node.app'
 const DEMO_PASSWORD = 'demo-password'
+
+function isDemoAccountEnabled(): boolean {
+  return process.env.ENABLE_DEMO_ACCOUNT === 'true'
+}
 
 // Stable demo user ID from env or deterministic generation
 function getStableDemoUserId(): string {
@@ -96,6 +99,11 @@ async function isDatabaseEmpty(): Promise<boolean> {
  */
 export async function seedDemoAccount(): Promise<void> {
   try {
+    if (!isDemoAccountEnabled()) {
+      console.log('⏭️  Demo account disabled - skipping demo seed')
+      return
+    }
+
     const nodeEnv = process.env.NODE_ENV || 'development'
     const forceReset = process.env.FORCE_RESET_DB === 'true'
     const stableDemoId = getStableDemoUserId()
@@ -174,6 +182,7 @@ export async function seedDemoAccount(): Promise<void> {
  * - Only seeds when DB is empty OR SEED_ON_BOOT=true
  * - Never deletes users on dev restart unless FORCE_RESET_DB=true
  * - In production: Only runs if FORCE_SEED=true
+ * - Demo credentials are never created unless ENABLE_DEMO_ACCOUNT=true
  * - Bumps tokenVersion on reseed to invalidate old tokens
  */
 export async function seedDatabase(): Promise<void> {
@@ -217,7 +226,7 @@ export async function seedDatabase(): Promise<void> {
       console.log('🌱 Seeding database (development mode)...')
     }
 
-    // Create demo admin account (idempotent upsert)
+    // Create demo account only when explicitly enabled
     await seedDemoAccount()
 
     console.log('✅ Database seeding completed')

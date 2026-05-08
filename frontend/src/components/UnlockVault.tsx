@@ -76,9 +76,9 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
     setError(null);
 
     try {
-      // Get user ID for ML analysis (in real app, get from auth context)
-      // For now, use a demo user ID - in production, get from auth state
-      const userId = 'demo@safe-node.app';
+      // Use a stable local identifier for device-side ML features.
+      // This avoids any hardcoded demo identity leaking into production behavior.
+      const userId = localStorage.getItem('safenode_biometric_user') || 'local-user';
       
       // Authenticate with ML enhancements enabled
       const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {

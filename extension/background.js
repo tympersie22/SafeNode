@@ -93,14 +93,11 @@ async function handleUnlockVault(password, sendResponse) {
       return;
     }
 
-    // In a real implementation, you would decrypt the vault here
-    // For now, we'll use a simple demo password check
-    if (password === 'demo-password') {
-      await chrome.storage.local.set({ isUnlocked: true });
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: 'Invalid password' });
-    }
+    // Never accept a hardcoded demo password in extension runtime code.
+    sendResponse({
+      success: false,
+      error: 'Extension vault unlock is not implemented in this build. Use the main SafeNode app flow.'
+    });
   } catch (error) {
     sendResponse({ success: false, error: error.message });
   }

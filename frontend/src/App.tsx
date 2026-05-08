@@ -371,7 +371,7 @@ const App: React.FC = () => {
           const accountName = user?.displayName || 'Personal';
           const defaultAccount = await accountStorage.createAccount(
             accountName,
-            user?.email || 'demo@safe-node.app',
+            user?.email || '',
             'personal'
           );
           setCurrentAccount(defaultAccount);
@@ -1359,8 +1359,8 @@ const App: React.FC = () => {
           <BiometricSetupModal
             isOpen={isBiometricSetupOpen}
             onClose={() => setIsBiometricSetupOpen(false)}
-            userId={user?.email || 'demo@safe-node.app'}
-            userName={user?.email || 'Demo User'}
+            userId={user?.id || user?.email || 'local-user'}
+            userName={user?.displayName || user?.email || 'SafeNode User'}
             onSuccess={() => {
               // Biometric setup successful
             }}

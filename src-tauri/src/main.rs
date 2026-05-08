@@ -25,22 +25,12 @@ struct AppState {
 // Commands for Tauri frontend communication
 #[command]
 async fn unlock_vault(password: String, state: State<'_, AppState>, app: AppHandle) -> Result<bool, String> {
-    // In a real implementation, this would decrypt the vault
-    // For demo purposes, we'll use the same demo password
-    if password == "demo-password" {
-        *state.is_unlocked.lock().unwrap() = true;
-        *state.last_activity.lock().unwrap() = Some(Instant::now());
-        
-        // Update system tray menu to show lock option
-        if let Some(tray) = app.tray_handle_by_id("main") {
-            let is_unlocked = *state.is_unlocked.lock().unwrap();
-            let _ = tray.set_menu(create_system_tray_menu(is_unlocked));
-        }
-        
-        Ok(true)
-    } else {
-        Ok(false)
-    }
+    // Desktop unlock must be delegated to the real encrypted-vault flow.
+    // Never accept a hardcoded demo password in production code paths.
+    let _ = password;
+    let _ = state;
+    let _ = app;
+    Err("Desktop vault unlock is not implemented in the local shell. Use the authenticated app flow.".into())
 }
 
 #[command]
