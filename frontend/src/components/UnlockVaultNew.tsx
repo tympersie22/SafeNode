@@ -172,7 +172,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
         setBiometricAvailable(caps.available)
         const enabled = localStorage.getItem('safenode_biometric_enabled') === 'true'
         const hasStoredPassword = await keychainService.get('safenode', 'master_password')
-        setBiometricEnabled(enabled && caps.available && !!hasStoredPassword)
+        setBiometricEnabled(Boolean(user?.biometricEnabled) && enabled && caps.available && !!hasStoredPassword)
       } catch (err) {
         devWarn('Biometric check failed:', err)
         setBiometricAvailable(false)
@@ -184,7 +184,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     }, 150)
 
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [user?.biometricEnabled])
 
   // ── Passkey availability (only when vault exists — skip for new users) ──────
   useEffect(() => {

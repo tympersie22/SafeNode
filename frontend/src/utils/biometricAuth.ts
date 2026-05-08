@@ -283,7 +283,8 @@ class BiometricAuthService {
       });
 
       if (!verifyResponse.ok) {
-        throw new Error('Authentication verification failed');
+        const error = await verifyResponse.json().catch(() => ({ message: 'Authentication verification failed' }));
+        throw new Error(error.message || error.error || 'Authentication verification failed');
       }
 
       return {

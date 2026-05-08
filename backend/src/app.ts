@@ -215,7 +215,12 @@ export async function createApp() {
       return { success: result.verified, message: result.message }
     } catch (error: any) {
       request.log.error(error)
-      return reply.code(500).send({ error: error?.message || 'server_error', message: 'Failed to verify biometric authentication' })
+      const message = error?.message || 'Failed to verify biometric authentication'
+      const statusCode =
+        message.includes('Credential not found') || message.includes('challenge has expired')
+          ? 400
+          : 500
+      return reply.code(statusCode).send({ error: statusCode === 400 ? 'verification_failed' : 'server_error', message })
     }
   })
 
