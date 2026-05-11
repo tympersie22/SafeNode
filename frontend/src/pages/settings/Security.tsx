@@ -126,10 +126,10 @@ export const SecuritySettings: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Shield className="w-6 h-6" />
-          Security Settings
+          Identity & Access
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Manage your account security and authentication preferences
+          Manage authentication factors, verification status, and account access hardening.
         </p>
       </div>
 
@@ -330,4 +330,3 @@ export const SecuritySettings: React.FC = () => {
     </div>
   )
 }
-

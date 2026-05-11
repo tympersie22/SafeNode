@@ -52,6 +52,7 @@ interface VaultDashboardProps {
   onOpenTeams: () => void
   onOpenAudit: () => void
   onOpenBilling: () => void
+  onOpenRecovery: () => void
   onOpenPasswordGenerator: () => void
   onStrengthenPasswords: () => void
   onSelectEntry: (entry: VaultEntry) => void
@@ -142,6 +143,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   onOpenTeams,
   onOpenAudit,
   onOpenBilling,
+  onOpenRecovery,
   onOpenPasswordGenerator,
   onStrengthenPasswords,
   onSelectEntry,
@@ -200,13 +202,13 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Secure Operations
+              Identity posture
             </div>
             <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">
-              Vault Command Center
+              Identity Control Center
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              One working surface for vault health, session state, and credential triage. Navigation stays in the left sidebar. The dashboard body only shows what needs action now.
+              One working surface for sign-in posture, recovery readiness, device state, and secret triage. Navigation stays in the left sidebar. This surface only shows what needs action now.
             </p>
           </div>
         </div>
@@ -214,7 +216,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Entries</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Secrets</span>
               <Layers3 className="h-4 w-4 text-slate-400" />
             </div>
             <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{entries.length}</p>
@@ -223,7 +225,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
 
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Posture</span>
               <ShieldAlert className="h-4 w-4 text-slate-400" />
             </div>
             <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{healthSummary?.score ?? 100}</p>
@@ -241,11 +243,11 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
 
           <div className={metricCardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Coverage</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Protected domains</span>
               <Globe className="h-4 w-4 text-slate-400" />
             </div>
             <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{monitoredDomains}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{allTags.length} tags, {totpEntries} with 2FA</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{totpEntries} with 2FA, {allTags.length} tags indexed</p>
           </div>
         </div>
       </motion.section>
@@ -253,12 +255,12 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
       <section className={sectionCardClass}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Watchtower priority</p>
-            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security posture queue</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A compact remediation view for the highest-risk credentials and current posture totals.</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Security posture</p>
+            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Priority remediation queue</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A compact remediation view for the highest-risk credentials, reuse issues, and current identity posture.</p>
           </div>
           <Button onClick={onOpenWatchtower} variant="outline" size="sm">
-            Open Watchtower
+            Open posture view
           </Button>
         </div>
 
@@ -280,8 +282,8 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             </div>
             <div className="flex items-center justify-between rounded-[16px] border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Watchtower score</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Combined view of breach, reuse, and weak password posture.</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Security posture score</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Combined view of breach exposure, reuse, and weak secret posture.</p>
               </div>
               <div className="text-right">
                 <p className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{healthSummary?.score ?? 100}</p>
@@ -349,8 +351,8 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
       <section className={sectionCardClass}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Operational strip</p>
-            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Session and response controls</h3>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Identity controls</p>
+            <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Session, passkey, and response controls</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusTone}`}>
@@ -382,7 +384,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                 <KeyRound className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Passkeys</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Passkey posture</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{passkeySupported ? 'Available on this device' : 'Unavailable in this browser'}</p>
               </div>
             </div>
@@ -405,11 +407,11 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             </Button>
             <Button onClick={onStrengthenPasswords} variant="ghost" size="sm" className="rounded-full px-3 py-1 text-[12px] leading-none">
               <Sparkles className="h-4.5 w-4.5" />
-              Strengthen
+              Strengthen secrets
             </Button>
             <Button onClick={onOpenPasswordGenerator} variant="ghost" size="sm" className="rounded-full px-3 py-1 text-[12px] leading-none">
               <KeyRound className="h-4.5 w-4.5" />
-              Generate
+              Generate secret
             </Button>
           </div>
         </div>
@@ -495,7 +497,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             <div>
               <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">Travel Mode is active</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Vault entries are intentionally hidden on this surface. Disable Travel Mode to resume normal access.
+                Sensitive records are intentionally hidden on this surface. Disable Travel Mode to resume normal access.
               </p>
             </div>
             <Button onClick={onDisableTravelMode} variant="primary" size="sm">
@@ -508,39 +510,39 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           <section className={sectionCardClass}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Inventory focus</p>
-                <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Priority credentials</h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A real table now. Fast scanning, no oversized cards, no duplicate side panels.</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Identity vault</p>
+                <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Priority secrets and records</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A compact working queue for passwords, notes, TOTP records, cards, and operational secrets.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button onClick={onAddEntry} variant="primary" size="sm">
                   <LockKeyhole className="h-4 w-4" />
-                  Add secure entry
+                  Add secret
                 </Button>
               </div>
             </div>
 
             {quickEntries.length === 0 ? (
               <div className="mt-6 rounded-[24px] border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
-                <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">No entries in this view</p>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Adjust your search or tag filter, or add a new secure record.</p>
+                <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">No records in this view</p>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Adjust your search or tag filter, or add a new secret, note, or secure record.</p>
               </div>
             ) : (
               <div className="mt-6 overflow-hidden rounded-[22px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70">
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Credential queue</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Secret queue</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {quickEntries.length} highest-priority records shown. Sorted by breach risk, weak credentials, and freshness.
+                      {quickEntries.length} highest-priority records shown. Sorted by breach risk, weak secrets, and freshness.
                     </p>
                   </div>
                   <div className="hidden rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900 dark:text-slate-300 sm:inline-flex">
-                    Compact inventory view
+                    Compact vault view
                   </div>
                 </div>
 
                 <div className="hidden grid-cols-[minmax(0,1.7fr)_120px_150px_180px_180px] gap-4 border-b border-slate-200 bg-slate-50/80 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
-                  <span>Credential</span>
+                  <span>Record</span>
                   <span>State</span>
                   <span>Updated</span>
                   <span>Tags</span>
@@ -631,15 +633,16 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           <section className={sectionCardClass}>
             <div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin shortcuts</p>
-                <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Security and billing tools</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Access and governance</p>
+                <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">Identity, team, and plan tools</h3>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 {[
-                  { label: 'Manage passkeys', description: 'WebAuthn and biometric access.', action: onOpenPasskeys, icon: <KeyRound className="h-4 w-4" /> },
-                  { label: 'Audit trail', description: 'Sessions, blocked devices, events.', action: onOpenAudit, icon: <BellRing className="h-4 w-4" /> },
-                  { label: 'Teams', description: 'Shared vaults and collaboration.', action: onOpenTeams, icon: <FolderKanban className="h-4 w-4" /> },
-                  { label: 'Billing', description: 'Plan limits and upgrade path.', action: onOpenBilling, icon: <CreditCard className="h-4 w-4" /> }
+                  { label: 'Manage passkeys', description: 'WebAuthn, biometrics, and sign-in posture.', action: onOpenPasskeys, icon: <KeyRound className="h-4 w-4" /> },
+                  { label: 'Recovery center', description: 'Continuity posture, exports, and successor readiness.', action: onOpenRecovery, icon: <ShieldCheck className="h-4 w-4" /> },
+                  { label: 'Audit trail', description: 'Sessions, blocked devices, and security events.', action: onOpenAudit, icon: <BellRing className="h-4 w-4" /> },
+                  { label: 'Team secrets', description: 'Shared vaults, members, and collaboration.', action: onOpenTeams, icon: <FolderKanban className="h-4 w-4" /> },
+                  { label: 'Plan & access', description: 'Plan limits, seats, and upgrade path.', action: onOpenBilling, icon: <CreditCard className="h-4 w-4" /> }
                 ].map((item) => (
                   <button
                     key={item.label}

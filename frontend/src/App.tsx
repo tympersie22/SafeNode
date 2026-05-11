@@ -6,7 +6,7 @@ import { useAuth } from './contexts/AuthContext';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
 import EntryForm from './components/EntryForm';
-import { generateTotpCode, encrypt, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
+import { generateTotpCode, encrypt, encryptWithKey, importVaultKey, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
 import { vaultSync } from './sync/vaultSync';
 import { enhancedCopyToClipboard, isTauri, DesktopVault } from './desktop/integration';
@@ -50,6 +50,7 @@ import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
 import VaultDashboard from './components/dashboard/VaultDashboard';
 import { DashboardLayout } from './layout/DashboardLayout';
 import type { SidebarItem } from './ui/SaasSidebar';
+import type { VaultAccessProfile } from './services/vaultService';
 
 interface VaultData {
   entries: VaultEntry[];
@@ -110,6 +111,8 @@ const App: React.FC = () => {
   const [isBiometricSetupOpen, setIsBiometricSetupOpen] = useState(false);
   const [masterPassword, setMasterPassword] = useState<string>('');
   const [vaultSalt, setVaultSalt] = useState<ArrayBuffer | null>(null);
+  const [vaultAccessProfile, setVaultAccessProfile] = useState<VaultAccessProfile | null>(null);
+  const [rawVaultKey, setRawVaultKey] = useState<string | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showMasterPasswordSetup, setShowMasterPasswordSetup] = useState(false);
   const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
@@ -143,6 +146,21 @@ const App: React.FC = () => {
       }
     });
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const handleVaultAccessUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ forceLock?: boolean }>).detail
+      if (detail?.forceLock) {
+        handleLock()
+        showToast.info('Vault access has been upgraded. Unlock again to continue with the new recovery model.')
+      }
+    }
+
+    window.addEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
+    return () => {
+      window.removeEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
+    }
   }, []);
 
   // Session timeout tracking — ref-based so activity resets don't cause re-renders
@@ -352,6 +370,8 @@ const App: React.FC = () => {
     setKnownHasVault(true);
     setMasterPassword(password);
     setVaultSalt(salt);
+    setVaultAccessProfile(unlockedVault?._accessProfile || null);
+    setRawVaultKey(unlockedVault?._rawVaultKey || null);
     
     // NO NAVIGATION - Route guards ensure we're on the correct route
     // If user is on /vault, ProtectedRoute keeps them there
@@ -387,14 +407,16 @@ const App: React.FC = () => {
     
     // Store master password in keychain for biometric unlock (fire-and-forget)
     // Use dynamic import - Vite will handle it correctly
-    keychainService.save({
-      service: 'safenode',
-      account: 'master_password',
-      password: password
-    }).catch((error: any) => {
-      console.warn('Failed to store password in keychain:', error);
-      showToast.info('Could not enable biometric unlock. You can set this up later in settings.');
-    });
+    if (password) {
+      keychainService.save({
+        service: 'safenode',
+        account: 'master_password',
+        password: password
+      }).catch((error: any) => {
+        console.warn('Failed to store password in keychain:', error);
+        showToast.info('Could not enable biometric unlock. You can set this up later in settings.');
+      });
+    }
     
     // IndexedDB storage is handled inside unlockVault() itself —
     // no redundant GET /api/auth/vault/latest needed here.
@@ -408,6 +430,8 @@ const App: React.FC = () => {
     setVaultStatus('LOCKED');
     setMasterPassword('');
     setVaultSalt(null);
+    setVaultAccessProfile(null);
+    setRawVaultKey(null);
     sessionStartTimeRef.current = null;
     setRemainingSessionTime(null);
     syncManager.stop();
@@ -426,6 +450,8 @@ const App: React.FC = () => {
       setVaultStatus('LOCKED');
       setMasterPassword('');
       setVaultSalt(null);
+      setVaultAccessProfile(null);
+      setRawVaultKey(null);
       setKnownHasVault(null);
       setCurrentAccount(null);
       sessionStartTimeRef.current = null;
@@ -682,22 +708,55 @@ const App: React.FC = () => {
         throw new Error('No vault salt available. Please unlock your vault again.');
       }
 
-      // Use the actual master password from state, not hardcoded
-      if (!masterPassword) {
-        throw new Error('Master password not available. Please unlock your vault again.');
-      }
-      
-      // Encrypt the updated vault
       const vaultJson = JSON.stringify(vaultData);
-      const encrypted = await encrypt(vaultJson, masterPassword, salt);
+      const activeAccessProfile =
+        vaultAccessProfile?.accessMode === 'wrapped_key'
+          ? vaultAccessProfile
+          : storedVault?.accessMode === 'wrapped_key' && storedVault.wrappedVaultKey && storedVault.wrappedVaultKeyIV
+            ? {
+                accessMode: 'wrapped_key' as const,
+                wrappedVaultKey: storedVault.wrappedVaultKey,
+                wrappedVaultKeyIV: storedVault.wrappedVaultKeyIV,
+                recoveryWrappedVaultKey: storedVault.recoveryWrappedVaultKey || '',
+                recoveryWrappedVaultKeyIV: storedVault.recoveryWrappedVaultKeyIV || '',
+                recoverySalt: storedVault.recoverySalt || '',
+                recoveryKitConfigured: Boolean(storedVault.recoveryKitConfigured)
+              }
+            : null;
+
+      if (!activeAccessProfile && !masterPassword) {
+        throw new Error('Vault passphrase not available. Please unlock your vault again.');
+      }
+
+      let payload: {
+        encryptedVault: string;
+        iv: string;
+        version: number;
+        accessProfile?: typeof activeAccessProfile;
+      };
       
       const nextVersion = Math.max(0, Number(storedVault?.version || 0)) + 1;
+      if (activeAccessProfile?.accessMode === 'wrapped_key') {
+        if (!rawVaultKey) {
+          throw new Error('Wrapped vault session is missing the local vault key. Please unlock your vault again.');
+        }
 
-      const payload = {
-        encryptedVault: arrayBufferToBase64(encrypted.encrypted),
-        iv: arrayBufferToBase64(encrypted.iv),
-        version: nextVersion
-      };
+        const key = await importVaultKey(base64ToArrayBuffer(rawVaultKey));
+        const encrypted = await encryptWithKey(vaultJson, key);
+        payload = {
+          encryptedVault: arrayBufferToBase64(encrypted.encrypted),
+          iv: arrayBufferToBase64(encrypted.iv),
+          version: nextVersion,
+          accessProfile: activeAccessProfile
+        };
+      } else {
+        const encrypted = await encrypt(vaultJson, masterPassword, salt);
+        payload = {
+          encryptedVault: arrayBufferToBase64(encrypted.encrypted),
+          iv: arrayBufferToBase64(encrypted.iv),
+          version: nextVersion
+        };
+      }
 
       const performVaultMutation = async () => {
         if (operation === 'CREATE') {
@@ -735,7 +794,18 @@ const App: React.FC = () => {
         payload.encryptedVault,
         payload.iv,
         saltBase64,
-        payload.version
+        payload.version,
+        activeAccessProfile?.accessMode === 'wrapped_key'
+          ? {
+              accessMode: activeAccessProfile.accessMode,
+              wrappedVaultKey: activeAccessProfile.wrappedVaultKey,
+              wrappedVaultKeyIV: activeAccessProfile.wrappedVaultKeyIV,
+              recoveryWrappedVaultKey: activeAccessProfile.recoveryWrappedVaultKey,
+              recoveryWrappedVaultKeyIV: activeAccessProfile.recoveryWrappedVaultKeyIV,
+              recoverySalt: activeAccessProfile.recoverySalt,
+              recoveryKitConfigured: activeAccessProfile.recoveryKitConfigured
+            }
+          : undefined
       );
       await vaultStorage.storeVault(updatedStoredVault);
 
@@ -846,7 +916,7 @@ const App: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-slate-600 dark:text-slate-400">Initializing Safenode...</p>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Initializing identity workspace...</p>
         </div>
       </div>
     )
@@ -943,8 +1013,8 @@ const App: React.FC = () => {
   const dashboardSidebarItems: SidebarItem[] = [
     {
       id: 'vault',
-      label: 'Dashboard',
-      description: 'Overview and recent credentials',
+      label: 'Identity Vault',
+      description: 'Overview, priority records, and current access state',
       section: 'Operations',
       icon: <span>⌘</span>,
       active: true,
@@ -952,8 +1022,8 @@ const App: React.FC = () => {
     },
     {
       id: 'watchtower',
-      label: 'Watchtower',
-      description: 'Risk, breach, and password posture',
+      label: 'Security Posture',
+      description: 'Risk, breach, and credential health',
       section: 'Operations',
       icon: <span>🛡</span>,
       onClick: () => setIsWatchtowerOpen(true)
@@ -961,15 +1031,23 @@ const App: React.FC = () => {
     {
       id: 'reports',
       label: 'Reports',
-      description: 'Security trends and exports',
+      description: 'Security, access, and audit trends',
       section: 'Operations',
       icon: <span>◴</span>,
       onClick: () => navigate('/settings?tab=reports')
     },
     {
+      id: 'recovery',
+      label: 'Recovery Center',
+      description: 'Recovery readiness, continuity, and export posture',
+      section: 'Security',
+      icon: <span>✦</span>,
+      onClick: () => navigate('/settings?tab=recovery')
+    },
+    {
       id: 'passkeys',
       label: 'Passkeys',
-      description: 'WebAuthn and biometric access',
+      description: 'WebAuthn, biometrics, and trusted sign-in',
       section: 'Security',
       icon: <span>🔑</span>,
       onClick: () => setIsPasskeysOpen(true)
@@ -977,23 +1055,23 @@ const App: React.FC = () => {
     {
       id: 'audit',
       label: 'Audit Trail',
-      description: 'Sessions, blocked devices, events',
+      description: 'Sessions, devices, and security events',
       section: 'Security',
       icon: <span>⎘</span>,
       onClick: () => setIsAuditLogsOpen(true)
     },
     {
       id: 'teams',
-      label: 'Teams',
-      description: 'Shared vaults and org controls',
+      label: 'Team Secrets',
+      description: 'Shared vaults, members, and org controls',
       section: 'Workspace',
       icon: <span>◫</span>,
       onClick: () => setIsTeamVaultsOpen(true)
     },
     {
       id: 'billing',
-      label: 'Billing',
-      description: 'Plan limits and upgrade path',
+      label: 'Plan & Access',
+      description: 'Plan limits, seats, and upgrade path',
       section: 'Workspace',
       icon: <span>◔</span>,
       onClick: () => navigate('/billing')
@@ -1037,8 +1115,8 @@ const App: React.FC = () => {
       sidebarBrand={{
         logo: <Logo variant="header" />,
         title: 'SafeNode',
-        subtitle: 'Encrypted operations center',
-        badge: 'Zero-knowledge'
+        subtitle: 'Identity, recovery, and team secrets',
+        badge: 'Passkey-first'
       }}
       sidebarFooter={{
         title: userName,
@@ -1053,16 +1131,17 @@ const App: React.FC = () => {
         ),
         menuItems: [
           { label: 'Open settings', onClick: () => navigate('/settings') },
+          { label: 'Recovery center', onClick: () => navigate('/settings?tab=recovery') },
           { label: 'Passkeys', onClick: () => setIsPasskeysOpen(true) },
           { label: 'Audit trail', onClick: () => setIsAuditLogsOpen(true) },
-          { label: 'Lock vault', onClick: handleLock },
+          { label: 'Lock identity vault', onClick: handleLock },
           { label: 'Logout', onClick: handleLogout, destructive: true }
         ]
       }}
-      topbarTitle="Dashboard"
-      topbarSubtitle="Vault command center"
+      topbarTitle="Identity Vault"
+      topbarSubtitle="Identity, recovery, and secret control center"
       topbarSearch={{
-        placeholder: 'Search vault...',
+        placeholder: 'Search secrets, accounts, and records...',
         value: query,
         onChange: setQuery
       }}
@@ -1100,7 +1179,7 @@ const App: React.FC = () => {
       }
       topbarRightContent={
         <div className="flex items-center gap-2">
-          <Button onClick={handleAddEntry} size="sm" variant="primary">+ Add</Button>
+          <Button onClick={handleAddEntry} size="sm" variant="primary">+ Add secret</Button>
           <div className="relative more-menu-container">
             <Button
               onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
@@ -1126,7 +1205,7 @@ const App: React.FC = () => {
                     { label: 'Backups', action: () => setIsBackupModalOpen(true) },
                     { label: 'PIN Setup', action: () => setIsPINSetupOpen(true) },
                     { label: 'Biometric Setup', action: () => setIsBiometricSetupOpen(true) },
-                    { label: 'Rotate Master Password', action: () => setIsKeyRotationOpen(true) },
+                    { label: 'Rotate vault passphrase', action: () => setIsKeyRotationOpen(true) },
                   ].map((item) => (
                     <button
                       key={item.label}
@@ -1174,6 +1253,7 @@ const App: React.FC = () => {
         onOpenTeams={() => setIsTeamVaultsOpen(true)}
         onOpenAudit={() => setIsAuditLogsOpen(true)}
         onOpenBilling={() => navigate('/billing')}
+        onOpenRecovery={() => navigate('/settings?tab=recovery')}
         onOpenPasswordGenerator={() => setIsPasswordGeneratorOpen(true)}
         onStrengthenPasswords={() => setIsStrengthenPasswordsOpen(true)}
         onSelectEntry={setSelectedEntryDetail}

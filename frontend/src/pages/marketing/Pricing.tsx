@@ -96,10 +96,10 @@ export const PricingNewPage: React.FC = () => {
       <section className="py-20 text-center">
         <div className="max-w-4xl mx-auto px-4">
           <h1 className="text-5xl font-extrabold text-gray-900 mb-4">
-            Simple, Transparent Pricing
+            Simple Pricing For Identity And Secret Control
           </h1>
           <p className="text-xl text-gray-600 mb-8">
-            Start free. Upgrade when you're ready. Cancel anytime.
+            Start free. Upgrade when you need more devices, recovery controls, and team workspaces.
           </p>
 
           {/* Billing Toggle */}
@@ -249,7 +249,7 @@ export const PricingNewPage: React.FC = () => {
             Ready to get started?
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            Join thousands protecting their passwords with SafeNode.
+            Join teams and individuals protecting access, recovery, and critical secrets with SafeNode.
           </p>
           <button
             onClick={() => navigate('/auth?mode=signup')}

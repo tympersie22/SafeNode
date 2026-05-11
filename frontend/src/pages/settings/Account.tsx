@@ -127,10 +127,10 @@ export const AccountSettings: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <User className="w-6 h-6" />
-          Account Settings
+          Account & Continuity
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Manage your account and preferences
+          Manage account ownership, continuity planning, and lifecycle controls.
         </p>
       </div>
 
@@ -258,7 +258,7 @@ export const AccountSettings: React.FC = () => {
               </h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Sign out of your account. You'll need to log in again to access your vault.
+              Sign out of your account. You will need to authenticate again before reopening your identity vault.
             </p>
             <SaasButton
               variant="outline"

@@ -43,16 +43,16 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: 'master-password-design-security-recovery',
-    title: 'Master Password Design: Balancing Security and Recovery',
-    date: 'February 18, 2026',
-    readTime: '4 min read',
+    title: 'Passkey-First Identity: The Next SafeNode Architecture',
+    date: 'May 8, 2026',
+    readTime: '5 min read',
     category: 'Security',
-    excerpt: 'Why SafeNode never stores your master password and how to build safer recovery flows around it.',
+    excerpt: 'Why passkeys should handle account authentication while a zero-knowledge vault key handles encrypted data.',
     icon: KeyRound,
     content: [
-      'SafeNode does not retain the master password, which protects user data from server-side credential disclosure but also means there is no direct password recovery path from us.',
-      'Recovery is handled through account controls around identity, re-enrollment, and secure re-provisioning workflows, not by escrow of decryptable user keys.',
-      'The product experience is designed to encourage strong passphrases and additional protection factors while keeping account recovery explicit and auditable.'
+      'Passkeys are the right front door for SafeNode because they remove reusable login passwords and make phishing dramatically harder. They should handle account authentication, device trust, and step-up identity checks.',
+      'Vault protection remains a separate problem. The long-term design is a random vault key wrapped to trusted devices and recovery methods, not a server-visible secret and not a simple replay of legacy password-manager assumptions.',
+      'Recovery still has to be explicit and auditable. A passkey-first product only works if users can survive device loss, team transitions, and successor events without weakening the zero-knowledge model.'
     ]
   }
 ]

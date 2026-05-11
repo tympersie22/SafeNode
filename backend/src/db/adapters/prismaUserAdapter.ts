@@ -26,6 +26,13 @@ function prismaUserToDomain(prismaUser: any): User {
     vaultEncrypted: prismaUser.vaultEncrypted,
     vaultIV: prismaUser.vaultIV,
     vaultVersion: Number(prismaUser.vaultVersion),
+    vaultAccessMode: (prismaUser.vaultAccessMode || 'passphrase') as 'passphrase' | 'wrapped_key',
+    wrappedVaultKey: prismaUser.wrappedVaultKey || undefined,
+    wrappedVaultKeyIV: prismaUser.wrappedVaultKeyIV || undefined,
+    recoveryWrappedVaultKey: prismaUser.recoveryWrappedVaultKey || undefined,
+    recoveryWrappedVaultKeyIV: prismaUser.recoveryWrappedVaultKeyIV || undefined,
+    recoverySalt: prismaUser.recoverySalt || undefined,
+    recoveryKitCreatedAt: prismaUser.recoveryKitCreatedAt?.getTime(),
     
     // Account settings
     twoFactorEnabled: prismaUser.twoFactorEnabled,
@@ -94,6 +101,13 @@ export const prismaUserAdapter = {
         vaultEncrypted: user.vaultEncrypted,
         vaultIV: user.vaultIV,
         vaultVersion: BigInt(Math.round(user.vaultVersion)),
+        vaultAccessMode: user.vaultAccessMode || 'passphrase',
+        wrappedVaultKey: user.wrappedVaultKey || null,
+        wrappedVaultKeyIV: user.wrappedVaultKeyIV || null,
+        recoveryWrappedVaultKey: user.recoveryWrappedVaultKey || null,
+        recoveryWrappedVaultKeyIV: user.recoveryWrappedVaultKeyIV || null,
+        recoverySalt: user.recoverySalt || null,
+        recoveryKitCreatedAt: user.recoveryKitCreatedAt ? new Date(user.recoveryKitCreatedAt) : null,
         twoFactorEnabled: user.twoFactorEnabled,
         twoFactorSecret: user.twoFactorSecret,
         twoFactorBackupCodes: user.twoFactorBackupCodes || [],
@@ -234,6 +248,21 @@ export const prismaUserAdapter = {
     if (input.vaultEncrypted !== undefined) updateData.vaultEncrypted = input.vaultEncrypted
     if (input.vaultIV !== undefined) updateData.vaultIV = input.vaultIV
     if (input.vaultVersion !== undefined) updateData.vaultVersion = BigInt(Math.round(input.vaultVersion))
+    if (input.vaultAccessMode !== undefined) updateData.vaultAccessMode = input.vaultAccessMode
+    if (input.wrappedVaultKey !== undefined) updateData.wrappedVaultKey = input.wrappedVaultKey || null
+    if (input.wrappedVaultKeyIV !== undefined) updateData.wrappedVaultKeyIV = input.wrappedVaultKeyIV || null
+    if (input.recoveryWrappedVaultKey !== undefined) {
+      updateData.recoveryWrappedVaultKey = input.recoveryWrappedVaultKey || null
+    }
+    if (input.recoveryWrappedVaultKeyIV !== undefined) {
+      updateData.recoveryWrappedVaultKeyIV = input.recoveryWrappedVaultKeyIV || null
+    }
+    if (input.recoverySalt !== undefined) updateData.recoverySalt = input.recoverySalt || null
+    if (input.recoveryKitCreatedAt !== undefined) {
+      updateData.recoveryKitCreatedAt = input.recoveryKitCreatedAt
+        ? new Date(input.recoveryKitCreatedAt)
+        : null
+    }
     if (input.twoFactorEnabled !== undefined) updateData.twoFactorEnabled = input.twoFactorEnabled
     if (input.twoFactorSecret !== undefined) {
       updateData.twoFactorSecret = input.twoFactorSecret === undefined || input.twoFactorSecret === null ? null : input.twoFactorSecret
@@ -338,4 +367,3 @@ export const prismaUserAdapter = {
     }
   }
 }
-

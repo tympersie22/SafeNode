@@ -15,6 +15,7 @@ import { DataSettings } from './Data'
 import { AdvancedSettings } from './Advanced'
 import { AccountSettings } from './Account'
 import { ReportsSettings } from './Reports'
+import { RecoveryCenterSettings } from './Recovery'
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate()
@@ -28,14 +29,15 @@ export const SettingsPage: React.FC = () => {
   // Memoised so the array reference is stable across renders — prevents the
   // SaasTabs useEffect from firing on every render and resetting the active tab.
   const tabs: Tab[] = React.useMemo(() => [
-    { id: 'security', label: 'Security', icon: '🔒', content: <SecuritySettings /> },
+    { id: 'security', label: 'Identity', icon: '🔒', content: <SecuritySettings /> },
+    { id: 'recovery', label: 'Recovery Center', icon: '🛟', content: <RecoveryCenterSettings /> },
     { id: 'privacy', label: 'Privacy', icon: '🛡️', content: <PrivacySettings /> },
-    { id: 'data', label: 'Data', icon: '💾', content: <DataSettings /> },
+    { id: 'data', label: 'Vault & Recovery', icon: '💾', content: <DataSettings /> },
     { id: 'devices', label: 'Devices', icon: '🖥️', content: <DevicesSettings /> },
     { id: 'advanced', label: 'Advanced', icon: '⚙️', content: <AdvancedSettings /> },
     { id: 'reports', label: 'Reports', icon: '📊', content: <ReportsSettings /> },
     { id: 'account', label: 'Account', icon: '👤', content: <AccountSettings /> },
-    { id: 'billing', label: 'Billing', icon: '💳', content: <BillingSettings /> }
+    { id: 'billing', label: 'Plan & Access', icon: '💳', content: <BillingSettings /> }
   ], [])
 
   return (
@@ -49,10 +51,10 @@ export const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-            Settings
+            Identity & Recovery Settings
           </h1>
               <p className="text-slate-600 dark:text-slate-400">
-            Manage your account settings and preferences
+            Manage sign-in, devices, vault data, recovery posture, and workspace controls.
           </p>
             </div>
             <motion.button
@@ -61,7 +63,7 @@ export const SettingsPage: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              ← Back to Vault
+              ← Back to Identity Vault
             </motion.button>
           </div>
         </motion.div>

@@ -44,12 +44,38 @@ const vaultUpdateSchema = z.object({
   version: z.number().int().positive('Version must be a positive integer')
 })
 
+const wrappedVaultAccessSchema = z.object({
+  accessMode: z.literal('wrapped_key'),
+  wrappedVaultKey: z.string().min(1, 'Wrapped vault key is required'),
+  wrappedVaultKeyIV: z.string().min(1, 'Wrapped vault key IV is required'),
+  recoveryWrappedVaultKey: z.string().min(1, 'Recovery wrapped vault key is required'),
+  recoveryWrappedVaultKeyIV: z.string().min(1, 'Recovery wrapped vault key IV is required'),
+  recoverySalt: z.string().min(1, 'Recovery salt is required')
+})
+
+const vaultWriteSchema = vaultUpdateSchema.extend({
+  accessProfile: wrappedVaultAccessSchema.optional()
+})
+
 function hasConfiguredVault(user: Partial<User> | null | undefined): boolean {
   return Boolean(
     user?.vaultEncrypted &&
     user?.vaultIV &&
     typeof user?.vaultSalt === 'string' &&
     user.vaultSalt.trim().length > 0
+  )
+}
+
+function getVaultAccessMode(user: Partial<User> | null | undefined): 'passphrase' | 'wrapped_key' {
+  return user?.vaultAccessMode === 'wrapped_key' ? 'wrapped_key' : 'passphrase'
+}
+
+function hasRecoveryKitConfigured(user: Partial<User> | null | undefined): boolean {
+  return Boolean(
+    user?.recoveryWrappedVaultKey &&
+    user?.recoveryWrappedVaultKeyIV &&
+    user?.recoverySalt &&
+    user?.recoveryKitCreatedAt
   )
 }
 
@@ -67,6 +93,8 @@ function serializeAuthUser(user: Partial<User> | null | undefined) {
     twoFactorEnabled: Boolean(user.twoFactorEnabled),
     biometricEnabled: Boolean(user.biometricEnabled),
     hasVault: hasConfiguredVault(user),
+    vaultAccessMode: getVaultAccessMode(user),
+    recoveryKitConfigured: hasRecoveryKitConfigured(user),
     createdAt: createdAt instanceof Date ? createdAt.getTime() : createdAt,
     lastLoginAt: lastLoginAt instanceof Date ? lastLoginAt.getTime() : lastLoginAt
   }
@@ -509,6 +537,8 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         twoFactorEnabled: userData.twoFactorEnabled,
         biometricEnabled: userData.biometricEnabled,
         hasVault: hasConfiguredVault(userData),
+        vaultAccessMode: getVaultAccessMode(userData),
+        recoveryKitConfigured: hasRecoveryKitConfigured(userData),
         devices: userData.devices,
         createdAt: userData.createdAt,
         lastLoginAt: userData.lastLoginAt
@@ -551,7 +581,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       }
 
       // Validate input
-      const validation = vaultUpdateSchema.safeParse(body)
+      const validation = vaultWriteSchema.safeParse(body)
       if (!validation.success) {
         return reply.code(400).send({
           error: 'validation_error',
@@ -560,10 +590,26 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
 
-      const { encryptedVault, iv, version } = validation.data
+      const { encryptedVault, iv, version, accessProfile } = validation.data
 
       // Update user vault (salt is generated on registration)
-      const updated = await updateVault(user.id, encryptedVault, iv, version)
+      const updated = await updateVault(
+        user.id,
+        encryptedVault,
+        iv,
+        version,
+        accessProfile
+          ? {
+              vaultAccessMode: 'wrapped_key',
+              wrappedVaultKey: accessProfile.wrappedVaultKey,
+              wrappedVaultKeyIV: accessProfile.wrappedVaultKeyIV,
+              recoveryWrappedVaultKey: accessProfile.recoveryWrappedVaultKey,
+              recoveryWrappedVaultKeyIV: accessProfile.recoveryWrappedVaultKeyIV,
+              recoverySalt: accessProfile.recoverySalt,
+              recoveryKitCreatedAt: Date.now()
+            }
+          : undefined
+      )
 
       if (!updated) {
         return reply.code(404).send({
@@ -575,7 +621,9 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       return {
         success: true,
         message: 'Vault initialized successfully',
-        version: Number(updated.vaultVersion)
+        version: Number(updated.vaultVersion),
+        vaultAccessMode: getVaultAccessMode(updated),
+        recoveryKitConfigured: hasRecoveryKitConfigured(updated)
       }
     } catch (error: any) {
       request.log.error(error)
@@ -637,7 +685,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const body = request.body as any
 
       // Validate input
-      const validation = vaultUpdateSchema.safeParse(body)
+      const validation = vaultWriteSchema.safeParse(body)
       if (!validation.success) {
         return reply.code(400).send({
           error: 'validation_error',
@@ -646,10 +694,26 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
 
-      const { encryptedVault, iv, version } = validation.data
+      const { encryptedVault, iv, version, accessProfile } = validation.data
 
       // Update vault
-      const updated = await updateVault(user.id, encryptedVault, iv, version)
+      const updated = await updateVault(
+        user.id,
+        encryptedVault,
+        iv,
+        version,
+        accessProfile
+          ? {
+              vaultAccessMode: 'wrapped_key',
+              wrappedVaultKey: accessProfile.wrappedVaultKey,
+              wrappedVaultKeyIV: accessProfile.wrappedVaultKeyIV,
+              recoveryWrappedVaultKey: accessProfile.recoveryWrappedVaultKey,
+              recoveryWrappedVaultKeyIV: accessProfile.recoveryWrappedVaultKeyIV,
+              recoverySalt: accessProfile.recoverySalt,
+              recoveryKitCreatedAt: Date.now()
+            }
+          : undefined
+      )
 
       if (!updated) {
         return reply.code(404).send({
@@ -660,7 +724,9 @@ export async function registerAuthRoutes(server: FastifyInstance) {
 
       return {
         success: true,
-        version: Number(updated.vaultVersion)
+        version: Number(updated.vaultVersion),
+        vaultAccessMode: getVaultAccessMode(updated),
+        recoveryKitConfigured: hasRecoveryKitConfigured(updated)
       }
     } catch (error: any) {
       request.log.error(error)
@@ -734,7 +800,14 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         if (!isNaN(since) && currentVersion && since >= currentVersion) {
           return {
             upToDate: true,
-            version: currentVersion
+            version: currentVersion,
+            accessMode: getVaultAccessMode(userData),
+            wrappedVaultKey: userData.wrappedVaultKey,
+            wrappedVaultKeyIV: userData.wrappedVaultKeyIV,
+            recoveryWrappedVaultKey: userData.recoveryWrappedVaultKey,
+            recoveryWrappedVaultKeyIV: userData.recoveryWrappedVaultKeyIV,
+            recoverySalt: userData.recoverySalt,
+            recoveryKitConfigured: hasRecoveryKitConfigured(userData)
           }
         }
       }
@@ -745,7 +818,14 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         encryptedVault: userData.vaultEncrypted,
         iv: userData.vaultIV,
         version: Number(userData.vaultVersion),
-        salt: userData.vaultSalt
+        salt: userData.vaultSalt,
+        accessMode: getVaultAccessMode(userData),
+        wrappedVaultKey: userData.wrappedVaultKey,
+        wrappedVaultKeyIV: userData.wrappedVaultKeyIV,
+        recoveryWrappedVaultKey: userData.recoveryWrappedVaultKey,
+        recoveryWrappedVaultKeyIV: userData.recoveryWrappedVaultKeyIV,
+        recoverySalt: userData.recoverySalt,
+        recoveryKitConfigured: hasRecoveryKitConfigured(userData)
       }
     } catch (error: any) {
       request.log.error(error)

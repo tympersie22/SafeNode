@@ -37,6 +37,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     vaultEncrypted: '',
     vaultIV: '',
     vaultVersion: 0,
+    vaultAccessMode: 'passphrase',
     
     // Account settings
     twoFactorEnabled: false,
@@ -209,12 +210,22 @@ export async function updateVault(
   userId: string,
   encryptedVault: string,
   iv: string,
-  version: number
+  version: number,
+  accessProfile?: Pick<
+    UpdateUserInput,
+    | 'vaultAccessMode'
+    | 'wrappedVaultKey'
+    | 'wrappedVaultKeyIV'
+    | 'recoveryWrappedVaultKey'
+    | 'recoveryWrappedVaultKeyIV'
+    | 'recoverySalt'
+    | 'recoveryKitCreatedAt'
+  >
 ): Promise<User | null> {
   return updateUser(userId, {
     vaultEncrypted: encryptedVault,
     vaultIV: iv,
-    vaultVersion: version
+    vaultVersion: version,
+    ...(accessProfile || {})
   })
 }
-

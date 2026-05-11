@@ -24,8 +24,8 @@ export const Footer: React.FC = () => {
               </Link>
             </div>
             <p className="text-slate-400 mb-4 max-w-md leading-relaxed">
-              The zero-knowledge password manager built for the modern web. 
-              Secure, private, and always in your control.
+              The passkey-first identity, recovery, and team secret platform built on a zero-knowledge vault core.
+              Secure, private, and designed for operational continuity.
             </p>
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">

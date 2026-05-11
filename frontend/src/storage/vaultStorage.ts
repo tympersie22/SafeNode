@@ -11,12 +11,21 @@ export interface StoredVault {
   version: number; // timestamp
   lastModified: number; // timestamp
   isOffline: boolean;
+  accessMode?: 'passphrase' | 'wrapped_key';
+  wrappedVaultKey?: string;
+  wrappedVaultKeyIV?: string;
+  recoveryWrappedVaultKey?: string;
+  recoveryWrappedVaultKeyIV?: string;
+  recoverySalt?: string;
+  recoveryKitConfigured?: boolean;
 }
 
 export interface VaultMetadata {
   version: number;
   lastModified: number;
   isOffline: boolean;
+  accessMode?: 'passphrase' | 'wrapped_key';
+  recoveryKitConfigured?: boolean;
 }
 
 const DB_NAME = 'SafeNodeVault';
@@ -94,7 +103,9 @@ export class VaultStorage {
     return {
       version: vault.version,
       lastModified: vault.lastModified,
-      isOffline: vault.isOffline
+      isOffline: vault.isOffline,
+      accessMode: vault.accessMode,
+      recoveryKitConfigured: vault.recoveryKitConfigured
     };
   }
 
@@ -157,7 +168,8 @@ export class VaultStorage {
     encryptedVault: string,
     iv: string,
     salt: string,
-    version?: number
+    version?: number,
+    accessProfile?: Partial<StoredVault>
   ): StoredVault {
     const now = Date.now();
     return {
@@ -167,7 +179,14 @@ export class VaultStorage {
       salt,
       version: version ?? 0,
       lastModified: now,
-      isOffline: !this.isOnline()
+      isOffline: !this.isOnline(),
+      accessMode: accessProfile?.accessMode,
+      wrappedVaultKey: accessProfile?.wrappedVaultKey,
+      wrappedVaultKeyIV: accessProfile?.wrappedVaultKeyIV,
+      recoveryWrappedVaultKey: accessProfile?.recoveryWrappedVaultKey,
+      recoveryWrappedVaultKeyIV: accessProfile?.recoveryWrappedVaultKeyIV,
+      recoverySalt: accessProfile?.recoverySalt,
+      recoveryKitConfigured: accessProfile?.recoveryKitConfigured
     };
   }
 }

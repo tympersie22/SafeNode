@@ -24,7 +24,7 @@ const PLATFORMS = [
     icon: Globe,
     name: 'Browser Extensions',
     platforms: ['Chrome', 'Firefox', 'Safari', 'Edge'],
-    description: 'Auto-fill passwords seamlessly'
+    description: 'Autofill and trusted access flows'
   },
   {
     icon: Laptop,
@@ -52,7 +52,7 @@ export const Platforms: React.FC = () => {
             Works Everywhere
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Access your passwords on every device. Synced automatically.
+            Access your identity vault, recovery tools, and trusted device flows on every platform.
           </p>
         </motion.div>
 

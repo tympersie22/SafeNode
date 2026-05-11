@@ -3,17 +3,37 @@
  * Manage backups, exports, sync frequency
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { SaasButton } from '../../ui/SaasButton'
 import { SaasCard } from '../../ui/SaasCard'
 import { Download, Upload, Database, Cloud } from 'lucide-react'
 import { vaultStorage } from '../../storage/vaultStorage'
+import { getCurrentUser, type User } from '../../services/authService'
 
 export const DataSettings: React.FC = () => {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [syncFrequency, setSyncFrequency] = useState(60) // seconds
+  const [user, setUser] = useState<User | null>(null)
+  const [metadata, setMetadata] = useState<Awaited<ReturnType<typeof vaultStorage.getVaultMetadata>> | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [currentUser] = await Promise.all([
+          getCurrentUser().catch(() => null),
+          vaultStorage.init()
+        ])
+        setUser(currentUser)
+        setMetadata(await vaultStorage.getVaultMetadata())
+      } catch (error) {
+        console.warn('Failed to load vault metadata', error)
+      }
+    }
+
+    void load()
+  }, [])
 
   const handleExport = async () => {
     setExporting(true)
@@ -104,10 +124,10 @@ export const DataSettings: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Database className="w-6 h-6" />
-          Data Management
+          Vault & Recovery Data
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Manage your vault backups, exports, and sync settings
+          Manage encrypted exports, restore paths, and sync behavior for your identity vault.
         </p>
       </div>
 
@@ -122,11 +142,11 @@ export const DataSettings: React.FC = () => {
               </h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Download an encrypted backup of your vault. Store this file securely.
+              Download an encrypted backup of your identity vault. Store this file securely and test your restore path periodically.
             </p>
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
               <p className="text-xs text-amber-800 dark:text-amber-200">
-                ⚠️ Your vault is encrypted. You'll need your master password to restore this backup.
+                ⚠️ Your vault is encrypted. You will still need your vault passphrase or future wrapped-key recovery path to restore this backup.
               </p>
             </div>
             <SaasButton
@@ -136,6 +156,42 @@ export const DataSettings: React.FC = () => {
             >
               Export Encrypted Backup
             </SaasButton>
+          </div>
+        </div>
+      </SaasCard>
+
+      <SaasCard>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Database className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Vault access profile
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Your current local vault model determines how export, restore, and recovery are expected to work.
+            </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Access mode</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {user?.vaultAccessMode === 'wrapped_key' ? 'Wrapped vault key' : 'Legacy passphrase'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Recovery kit</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {user?.recoveryKitConfigured ? 'Configured' : 'Missing'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Local metadata</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {metadata ? `Version ${metadata.version}` : 'Not loaded'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </SaasCard>
@@ -151,7 +207,7 @@ export const DataSettings: React.FC = () => {
               </h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Restore your vault from an encrypted backup file
+              Restore your identity vault from an encrypted backup file
             </p>
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
               <p className="text-xs text-red-800 dark:text-red-200">
@@ -180,7 +236,7 @@ export const DataSettings: React.FC = () => {
               </h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              How often to sync your vault with the server
+              How often to sync encrypted vault changes with the server
             </p>
             <select
               value={syncFrequency}

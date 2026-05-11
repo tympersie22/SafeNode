@@ -34,6 +34,9 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'create' | 'confirm' | 'success'>('create')
+  const [recoveryKit, setRecoveryKit] = useState<string | null>(null)
+  const [unlockedVault, setUnlockedVault] = useState<any | null>(null)
+  const [unlockedSalt, setUnlockedSalt] = useState<ArrayBuffer | null>(null)
   const [useGenerated, setUseGenerated] = useState(false)
   const prefersReducedMotion = useReducedMotion()
   const passwordInputRef = useRef<HTMLInputElement>(null)
@@ -104,7 +107,7 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
       // This helps prevent race conditions for new users
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      await initializeVault(masterPassword)
+      const initResult = await initializeVault(masterPassword)
       
       // After initialization, unlock the vault immediately
       // Get salt for the callback
@@ -127,11 +130,10 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
         devLog('[MasterPasswordSetup] Vault unlocked on retry:', { entryCount: vault.entries?.length || 0 })
       }
       
+      setRecoveryKit(initResult.recoveryKit || null)
+      setUnlockedVault(vault)
+      setUnlockedSalt(salt)
       setStep('success')
-      setTimeout(() => {
-        // Pass vault, password, and salt to onComplete so it can unlock immediately
-        onComplete(vault, masterPassword, salt)
-      }, 1500)
     } catch (err: any) {
       // Provide more helpful error messages
       let errorMessage = err.message || 'Failed to initialize vault. Please try again.'
@@ -165,11 +167,40 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
             <Shield className="w-8 h-8 text-white" />
           </motion.div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Vault Created Successfully!
+            Identity Vault Ready
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Your encrypted vault is ready. You can now start adding passwords and secure notes.
+            Your vault now uses a device-ready wrapped key model. Save this recovery kit before you continue.
           </p>
+          {recoveryKit && (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left dark:border-amber-800 dark:bg-amber-900/20">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                Recovery kit
+              </p>
+              <p className="mt-3 break-all rounded-xl bg-white/80 px-4 py-3 font-mono text-sm text-amber-900 shadow-sm dark:bg-slate-950/40 dark:text-amber-100">
+                {recoveryKit}
+              </p>
+              <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
+                Store this separately from your devices. It lets you rewrap access without asking the server to decrypt your vault.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <SaasButton
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(recoveryKit)
+                  }}
+                >
+                  Copy Recovery Kit
+                </SaasButton>
+                <SaasButton
+                  variant="primary"
+                  onClick={() => onComplete(unlockedVault, masterPassword, unlockedSalt || undefined)}
+                >
+                  Continue to Identity Vault
+                </SaasButton>
+              </div>
+            </div>
+          )}
         </SaasCard>
       </motion.div>
     )
@@ -188,12 +219,12 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
             <VaultDoor className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            {step === 'create' ? 'Create Master Password' : 'Confirm Master Password'}
+            {step === 'create' ? 'Create Vault Passphrase' : 'Confirm Vault Passphrase'}
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
             {step === 'create'
-              ? 'Your master password encrypts your vault. Choose a strong password and keep it secure.'
-              : 'Please confirm your master password to complete vault setup.'}
+              ? 'Your vault passphrase approves local access to a wrapped vault key. Choose a strong passphrase and keep it secure.'
+              : 'Please confirm your vault passphrase to complete setup.'}
           </p>
         </div>
 
@@ -205,10 +236,10 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
             </svg>
             <div className="text-sm">
               <p className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
-                Important: Master Password Cannot Be Recovered
+                Important: Vault Passphrase Cannot Be Recovered
               </p>
               <p className="text-amber-800 dark:text-amber-200">
-                If you forget your master password, your vault cannot be decrypted. We cannot recover it for you.
+                We cannot recover your passphrase for you. SafeNode will generate a recovery kit after setup so you can restore access without weakening zero-knowledge encryption.
               </p>
             </div>
           </div>
@@ -230,13 +261,13 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
               <SaasInput
                 ref={passwordInputRef}
                 type={showPassword ? 'text' : 'password'}
-                label="Master Password"
+                label="Vault Passphrase"
                 value={masterPassword}
                 onChange={(e) => {
                   setMasterPassword(e.target.value)
                   setError(null)
                 }}
-                placeholder="Create a strong master password (min. 12 characters)"
+                placeholder="Create a strong vault passphrase (min. 12 characters)"
                 required
                 rightIcon={
                   <button
@@ -310,13 +341,13 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
           <div className="space-y-6">
             <SaasInput
               type={showConfirm ? 'text' : 'password'}
-              label="Confirm Master Password"
+              label="Confirm Vault Passphrase"
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value)
                 setError(null)
               }}
-              placeholder="Re-enter your master password"
+              placeholder="Re-enter your vault passphrase"
               required
               error={
                 confirmPassword && masterPassword !== confirmPassword
@@ -370,7 +401,7 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
                   isLoading
                 }
               >
-                {isLoading ? 'Creating Vault...' : 'Create Vault'}
+                {isLoading ? 'Creating Identity Vault...' : 'Create Identity Vault'}
               </SaasButton>
             </div>
           </div>

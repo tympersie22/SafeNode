@@ -14,8 +14,8 @@ const controls = [
   },
   {
     icon: KeyRound,
-    title: 'Argon2id key derivation',
-    detail: 'Master-password-derived keys are hardened against GPU-assisted brute-force attempts.'
+    title: 'Passkey-first and hardened vault access',
+    detail: 'SafeNode is moving toward passkey-first authentication while preserving a zero-knowledge vault boundary and hardened local key derivation.'
   },
   {
     icon: Eye,
@@ -74,9 +74,9 @@ const SecurityPage: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl">
           <p className="text-xs tracking-[0.18em] uppercase text-secondary-600 dark:text-secondary-400 font-semibold mb-3">Security Architecture</p>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Security Controls Built Into the Product, Not Bolted On</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Security Controls Built Into Identity, Recovery, and Secret Access</h1>
           <p className="text-slate-600 dark:text-slate-400 text-lg">
-            SafeNode is built with a default assumption that compromise attempts are normal. Encryption, auth, and operational checks are treated as core product behavior.
+            SafeNode is built with a default assumption that compromise attempts are normal. Encryption, passkey-aware auth, recovery posture, and operational checks are treated as core product behavior.
           </p>
         </motion.section>
 

@@ -28,6 +28,13 @@ model User {
   vaultEncrypted String @default("") @map("vault_encrypted")
   vaultIV String @default("") @map("vault_iv")
   vaultVersion BigInt @default(0) @map("vault_version")
+  vaultAccessMode String @default("passphrase") @map("vault_access_mode")
+  wrappedVaultKey String? @map("wrapped_vault_key")
+  wrappedVaultKeyIV String? @map("wrapped_vault_key_iv")
+  recoveryWrappedVaultKey String? @map("recovery_wrapped_vault_key")
+  recoveryWrappedVaultKeyIV String? @map("recovery_wrapped_vault_key_iv")
+  recoverySalt String? @map("recovery_salt")
+  recoveryKitCreatedAt DateTime? @map("recovery_kit_created_at")
   
   // Account security
   twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
@@ -61,6 +68,7 @@ model User {
   @@index([subscriptionTier])
   @@index([subscriptionTier, subscriptionStatus])
   @@index([emailVerified])
+  @@index([vaultAccessMode])
   @@index([createdAt])
   @@index([lastLoginAt])
   @@map("users")

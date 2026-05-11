@@ -42,20 +42,20 @@ export const TeamsPage: React.FC = () => {
             Team Collaboration with SafeNode
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Learn how to collaborate securely with your team using SafeNode team vaults.
+            Learn how to collaborate securely with your team using SafeNode shared vaults and team secret workspaces.
           </p>
 
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">What are Team Vaults?</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">What are Team Secret Workspaces?</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              Team vaults allow you to securely share passwords and credentials with your team members. Each team vault is encrypted and only accessible to invited members.
+              Team vaults allow you to securely share operational credentials, recovery material, and other critical records with your team members. Each shared vault is encrypted and only accessible to approved members.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Creating a Team</h2>
             <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Go to Teams in the sidebar</li>
+              <li>Go to Team Secrets in the sidebar</li>
               <li>Click "Create Team"</li>
               <li>Enter team name and description</li>
               <li>Set team permissions and policies</li>
@@ -76,34 +76,34 @@ export const TeamsPage: React.FC = () => {
               </div>
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">Member</h3>
-                <p className="text-green-800 dark:text-green-300">Can create and edit entries, but cannot delete or share</p>
+                <p className="text-green-800 dark:text-green-300">Can create and edit shared records, but cannot delete or share</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 dark:text-gray-200 mb-2">Viewer</h3>
-                <p className="text-gray-800 dark:text-gray-300">Read-only access to team vault entries</p>
+                <p className="text-gray-800 dark:text-gray-300">Read-only access to team vault records</p>
               </div>
             </div>
           </section>
 
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Sharing Entries</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Working With Shared Records</h2>
             <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Open the entry you want to share</li>
-              <li>Click "Share" or "Move to Team Vault"</li>
+              <li>Open the record you want to share</li>
+              <li>Click "Share" or move it into a shared team vault</li>
               <li>Select the team vault</li>
               <li>Choose who can access it</li>
-              <li>Confirm the share</li>
+              <li>Confirm the change and review audit visibility</li>
             </ol>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Best Practices</h2>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Use team vaults for shared accounts and credentials</li>
-              <li>Keep personal passwords in your personal vault</li>
+              <li>Use team vaults for shared accounts, API tokens, recovery codes, and operational credentials</li>
+              <li>Keep personal passwords and private records in your personal identity vault</li>
               <li>Regularly review team member access</li>
               <li>Use appropriate roles for each team member</li>
-              <li>Enable audit logging for compliance</li>
+              <li>Use audit logging and reports for operational review</li>
             </ul>
           </section>
 
@@ -121,4 +121,3 @@ export const TeamsPage: React.FC = () => {
 }
 
 export default TeamsPage
-

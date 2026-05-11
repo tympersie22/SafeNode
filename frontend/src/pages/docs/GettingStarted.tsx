@@ -44,7 +44,7 @@ export const GettingStartedPage: React.FC = () => {
             Getting Started with SafeNode
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Welcome to SafeNode! This guide will help you get started with your secure password manager.
+            Welcome to SafeNode. This guide will help you get started with your passkey-first identity vault, recovery posture, and secure records.
           </p>
 
           <section className="mb-12">
@@ -53,25 +53,26 @@ export const GettingStartedPage: React.FC = () => {
             <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300">
               <li>Visit SafeNode at your deployment URL</li>
               <li>Click "Sign Up" on the home page</li>
-              <li>Enter your email and create a strong password</li>
+              <li>Create your account and register a passkey when prompted</li>
               <li>Verify your email (check your inbox for a verification link)</li>
-              <li>Log in with your credentials</li>
+              <li>Set up your vault passphrase or recovery-ready vault access flow</li>
+              <li>Review trusted devices and recovery readiness after first sign-in</li>
             </ol>
           </section>
 
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Master Password</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Vault Passphrase and Recovery</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              Your <strong>master password</strong> is the key to your encrypted vault. It never leaves your device and is required to unlock your vault.
+              SafeNode is moving toward a passkey-first model for account authentication, but your encrypted vault still needs user-controlled access material. Today that means a vault passphrase. Over time this will evolve toward wrapped vault-key recovery.
             </p>
-            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Creating a Strong Master Password</h3>
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Creating a Strong Vault Passphrase</h3>
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
               <h4 className="font-semibold text-green-900 dark:text-green-200 mb-2">Do:</h4>
               <ul className="list-disc list-inside space-y-1 text-green-800 dark:text-green-300">
                 <li>Use at least 16 characters</li>
                 <li>Mix uppercase, lowercase, numbers, and symbols</li>
                 <li>Use a passphrase (e.g., "Correct-Horse-Battery-Staple")</li>
-                <li>Store it securely (password manager or physical safe)</li>
+                <li>Store recovery material securely and separately</li>
               </ul>
             </div>
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -86,25 +87,25 @@ export const GettingStartedPage: React.FC = () => {
           </section>
 
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Adding Your First Entry</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Adding Your First Record</h2>
             <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Click the "+" button or "Add Entry"</li>
-              <li>Fill in the entry details (name, username, password, URL)</li>
-              <li>Use the password generator for strong passwords</li>
+              <li>Click the "+" button or "Add secret"</li>
+              <li>Fill in the record details (name, username, password, URL, note, or other secure data)</li>
+              <li>Use the generator for strong passwords or operational secrets</li>
               <li>Add tags and categories for organization</li>
-              <li>Save the entry</li>
+              <li>Save the record</li>
             </ol>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Syncing Across Devices</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              SafeNode automatically syncs your encrypted vault across all your devices. Your data is encrypted end-to-end, so only you can access it.
+              SafeNode automatically syncs your encrypted vault across all your devices. Your identity state, trusted devices, and secure records stay aligned while the underlying vault remains zero-knowledge.
             </p>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
               <li>Install SafeNode on all your devices</li>
-              <li>Log in with the same account</li>
-              <li>Your vault will sync automatically</li>
+              <li>Sign in with the same account and trusted factors</li>
+              <li>Your identity vault will sync automatically</li>
               <li>Changes sync in real-time when online</li>
             </ul>
           </section>
@@ -113,20 +114,23 @@ export const GettingStartedPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Security Features</h2>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
               <li><strong>Zero-knowledge encryption:</strong> Your data is encrypted before it leaves your device</li>
+              <li><strong>Passkey-first access:</strong> Prefer passkeys and trusted devices over reusable login passwords</li>
               <li><strong>Biometric unlock:</strong> Use Face ID, Touch ID, or Windows Hello</li>
               <li><strong>Auto-lock:</strong> Vault locks automatically after inactivity</li>
-              <li><strong>Breach monitoring:</strong> Get alerts if your passwords appear in data breaches</li>
+              <li><strong>Recovery controls:</strong> Set successor access, encrypted exports, and continuity options</li>
+              <li><strong>Breach monitoring:</strong> Get alerts if your credentials appear in data breaches</li>
             </ul>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Tips & Best Practices</h2>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Use unique passwords for every account</li>
+              <li>Register at least one passkey and keep a second trusted device when possible</li>
+              <li>Use unique passwords for every legacy account that still requires them</li>
               <li>Enable two-factor authentication where available</li>
-              <li>Regularly review and update your passwords</li>
-              <li>Use the password generator for strong passwords</li>
-              <li>Organize entries with tags and categories</li>
+              <li>Review your Recovery Center regularly</li>
+              <li>Use the generator for strong secrets and legacy passwords</li>
+              <li>Organize records with tags and categories</li>
             </ul>
           </section>
 
@@ -144,4 +148,3 @@ export const GettingStartedPage: React.FC = () => {
 }
 
 export default GettingStartedPage
-

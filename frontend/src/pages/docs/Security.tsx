@@ -42,17 +42,17 @@ export const SecurityPage: React.FC = () => {
             Security & Privacy
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Learn how SafeNode protects your data with zero-knowledge encryption and security best practices.
+            Learn how SafeNode protects identity, recovery, devices, and secrets with a zero-knowledge vault core.
           </p>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Zero-Knowledge Architecture</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              SafeNode uses <strong>zero-knowledge encryption</strong>, meaning your master password and encryption keys never leave your device. We cannot access your data, even if we wanted to.
+              SafeNode uses <strong>zero-knowledge encryption</strong>, meaning the server does not hold the material required to decrypt your vault contents. Account authentication and vault decryption are treated as separate security problems.
             </p>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
               <li>Data is encrypted on your device before syncing</li>
-              <li>Only you have the decryption key (your master password)</li>
+              <li>User-controlled vault access material stays outside normal server trust</li>
               <li>Server cannot decrypt your vault</li>
               <li>End-to-end encryption for all data</li>
             </ul>
@@ -74,6 +74,10 @@ export const SecurityPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Security Features</h2>
             <div className="space-y-4">
               <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Passkey-First Sign-In</h3>
+                <p className="text-slate-700 dark:text-slate-300">Use passkeys and trusted devices for phishing-resistant authentication whenever possible</p>
+              </div>
+              <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Biometric Authentication</h3>
                 <p className="text-slate-700 dark:text-slate-300">Use Face ID, Touch ID, or Windows Hello for quick and secure unlock</p>
               </div>
@@ -88,6 +92,10 @@ export const SecurityPage: React.FC = () => {
               <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Two-Factor Authentication</h3>
                 <p className="text-slate-700 dark:text-slate-300">Add an extra layer of security to your account</p>
+              </div>
+              <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Recovery and Continuity</h3>
+                <p className="text-slate-700 dark:text-slate-300">Design recovery material, successor workflows, and trusted device posture before an incident happens</p>
               </div>
             </div>
           </section>
@@ -108,7 +116,7 @@ export const SecurityPage: React.FC = () => {
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-yellow-900 dark:text-yellow-200 mb-2">For Users</h3>
               <ul className="list-disc list-inside space-y-1 text-yellow-800 dark:text-yellow-300">
-                <li>Use a strong, unique master password</li>
+                <li>Register a passkey and keep at least one secondary recovery path</li>
                 <li>Enable biometric unlock</li>
                 <li>Keep your devices secure</li>
                 <li>Regularly update the app</li>
@@ -131,4 +139,3 @@ export const SecurityPage: React.FC = () => {
 }
 
 export default SecurityPage
-

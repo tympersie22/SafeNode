@@ -6,10 +6,18 @@
 import {
   encrypt,
   decrypt,
-  deriveKey,
+  decryptWithKey,
+  encryptWithKey,
+  generateVaultKey,
+  wrapVaultKeyWithPassword,
+  unwrapVaultKeyWithPassword,
   generateSalt,
   arrayBufferToBase64,
-  base64ToArrayBuffer
+  base64ToArrayBuffer,
+  createRecoveryKitCode
+  ,
+  exportVaultKey,
+  importVaultKey
 } from '../crypto/crypto'
 
 import { API_BASE } from '../config/api'
@@ -53,6 +61,8 @@ export interface Vault {
   version: number
   /** Base64 salt returned by unlockVault — consumed by the caller, not persisted. */
   _salt?: string
+  _accessProfile?: VaultAccessProfile
+  _rawVaultKey?: string
 }
 
 export interface EncryptedVault {
@@ -73,6 +83,90 @@ export class VaultAccessError extends Error {
     this.name = 'VaultAccessError'
     this.status = status
     this.code = code
+  }
+}
+
+export type VaultAccessMode = 'passphrase' | 'wrapped_key'
+
+export interface WrappedVaultAccessProfile {
+  accessMode: 'wrapped_key'
+  wrappedVaultKey: string
+  wrappedVaultKeyIV: string
+  recoveryWrappedVaultKey: string
+  recoveryWrappedVaultKeyIV: string
+  recoverySalt: string
+  recoveryKitConfigured: boolean
+}
+
+export interface LegacyVaultAccessProfile {
+  accessMode: 'passphrase'
+  recoveryKitConfigured: boolean
+}
+
+export type VaultAccessProfile = WrappedVaultAccessProfile | LegacyVaultAccessProfile
+
+export interface VaultInitializationResult {
+  success: boolean
+  version: number
+  vaultAccessMode: VaultAccessMode
+  recoveryKit?: string
+  recoveryKitConfigured?: boolean
+}
+
+export interface SaveVaultOptions {
+  accessProfile?: WrappedVaultAccessProfile
+  rawVaultKey?: string
+}
+
+function toVaultAccessProfile(data: any): VaultAccessProfile {
+  if (data?.accessMode === 'wrapped_key' && data?.wrappedVaultKey && data?.wrappedVaultKeyIV) {
+    return {
+      accessMode: 'wrapped_key',
+      wrappedVaultKey: data.wrappedVaultKey,
+      wrappedVaultKeyIV: data.wrappedVaultKeyIV,
+      recoveryWrappedVaultKey: data.recoveryWrappedVaultKey || '',
+      recoveryWrappedVaultKeyIV: data.recoveryWrappedVaultKeyIV || '',
+      recoverySalt: data.recoverySalt || '',
+      recoveryKitConfigured: Boolean(data.recoveryKitConfigured)
+    }
+  }
+
+  return {
+    accessMode: 'passphrase',
+    recoveryKitConfigured: Boolean(data?.recoveryKitConfigured)
+  }
+}
+
+async function encryptVaultForProfile(
+  vault: Vault,
+  masterPassword: string,
+  salt: ArrayBuffer,
+  accessProfile?: WrappedVaultAccessProfile,
+  rawVaultKey?: string
+): Promise<{
+  encryptedVault: string
+  iv: string
+}> {
+  const vaultJson = JSON.stringify(vault)
+
+  if (accessProfile?.accessMode === 'wrapped_key') {
+    if (!rawVaultKey) {
+      throw new Error('Wrapped vault key is required to save this vault.')
+    }
+
+    const key = await importVaultKey(base64ToArrayBuffer(rawVaultKey))
+
+    const encrypted = await encryptWithKey(vaultJson, key)
+    return {
+      encryptedVault: arrayBufferToBase64(encrypted.encrypted),
+      iv: arrayBufferToBase64(encrypted.iv)
+    }
+  }
+
+  const encrypted = await encrypt(vaultJson, masterPassword, salt)
+  return {
+    encryptedVault: arrayBufferToBase64(encrypted.encrypted),
+    iv: arrayBufferToBase64(encrypted.iv)
   }
 }
 
@@ -128,7 +222,7 @@ export async function getVaultSalt(): Promise<string> {
  */
 export async function initializeVault(
   masterPassword: string
-): Promise<{ success: boolean; version: number }> {
+): Promise<VaultInitializationResult> {
   const token = localStorage.getItem('safenode_token')
   
   if (!token) {
@@ -144,10 +238,12 @@ export async function initializeVault(
     entries: [],
     version: 1
   }
-
-  // Encrypt vault
-  const vaultJson = JSON.stringify(emptyVault)
-  const encrypted = await encrypt(vaultJson, masterPassword, salt)
+  const vaultKey = await generateVaultKey()
+  const encryptedVault = await encryptWithKey(JSON.stringify(emptyVault), vaultKey)
+  const recoveryKit = createRecoveryKitCode()
+  const recoverySalt = await generateSalt(32)
+  const wrappedForPassphrase = await wrapVaultKeyWithPassword(vaultKey, masterPassword, salt)
+  const wrappedForRecovery = await wrapVaultKeyWithPassword(vaultKey, recoveryKit, recoverySalt)
 
   // Send to server
   const response = await fetch(`${API_BASE}/api/auth/vault/init`, {
@@ -159,9 +255,17 @@ export async function initializeVault(
     },
     credentials: 'include',
     body: JSON.stringify({
-      encryptedVault: arrayBufferToBase64(encrypted.encrypted),
-      iv: arrayBufferToBase64(encrypted.iv),
-      version: emptyVault.version
+      encryptedVault: arrayBufferToBase64(encryptedVault.encrypted),
+      iv: arrayBufferToBase64(encryptedVault.iv),
+      version: emptyVault.version,
+      accessProfile: {
+        accessMode: 'wrapped_key',
+        wrappedVaultKey: arrayBufferToBase64(wrappedForPassphrase.encrypted),
+        wrappedVaultKeyIV: arrayBufferToBase64(wrappedForPassphrase.iv),
+        recoveryWrappedVaultKey: arrayBufferToBase64(wrappedForRecovery.encrypted),
+        recoveryWrappedVaultKeyIV: arrayBufferToBase64(wrappedForRecovery.iv),
+        recoverySalt: arrayBufferToBase64(recoverySalt)
+      }
     })
   })
 
@@ -181,7 +285,12 @@ export async function initializeVault(
     throw new Error(error.message || 'Failed to initialize vault')
   }
 
-  return await response.json()
+  const data = await response.json()
+  return {
+    ...data,
+    recoveryKit,
+    recoveryKitConfigured: true
+  }
 }
 
 /**
@@ -208,6 +317,7 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   }
 
   const data = await response.json()
+  const accessProfile = toVaultAccessProfile(data)
 
   // Check if vault exists
   if (data.exists === false || !data.encryptedVault || !data.iv || !data.salt) {
@@ -237,19 +347,34 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
       
       if (cachedVault && cachedVault.encryptedVault && cachedVault.iv && cachedVault.salt) {
         // Decrypt cached vault using the provided master password
-        const salt = base64ToArrayBuffer(cachedVault.salt);
-        const encrypted = base64ToArrayBuffer(cachedVault.encryptedVault);
-        const iv = base64ToArrayBuffer(cachedVault.iv);
-        
-        const decrypted = await decrypt(
-          { encrypted, iv, salt },
-          masterPassword
-        );
+        const salt = base64ToArrayBuffer(cachedVault.salt)
+        const encrypted = base64ToArrayBuffer(cachedVault.encryptedVault)
+        const iv = base64ToArrayBuffer(cachedVault.iv)
+        let decrypted: string
+        let rawVaultKeyBase64: string | undefined
+
+        if (accessProfile.accessMode === 'wrapped_key') {
+          const key = await unwrapVaultKeyWithPassword(
+            {
+              encrypted: base64ToArrayBuffer(accessProfile.wrappedVaultKey),
+              iv: base64ToArrayBuffer(accessProfile.wrappedVaultKeyIV),
+              salt
+            },
+            masterPassword
+          )
+          decrypted = await decryptWithKey({ encrypted, iv }, key)
+          rawVaultKeyBase64 = arrayBufferToBase64(await exportVaultKey(key))
+        } else {
+          decrypted = await decrypt({ encrypted, iv, salt }, masterPassword)
+        }
         
         const vault = JSON.parse(decrypted);
         
         // Validate vault structure
         if (vault && typeof vault === 'object' && Array.isArray(vault.entries)) {
+          vault._salt = cachedVault.salt
+          vault._accessProfile = accessProfile
+          vault._rawVaultKey = rawVaultKeyBase64
           return vault;
         }
       }
@@ -307,15 +432,29 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   }
 
   let decrypted: string
+  let rawVaultKeyBase64: string | undefined
   try {
-    decrypted = await decrypt(
-      {
-        encrypted,
-        iv,
-        salt
-      },
-      masterPassword
-    )
+    if (accessProfile.accessMode === 'wrapped_key') {
+      const key = await unwrapVaultKeyWithPassword(
+        {
+          encrypted: base64ToArrayBuffer(accessProfile.wrappedVaultKey),
+          iv: base64ToArrayBuffer(accessProfile.wrappedVaultKeyIV),
+          salt
+        },
+        masterPassword
+      )
+      decrypted = await decryptWithKey({ encrypted, iv }, key)
+      rawVaultKeyBase64 = arrayBufferToBase64(await exportVaultKey(key))
+    } else {
+      decrypted = await decrypt(
+        {
+          encrypted,
+          iv,
+          salt
+        },
+        masterPassword
+      )
+    }
   } catch (error: any) {
     // OperationError from WebCrypto means decryption failed
     // This usually means wrong password or corrupted vault data
@@ -342,6 +481,8 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
   // Attach raw salt so the caller can pass it to handleVaultUnlocked without
   // a separate GET /api/auth/vault/salt round-trip.
   vault._salt = data.salt
+  vault._accessProfile = accessProfile
+  vault._rawVaultKey = rawVaultKeyBase64
 
   // Store encrypted vault in IndexedDB for future unlocks and saves
   // This ensures the vault is available for subsequent operations
@@ -353,7 +494,18 @@ export async function unlockVault(masterPassword: string): Promise<Vault> {
       data.encryptedVault,
       data.iv,
       data.salt,
-      data.version ?? 0
+      data.version ?? 0,
+      accessProfile.accessMode === 'wrapped_key'
+        ? {
+            accessMode: accessProfile.accessMode,
+            wrappedVaultKey: accessProfile.wrappedVaultKey,
+            wrappedVaultKeyIV: accessProfile.wrappedVaultKeyIV,
+            recoveryWrappedVaultKey: accessProfile.recoveryWrappedVaultKey,
+            recoveryWrappedVaultKeyIV: accessProfile.recoveryWrappedVaultKeyIV,
+            recoverySalt: accessProfile.recoverySalt,
+            recoveryKitConfigured: accessProfile.recoveryKitConfigured
+          }
+        : undefined
     )
     await vaultStorage.storeVault(storedVault)
   } catch (error: any) {
@@ -386,9 +538,13 @@ export async function saveVault(vault: Vault, masterPassword: string): Promise<n
   }
   const salt = base64ToArrayBuffer(saltBase64)
 
-  // Encrypt vault
-  const vaultJson = JSON.stringify(vault)
-  const encrypted = await encrypt(vaultJson, masterPassword, salt)
+  const encrypted = await encryptVaultForProfile(
+    vault,
+    masterPassword,
+    salt,
+    vault._accessProfile?.accessMode === 'wrapped_key' ? vault._accessProfile : undefined,
+    vault._rawVaultKey
+  )
 
   // Increment version
   const nextVersion = (vault.version || 0) + 1
@@ -403,8 +559,8 @@ export async function saveVault(vault: Vault, masterPassword: string): Promise<n
       ...getCurrentDeviceHeaders()
     },
     body: JSON.stringify({
-      encryptedVault: arrayBufferToBase64(encrypted.encrypted),
-      iv: arrayBufferToBase64(encrypted.iv),
+      encryptedVault: encrypted.encryptedVault,
+      iv: encrypted.iv,
       version: nextVersion
     })
   })

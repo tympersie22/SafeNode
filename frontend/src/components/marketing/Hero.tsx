@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Shield, Lock, Zap } from 'lucide-react';
+import { KeyRound, Shield, Users, Zap } from 'lucide-react';
 
 interface HeroProps {
   onEnterApp: (mode?: 'signup' | 'login') => void;
@@ -32,7 +32,7 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             transition={{ duration: 0.5 }}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Open-Core Security Model
+            Passkey-First Security Platform
           </motion.div>
 
           {/* Main Headline */}
@@ -42,10 +42,10 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            Your Vault. Your Keys.
+            Identity. Recovery.
             <br />
             <span className="bg-gradient-to-r from-gray-950 via-gray-600 to-gray-950 bg-clip-text text-transparent">
-              Zero Exceptions.
+              Team Secrets.
             </span>
           </motion.h1>
 
@@ -56,7 +56,7 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
           >
-            All encryption happens on your device. Our servers never see your passwords. We can't access your data — by design, not by policy.
+            SafeNode is the secure control plane for passkeys, recovery, trusted devices, and shared secrets. Your vault stays zero-knowledge. Your identity flows stay modern.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -97,16 +97,20 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             transition={{ duration: 0.6, delay: 0.45 }}
           >
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <span>AES-256 Encrypted</span>
+              <KeyRound className="w-4 h-4" />
+              <span>Passkey-first access</span>
             </div>
             <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4" />
-              <span>Public Crypto Core</span>
+              <Shield className="w-4 h-4" />
+              <span>Zero-knowledge vaults</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span>Recovery and team controls</span>
             </div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4" />
-              <span>Attestable Controls</span>
+              <span>Auditable operations</span>
             </div>
           </motion.div>
         </div>

@@ -17,6 +17,11 @@ export interface DecryptionParams {
   salt: ArrayBuffer;
 }
 
+export interface RawKeyEncryptionResult {
+  encrypted: ArrayBuffer;
+  iv: ArrayBuffer;
+}
+
 /**
  * Generate a cryptographically secure random salt
  */
@@ -72,6 +77,39 @@ export async function deriveKey(
   return key
 }
 
+export async function generateVaultKey(): Promise<CryptoKey> {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error('WebCrypto API not supported');
+  }
+
+  return window.crypto.subtle.generateKey(
+    {
+      name: 'AES-GCM',
+      length: 256
+    },
+    true,
+    ['encrypt', 'decrypt']
+  )
+}
+
+export async function exportVaultKey(key: CryptoKey): Promise<ArrayBuffer> {
+  return window.crypto.subtle.exportKey('raw', key)
+}
+
+export async function importVaultKey(rawKey: ArrayBuffer): Promise<CryptoKey> {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error('WebCrypto API not supported');
+  }
+
+  return window.crypto.subtle.importKey(
+    'raw',
+    rawKey,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  )
+}
+
 function hexToArrayBuffer (hex: string): ArrayBuffer {
   const len = hex.length / 2
   const out = new Uint8Array(len)
@@ -120,6 +158,99 @@ export async function encrypt(
     iv,
     salt: encryptionSalt
   };
+}
+
+export async function encryptWithKey(
+  data: string,
+  key: CryptoKey
+): Promise<RawKeyEncryptionResult> {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error('WebCrypto API not supported');
+  }
+
+  const iv = await generateSalt(12)
+  const dataBuffer = new TextEncoder().encode(data)
+  const encrypted = await window.crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(iv)
+    },
+    key,
+    dataBuffer
+  )
+
+  return { encrypted, iv }
+}
+
+export async function decryptWithKey(
+  params: Omit<DecryptionParams, 'salt'>,
+  key: CryptoKey
+): Promise<string> {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error('WebCrypto API not supported');
+  }
+
+  const decrypted = await window.crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(params.iv)
+    },
+    key,
+    params.encrypted
+  )
+
+  return new TextDecoder().decode(decrypted)
+}
+
+export async function encryptBytesWithPassword(
+  data: ArrayBuffer,
+  password: string,
+  salt: ArrayBuffer
+): Promise<EncryptionResult> {
+  const key = await deriveKey(password, salt)
+  const iv = await generateSalt(12)
+  const encrypted = await window.crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(iv)
+    },
+    key,
+    data
+  )
+
+  return { encrypted, iv, salt }
+}
+
+export async function decryptBytesWithPassword(
+  params: DecryptionParams,
+  password: string
+): Promise<ArrayBuffer> {
+  const key = await deriveKey(password, params.salt)
+  return window.crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(params.iv)
+    },
+    key,
+    params.encrypted
+  )
+}
+
+export async function wrapVaultKeyWithPassword(
+  key: CryptoKey,
+  password: string,
+  salt: ArrayBuffer
+): Promise<EncryptionResult> {
+  const rawKey = await exportVaultKey(key)
+  return encryptBytesWithPassword(rawKey, password, salt)
+}
+
+export async function unwrapVaultKeyWithPassword(
+  params: DecryptionParams,
+  password: string
+): Promise<CryptoKey> {
+  const rawKey = await decryptBytesWithPassword(params, password)
+  return importVaultKey(rawKey)
 }
 
 /**
@@ -185,6 +316,16 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
     binary += String.fromCharCode(bytes[i]);
   }
   return window.btoa(binary);
+}
+
+export function createRecoveryKitCode(byteLength: number = 20): string {
+  const bytes = window.crypto.getRandomValues(new Uint8Array(byteLength))
+  const raw = Array.from(bytes)
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()
+
+  return raw.match(/.{1,5}/g)?.join('-') || raw
 }
 
 /**

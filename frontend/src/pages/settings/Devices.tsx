@@ -186,10 +186,10 @@ export const DevicesSettings: React.FC = () => {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          Device Management
+          Trusted Devices
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          View and manage devices that have access to your account
+          View and manage the devices that can access your identity vault and passkey-backed sessions.
         </p>
       </div>
 

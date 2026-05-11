@@ -18,6 +18,13 @@ export interface User {
   vaultEncrypted: string // Encrypted vault data (AES-256-GCM)
   vaultIV: string // Initialization vector for vault encryption
   vaultVersion: number // Version number for sync conflict resolution
+  vaultAccessMode?: 'passphrase' | 'wrapped_key'
+  wrappedVaultKey?: string
+  wrappedVaultKeyIV?: string
+  recoveryWrappedVaultKey?: string
+  recoveryWrappedVaultKeyIV?: string
+  recoverySalt?: string
+  recoveryKitCreatedAt?: number
   
   // Account settings
   twoFactorEnabled: boolean
@@ -62,6 +69,13 @@ export interface UpdateUserInput {
   vaultEncrypted?: string
   vaultIV?: string
   vaultVersion?: number
+  vaultAccessMode?: User['vaultAccessMode']
+  wrappedVaultKey?: string
+  wrappedVaultKeyIV?: string
+  recoveryWrappedVaultKey?: string
+  recoveryWrappedVaultKeyIV?: string
+  recoverySalt?: string
+  recoveryKitCreatedAt?: number
   twoFactorEnabled?: boolean
   twoFactorSecret?: string
   twoFactorBackupCodes?: string[]
@@ -74,4 +88,3 @@ export interface UpdateUserInput {
   role?: User['role']
   tokenVersion?: number
 }
-

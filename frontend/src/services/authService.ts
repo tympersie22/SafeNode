@@ -17,6 +17,8 @@ export interface User {
   twoFactorEnabled: boolean
   biometricEnabled: boolean
   hasVault?: boolean
+  vaultAccessMode?: 'passphrase' | 'wrapped_key'
+  recoveryKitConfigured?: boolean
   lastLoginAt?: number
   createdAt: number
 }

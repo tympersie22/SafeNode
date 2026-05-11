@@ -9,44 +9,44 @@ import { Shield, Lock, Key, Cloud, Smartphone, Users, Zap, Eye } from 'lucide-re
 
 const FEATURES = [
   {
-    icon: Shield,
-    title: 'Military-Grade Encryption',
-    description: 'AES-256-GCM encryption. Your data is unreadable, even to us.',
+    icon: Key,
+    title: 'Passkey-First Sign-In',
+    description: 'Sign in with passkeys and trusted devices instead of reusable passwords.',
   },
   {
     icon: Lock,
     title: 'Zero-Knowledge',
-    description: 'We can\'t access your passwords. Only you hold the key.',
+    description: 'Your encrypted vault remains unreadable to us, even while identity and recovery flows evolve.',
   },
   {
-    icon: Key,
-    title: 'Secure Sharing',
-    description: 'Share passwords safely with team members or family.',
+    icon: Shield,
+    title: 'Recovery-Ready Security',
+    description: 'Recovery material, successor access, and device controls are designed into the platform from the start.',
   },
   {
     icon: Cloud,
-    title: 'Auto Sync',
-    description: 'Seamless sync across all your devices. Always up to date.',
+    title: 'Trusted Device Sync',
+    description: 'Keep your identity state, encrypted records, and device posture aligned across sessions and hardware.',
   },
   {
     icon: Smartphone,
     title: 'Biometric Unlock',
-    description: 'Face ID, Touch ID, Windows Hello. Fast and secure.',
+    description: 'Use Face ID, Touch ID, or platform biometrics to unlock trusted devices quickly and safely.',
   },
   {
     icon: Users,
-    title: 'Team Vaults',
-    description: 'Shared vaults for teams with role-based access control.',
+    title: 'Team Secret Workspaces',
+    description: 'Give teams dedicated shared vaults for operational credentials, recovery material, and critical access.',
   },
   {
     icon: Zap,
-    title: 'Breach Monitoring',
-    description: 'Instant alerts if your credentials appear in data breaches.',
+    title: 'Security Posture',
+    description: 'Track breach exposure, weak credentials, risky sessions, and device state from one control surface.',
   },
   {
     icon: Eye,
     title: 'Open-Core Assurance',
-    description: 'Cryptographic core is publicly reviewable; operational controls remain hardened and private.',
+    description: 'The cryptographic core stays reviewable while operational controls, audit, and recovery flows stay hardened.',
   },
 ];
 
@@ -65,10 +65,10 @@ const Features: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Everything You Need
+            One Platform For Modern Access
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Enterprise security. Consumer simplicity. All in one place.
+            Passkey-first identity, zero-knowledge vaults, recovery controls, and team secrets in one operating layer.
           </p>
         </motion.div>
 
