@@ -5,6 +5,7 @@ import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { UnlockVault } from './components/UnlockVaultNew';
 import { MasterPasswordSetup } from './components/MasterPasswordSetup';
+import PasskeyVaultBootstrap from './components/PasskeyVaultBootstrap';
 import EntryForm from './components/EntryForm';
 import { generateTotpCode, encrypt, encryptWithKey, importVaultKey, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
@@ -135,6 +136,9 @@ const App: React.FC = () => {
   useEffect(() => {
     setKnownHasVault(typeof user?.hasVault === 'boolean' ? user.hasVault : null);
   }, [user?.id, user?.hasVault]);
+
+  const isPendingPasskeyBootstrap = typeof window !== 'undefined' &&
+    sessionStorage.getItem('safenode_passkey_bootstrap_pending') === '1'
 
   useEffect(() => {
     const unsubscribe = syncManager.subscribe((status, info) => {
@@ -958,26 +962,42 @@ const App: React.FC = () => {
   if (showMasterPasswordSetup) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 flex items-center justify-center p-4">
-        <MasterPasswordSetup
-          email={user.email}
-          onComplete={(vault, masterPassword, salt) => {
-            // Commit state BEFORE navigate so React never renders an intermediate
-            // LOCKED frame when React Router triggers a re-render from navigate().
-            flushSync(() => {
-              if (vault && masterPassword && salt) {
-                handleVaultUnlocked(vault, masterPassword, salt)
-              }
+        {isPendingPasskeyBootstrap ? (
+          <PasskeyVaultBootstrap
+            email={user.email}
+            onComplete={(vault, deviceSecret, salt) => {
+              flushSync(() => {
+                if (vault && deviceSecret && salt) {
+                  handleVaultUnlocked(vault, deviceSecret, salt)
+                }
+                sessionStorage.removeItem('safenode_passkey_bootstrap_pending')
+                setShowMasterPasswordSetup(false)
+              })
+              navigate('/vault')
+            }}
+          />
+        ) : (
+          <MasterPasswordSetup
+            email={user.email}
+            onComplete={(vault, masterPassword, salt) => {
+              // Commit state BEFORE navigate so React never renders an intermediate
+              // LOCKED frame when React Router triggers a re-render from navigate().
+              flushSync(() => {
+                if (vault && masterPassword && salt) {
+                  handleVaultUnlocked(vault, masterPassword, salt)
+                }
+                setShowMasterPasswordSetup(false)
+              })
+              // By the time navigate runs, vaultStatus is already UNLOCKED.
+              navigate('/vault')
+            }}
+            onSkip={() => {
+              // Allow skipping for now, but vault won't work until master password is set
               setShowMasterPasswordSetup(false)
-            })
-            // By the time navigate runs, vaultStatus is already UNLOCKED.
-            navigate('/vault')
-          }}
-          onSkip={() => {
-            // Allow skipping for now, but vault won't work until master password is set
-            setShowMasterPasswordSetup(false)
-            navigate('/vault')
-          }}
-        />
+              navigate('/vault')
+            }}
+          />
+        )}
       </div>
     )
   }

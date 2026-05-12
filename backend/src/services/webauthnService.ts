@@ -11,7 +11,7 @@ import { getPrismaClient } from '../db/prisma'
 
 type AuthType = 'registration' | 'authentication'
 
-function getRpId(): string {
+export function getRpId(): string {
   const explicit = process.env.WEBAUTHN_RP_ID
   if (explicit) return explicit
 
@@ -30,7 +30,7 @@ function getRpId(): string {
   return 'safe-node.app'
 }
 
-function getExpectedOrigins(): string[] {
+export function getExpectedOrigins(): string[] {
   const origins = new Set<string>([
     'https://safe-node.app',
     'https://www.safe-node.app',
@@ -107,11 +107,9 @@ async function consumeChallenges(userId: string, type: AuthType): Promise<void> 
   })
 }
 
-export async function createRegistrationOptions(userId: string, userEmail: string): Promise<any> {
-  const rpID = getRpId()
-
-  const options = await generateRegistrationOptions({
-    rpID,
+export async function createRegistrationOptionsForIdentity(userId: string, userEmail: string): Promise<any> {
+  return generateRegistrationOptions({
+    rpID: getRpId(),
     rpName: 'SafeNode',
     userName: userEmail,
     userID: new TextEncoder().encode(userId),
@@ -123,37 +121,31 @@ export async function createRegistrationOptions(userId: string, userEmail: strin
     },
     supportedAlgorithmIDs: [-7, -257],
   })
-
-  await storeChallenge(userId, options.challenge, 'registration')
-
-  return options
 }
 
-export async function verifyRegistration(
+export async function createAuthenticationOptionsForCredentials(
+  credentials: Array<{ credentialId: string; transports: string[] }>
+): Promise<any> {
+  return generateAuthenticationOptions({
+    rpID: getRpId(),
+    userVerification: 'required',
+    allowCredentials: credentials.map((cred) => ({
+      id: cred.credentialId,
+      type: 'public-key',
+      transports: cred.transports as AuthenticatorTransportFuture[],
+    })),
+  })
+}
+
+async function upsertCredentialForUser(
   userId: string,
   registrationResponse: any,
-): Promise<{ verified: boolean; message: string }> {
+  verification: VerifiedRegistrationResponse
+): Promise<void> {
   const prisma = getPrismaClient()
-  const expectedChallenge = await getChallenge(userId, 'registration')
-
-  let verification: VerifiedRegistrationResponse
-  try {
-    verification = await verifyRegistrationResponse({
-      response: registrationResponse,
-      expectedChallenge,
-      expectedOrigin: getExpectedOrigins(),
-      expectedRPID: getRpId(),
-      requireUserVerification: true,
-    })
-  } catch (error: any) {
-    await consumeChallenges(userId, 'registration')
-    throw new Error(error?.message || 'Registration verification failed')
-  }
-
-  const { verified, registrationInfo } = verification
-  if (!verified || !registrationInfo) {
-    await consumeChallenges(userId, 'registration')
-    return { verified: false, message: 'Registration verification failed' }
+  const registrationInfo = verification.registrationInfo
+  if (!verification.verified || !registrationInfo) {
+    throw new Error('Registration verification failed')
   }
 
   const transports = (registrationResponse?.response?.transports || []) as AuthenticatorTransportFuture[]
@@ -167,6 +159,7 @@ export async function verifyRegistration(
       deviceType: registrationInfo.credentialDeviceType,
       backedUp: registrationInfo.credentialBackedUp,
       lastUsedAt: new Date(),
+      userId,
     },
     create: {
       userId,
@@ -184,9 +177,101 @@ export async function verifyRegistration(
     where: { id: userId },
     data: { biometricEnabled: true },
   })
+}
 
-  await consumeChallenges(userId, 'registration')
+export async function verifyDetachedRegistration(
+  userId: string,
+  expectedChallenge: string,
+  registrationResponse: any,
+): Promise<{ verified: boolean; message: string }> {
+  let verification: VerifiedRegistrationResponse
+  try {
+    verification = await verifyRegistrationResponse({
+      response: registrationResponse,
+      expectedChallenge,
+      expectedOrigin: getExpectedOrigins(),
+      expectedRPID: getRpId(),
+      requireUserVerification: true,
+    })
+  } catch (error: any) {
+    throw new Error(error?.message || 'Registration verification failed')
+  }
+
+  if (!verification.verified || !verification.registrationInfo) {
+    return { verified: false, message: 'Registration verification failed' }
+  }
+
+  await upsertCredentialForUser(userId, registrationResponse, verification)
   return { verified: true, message: 'Biometric credential registered successfully' }
+}
+
+export async function verifyDetachedAuthentication(
+  credential: {
+    credentialId: string
+    publicKey: string
+    counter: bigint | number
+    transports: string[]
+  },
+  expectedChallenge: string,
+  authenticationResponse: any,
+): Promise<{ verified: boolean; message: string }> {
+  const prisma = getPrismaClient()
+
+  let verification: VerifiedAuthenticationResponse
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: authenticationResponse,
+      expectedChallenge,
+      expectedOrigin: getExpectedOrigins(),
+      expectedRPID: getRpId(),
+      credential: {
+        id: credential.credentialId,
+        publicKey: Buffer.from(credential.publicKey, 'base64url'),
+        counter: Number(credential.counter),
+        transports: credential.transports as AuthenticatorTransportFuture[],
+      },
+      requireUserVerification: true,
+    })
+  } catch (error: any) {
+    throw new Error(error?.message || 'Authentication verification failed')
+  }
+
+  if (!verification.verified || !verification.authenticationInfo) {
+    return { verified: false, message: 'Authentication verification failed' }
+  }
+
+  await prisma.webAuthnCredential.update({
+    where: { credentialId: credential.credentialId },
+    data: {
+      counter: BigInt(verification.authenticationInfo.newCounter),
+      lastUsedAt: new Date(),
+    },
+  })
+
+  return { verified: true, message: 'Authentication verified' }
+}
+
+export async function createRegistrationOptions(userId: string, userEmail: string): Promise<any> {
+  const options = await createRegistrationOptionsForIdentity(userId, userEmail)
+
+  await storeChallenge(userId, options.challenge, 'registration')
+
+  return options
+}
+
+export async function verifyRegistration(
+  userId: string,
+  registrationResponse: any,
+): Promise<{ verified: boolean; message: string }> {
+  const expectedChallenge = await getChallenge(userId, 'registration')
+  try {
+    const result = await verifyDetachedRegistration(userId, expectedChallenge, registrationResponse)
+    await consumeChallenges(userId, 'registration')
+    return result
+  } catch (error: any) {
+    await consumeChallenges(userId, 'registration')
+    throw new Error(error?.message || 'Registration verification failed')
+  }
 }
 
 export async function createAuthenticationOptions(userId: string): Promise<any> {
@@ -199,15 +284,7 @@ export async function createAuthenticationOptions(userId: string): Promise<any> 
     },
   })
 
-  const options = await generateAuthenticationOptions({
-    rpID: getRpId(),
-    userVerification: 'required',
-    allowCredentials: credentials.map((cred) => ({
-      id: cred.credentialId,
-      type: 'public-key',
-      transports: cred.transports as AuthenticatorTransportFuture[],
-    })),
-  })
+  const options = await createAuthenticationOptionsForCredentials(credentials)
 
   await storeChallenge(userId, options.challenge, 'authentication')
 
@@ -232,39 +309,12 @@ export async function verifyAuthentication(
     throw new Error('Credential not found')
   }
 
-  let verification: VerifiedAuthenticationResponse
   try {
-    verification = await verifyAuthenticationResponse({
-      response: authenticationResponse,
-      expectedChallenge,
-      expectedOrigin: getExpectedOrigins(),
-      expectedRPID: getRpId(),
-      credential: {
-        id: credential.credentialId,
-        publicKey: Buffer.from(credential.publicKey, 'base64url'),
-        counter: Number(credential.counter),
-        transports: credential.transports as AuthenticatorTransportFuture[],
-      },
-      requireUserVerification: true,
-    })
+    const result = await verifyDetachedAuthentication(credential, expectedChallenge, authenticationResponse)
+    await consumeChallenges(userId, 'authentication')
+    return result
   } catch (error: any) {
     await consumeChallenges(userId, 'authentication')
     throw new Error(error?.message || 'Authentication verification failed')
   }
-
-  if (!verification.verified || !verification.authenticationInfo) {
-    await consumeChallenges(userId, 'authentication')
-    return { verified: false, message: 'Authentication verification failed' }
-  }
-
-  await prisma.webAuthnCredential.update({
-    where: { credentialId: credential.credentialId },
-    data: {
-      counter: BigInt(verification.authenticationInfo.newCounter),
-      lastUsedAt: new Date(),
-    },
-  })
-
-  await consumeChallenges(userId, 'authentication')
-  return { verified: true, message: 'Authentication verified' }
 }

@@ -9,6 +9,7 @@ import SocialAuthButtons from './SocialAuthButtons'
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => void
+  onPasskeyLogin: (email: string) => void
   onSwitchToSignup: () => void
   isLoading?: boolean
   error?: string
@@ -16,12 +17,14 @@ interface LoginFormProps {
 
 const LoginForm: React.FC<LoginFormProps> = ({ 
   onLogin, 
+  onPasskeyLogin,
   onSwitchToSignup, 
   isLoading = false, 
   error 
 }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showLegacyPassword, setShowLegacyPassword] = useState(false)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const prefersReducedMotion = useReducedMotion()
 
@@ -34,6 +37,13 @@ const LoginForm: React.FC<LoginFormProps> = ({
     e.preventDefault()
     if (email && password) {
       onLogin(email, password)
+    }
+  }
+
+  const handlePasskeySubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (email) {
+      onPasskeyLogin(email)
     }
   }
 
@@ -66,7 +76,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
           Welcome back
         </h2>
         <p className="text-gray-600">
-          Sign in to access your secure vault
+          Sign in with a passkey first. Use legacy password access only when you need to migrate an older account.
         </p>
       </div>
 
@@ -119,38 +129,69 @@ const LoginForm: React.FC<LoginFormProps> = ({
           aria-describedby={error ? "login-error" : undefined}
         />
 
-        <div>
-          <PasswordInput
-            id="login-password"
-            label="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter your password"
-            required
-            hint="After login, you can enable Touch ID, Face ID, or PIN for faster access"
-          />
-          <div className="mt-1 text-right">
-            <Link
-              to="/auth/forgot-password"
-              className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
-            >
-              Forgot password?
-            </Link>
-          </div>
-        </div>
-
         <Button
-          type="submit"
+          type="button"
           variant="primary"
           size="lg"
           className="w-full"
           loading={isLoading}
-          disabled={!email || !password || isLoading}
-          aria-label={isLoading ? "Signing in, please wait" : "Sign in to your account"}
+          disabled={!email || isLoading}
+          onClick={() => handlePasskeySubmit()}
+          aria-label={isLoading ? "Signing in, please wait" : "Sign in to your account with a passkey"}
         >
-          {isLoading ? 'Signing In...' : 'Sign In'}
+          {isLoading ? 'Signing In...' : 'Continue with Passkey'}
         </Button>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">Legacy access</p>
+          <p className="mt-1 leading-6">
+            Older accounts can still use email and password while we migrate them into the passkey-first model.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowLegacyPassword((current) => !current)}
+            className="mt-3 text-sm font-semibold text-slate-900 underline underline-offset-4"
+          >
+            {showLegacyPassword ? 'Hide legacy sign-in' : 'Use password instead'}
+          </button>
+        </div>
+
+        {showLegacyPassword && (
+          <div className="space-y-4 rounded-2xl border border-slate-200 p-4">
+            <div>
+              <PasswordInput
+                id="login-password"
+                label="Legacy Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Enter your password"
+                required
+                hint="Use this only for older accounts that have not been upgraded to passkey-first access yet."
+              />
+              <div className="mt-1 text-right">
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="outline"
+              size="lg"
+              className="w-full"
+              loading={isLoading}
+              disabled={!email || !password || isLoading}
+              aria-label={isLoading ? "Signing in, please wait" : "Sign in to your account with a password"}
+            >
+              {isLoading ? 'Signing In...' : 'Use Legacy Password'}
+            </Button>
+          </div>
+        )}
       </form>
 
       <SocialAuthButtons mode="login" disabled={isLoading} />
@@ -173,7 +214,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
-            <span>Your data is encrypted with AES-256-GCM</span>
+            <span>Passkey-first identity with zero-knowledge vault protection</span>
           </div>
         </div>
       </div>

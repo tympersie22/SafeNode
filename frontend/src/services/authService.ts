@@ -6,6 +6,7 @@
 import { setUser as setSentryUser, clearUser as clearSentryUser, captureException } from './sentryService'
 import { getCurrentDeviceId } from './deviceService'
 import { devLog, devWarn } from '../utils/debug'
+import { signInWithPasskey as passkeyApiSignIn, signUpWithPasskey as passkeyApiSignUp } from '../api/passkeys'
 
 export interface User {
   id: string
@@ -39,6 +40,11 @@ export interface LoginCredentials {
 export interface RegisterCredentials {
   email: string
   password: string
+  displayName?: string
+}
+
+export interface PasskeySignupInput {
+  email: string
   displayName?: string
 }
 
@@ -77,6 +83,22 @@ function removeToken(): void {
 export function getAuthHeader(): string | null {
   const token = getToken()
   return token ? `Bearer ${token}` : null
+}
+
+function finalizeAuthSuccess(data: AuthResponse): AuthResponse {
+  if (!data.token || typeof data.token !== 'string') {
+    throw new Error('Invalid response: token missing or invalid')
+  }
+
+  setToken(data.token)
+  clearGetCurrentUserCache()
+  setSentryUser({
+    id: data.user.id,
+    email: data.user.email,
+    username: data.user.displayName
+  })
+
+  return data
 }
 
 /**
@@ -138,10 +160,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     }
     
     // Store token immediately
-    setToken(data.token)
-    clearGetCurrentUserCache() // Clear cache so next getCurrentUser fetches fresh data
-    
-    return data
+    return finalizeAuthSuccess(data)
   } catch (error: any) {
     console.error('[authService] Register exception:', error)
     
@@ -236,18 +255,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     }
     
     // Store token immediately - CRITICAL for navigation to work
-    setToken(data.token)
-    // Clear getCurrentUser cache so next call fetches fresh data
-    clearGetCurrentUserCache()
-    
-    // Set user context in Sentry
-    setSentryUser({
-      id: data.user.id,
-      email: data.user.email,
-      username: data.user.displayName
-    })
-    
-    return data
+    return finalizeAuthSuccess(data)
   } catch (error: any) {
     console.error('[authService] Login exception:', error)
     
@@ -289,16 +297,37 @@ export async function verifyLoginTwoFactor(
     throw new Error('Invalid response: token missing or invalid')
   }
 
-  setToken(data.token)
-  clearGetCurrentUserCache()
+  return finalizeAuthSuccess(data)
+}
 
-  setSentryUser({
-    id: data.user.id,
-    email: data.user.email,
-    username: data.user.displayName
-  })
+export async function signUpWithPasskey(input: PasskeySignupInput): Promise<AuthResponse> {
+  try {
+    devLog('[authService] Starting passkey sign-up for:', input.email)
+    const data = await passkeyApiSignUp(input)
+    devLog('[authService] Passkey sign-up success:', { userId: data.user?.id, hasToken: !!data.token })
+    return finalizeAuthSuccess(data)
+  } catch (error: any) {
+    console.error('[authService] Passkey sign-up exception:', error)
+    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+      throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+    }
+    throw error
+  }
+}
 
-  return data
+export async function signInWithPasskey(email: string): Promise<AuthResponse> {
+  try {
+    devLog('[authService] Starting passkey sign-in for:', email)
+    const data = await passkeyApiSignIn(email)
+    devLog('[authService] Passkey sign-in success:', { userId: data.user?.id, hasToken: !!data.token })
+    return finalizeAuthSuccess(data)
+  } catch (error: any) {
+    console.error('[authService] Passkey sign-in exception:', error)
+    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+      throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+    }
+    throw error
+  }
 }
 
 /**

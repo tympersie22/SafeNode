@@ -117,7 +117,6 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
         setSelectedTeamId(null)
         setSelectedTeam(null)
         setSelectedVaultId(null)
-        setUnlockedVault(null)
         return
       }
 

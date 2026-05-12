@@ -122,8 +122,9 @@ export async function authenticateUser(
       reason: 'SUCCESS'
     }
   } catch (error: any) {
-    // If timeout or other error, treat as bad password
-    if (error?.message?.includes('timeout')) {
+    // Only password-verification timeouts should be downgraded to a bad password.
+    // Database pool/connectivity timeouts must surface as infrastructure errors.
+    if (error?.message === 'Password verification timeout') {
       return { user: null, reason: 'BAD_PASSWORD' }
     }
     throw new Error(`Authentication failed: ${error?.message || 'Unknown error'}`)

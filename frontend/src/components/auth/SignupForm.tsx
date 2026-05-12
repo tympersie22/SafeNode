@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Button from '../../ui/Button'
 import Input from '../../ui/Input'
-import PasswordInput from '../ui/PasswordInput'
 import SocialAuthButtons from './SocialAuthButtons'
 
 interface SignupFormProps {
@@ -14,8 +13,6 @@ interface SignupFormProps {
 
 interface SignupData {
   email: string
-  password: string
-  confirmPassword: string
   displayName: string
 }
 
@@ -27,12 +24,8 @@ const SignupForm: React.FC<SignupFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<SignupData>({
     email: '',
-    password: '',
-    confirmPassword: '',
     displayName: ''
   })
-  const [passwordStrength, setPasswordStrength] = useState(0)
-  const [focusedField, setFocusedField] = useState<string | null>(null)
   const displayNameRef = useRef<HTMLInputElement>(null)
   const prefersReducedMotion = useReducedMotion()
 
@@ -41,57 +34,19 @@ const SignupForm: React.FC<SignupFormProps> = ({
     displayNameRef.current?.focus()
   }, [])
 
-
-  const calculatePasswordStrength = (password: string) => {
-    let score = 0
-    if (password.length >= 8) score += 1
-    if (password.length >= 12) score += 1
-    if (/[A-Z]/.test(password)) score += 1
-    if (/[a-z]/.test(password)) score += 1
-    if (/[0-9]/.test(password)) score += 1
-    if (/[^A-Za-z0-9]/.test(password)) score += 1
-    return score
-  }
-
   const handleInputChange = (field: keyof SignupData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    
-    if (field === 'password') {
-      setPasswordStrength(calculatePasswordStrength(value))
-    }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.password !== formData.confirmPassword) {
-      return
-    }
-    // Only send email, password, and displayName to backend
     onSignup({
       email: formData.email,
-      password: formData.password,
-      confirmPassword: formData.confirmPassword,
       displayName: formData.displayName
     })
   }
 
-  const isFormValid = formData.email && 
-    formData.password && 
-    formData.confirmPassword && 
-    formData.displayName &&
-    formData.password === formData.confirmPassword &&
-    passwordStrength >= 3 &&
-    formData.password.length >= 8
-
-  const passwordStrengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong']
-  const passwordStrengthColors = [
-    'bg-red-500',
-    'bg-orange-500',
-    'bg-yellow-500',
-    'bg-lime-500',
-    'bg-green-500',
-    'bg-emerald-500'
-  ]
+  const isFormValid = Boolean(formData.email && formData.displayName)
 
   return (
     <motion.div
@@ -118,7 +73,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
           Create your account
         </h2>
         <p className="text-gray-600">
-          Start securing your digital life with AI-powered protection
+          Create your identity workspace with a passkey and keep passwords out of the front door
         </p>
       </div>
 
@@ -149,11 +104,9 @@ const SignupForm: React.FC<SignupFormProps> = ({
           id="signup-display-name"
           ref={displayNameRef}
           type="text"
-          label="Display Name"
+          label="Full Name"
           value={formData.displayName}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('displayName', e.target.value)}
-          onFocus={() => setFocusedField('displayName')}
-          onBlur={() => setFocusedField(null)}
           placeholder="John Doe"
           required
           autoComplete="name"
@@ -165,38 +118,19 @@ const SignupForm: React.FC<SignupFormProps> = ({
           label="Email Address"
           value={formData.email}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('email', e.target.value)}
-          onFocus={() => setFocusedField('email')}
-          onBlur={() => setFocusedField(null)}
           placeholder="you@example.com"
           required
           autoComplete="email"
         />
 
-        <div>
-          <PasswordInput
-            id="signup-password"
-            label="Master Password"
-            value={formData.password}
-            onChange={(e) => handleInputChange('password', e.target.value)}
-            onFocus={() => setFocusedField('password')}
-            onBlur={() => setFocusedField(null)}
-            placeholder="Create a strong master password"
-            required
-            showStrength={true}
-          />
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">What happens next</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6">
+            <li>1. We create your SafeNode identity with a passkey.</li>
+            <li>2. Your device bootstraps a wrapped vault key locally.</li>
+            <li>3. You receive a recovery kit before entering the workspace.</li>
+          </ul>
         </div>
-
-        <PasswordInput
-          id="signup-confirm-password"
-          label="Confirm Password"
-          value={formData.confirmPassword}
-          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-          onFocus={() => setFocusedField('confirmPassword')}
-          onBlur={() => setFocusedField(null)}
-          placeholder="Confirm your password"
-          required
-          error={formData.confirmPassword && formData.password !== formData.confirmPassword ? "Passwords do not match" : undefined}
-        />
 
         <Button
           type="submit"
@@ -205,9 +139,9 @@ const SignupForm: React.FC<SignupFormProps> = ({
           className="w-full"
           loading={isLoading}
           disabled={!isFormValid || isLoading}
-          aria-label={isLoading ? "Creating account, please wait" : "Create your SafeNode account"}
+          aria-label={isLoading ? "Creating account, please wait" : "Create your SafeNode account with a passkey"}
         >
-          {isLoading ? 'Creating Account...' : 'Create Account'}
+          {isLoading ? 'Creating Passkey Account...' : 'Create Account with Passkey'}
         </Button>
       </form>
 
@@ -242,10 +176,9 @@ const SignupForm: React.FC<SignupFormProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm2.8-9.4a1 1 0 10-1.6-1.2l-1.74 2.3-.67-.67a1 1 0 10-1.42 1.42l1.48 1.47a1 1 0 001.52-.1l2.43-3.22z" clipRule="evenodd" />
               </svg>
-              <span>After signup, enable Touch ID or Face ID for faster access</span>
+              <span>Passkey-first sign-in with recovery kit protection</span>
             </div>
           </div>
         </div>

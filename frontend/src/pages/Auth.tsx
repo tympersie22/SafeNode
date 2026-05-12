@@ -8,7 +8,7 @@ import { handleSSOCallback, isSSOCallback } from '../services/ssoService'
 import { useAuth } from '../contexts/AuthContext'
 import Input from '../ui/Input'
 import Button from '../components/ui/Button'
-import { login as authLogin, register as authRegister, verifyLoginTwoFactor, getCurrentUser } from '../services/authService'
+import { login as authLogin, signInWithPasskey, signUpWithPasskey, verifyLoginTwoFactor, getCurrentUser } from '../services/authService'
 import { showToast } from '../components/ui/Toast'
 import { devLog } from '../utils/debug'
 
@@ -117,6 +117,39 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
     }
   }
 
+  const handlePasskeyLogin = async (email: string) => {
+    if (isProcessingRef.current || isLoading || isAuthenticated) {
+      return
+    }
+
+    isProcessingRef.current = true
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const result = await signInWithPasskey(email)
+      if (result.user && result.user.hasVault === false) {
+        sessionStorage.setItem('safenode_passkey_bootstrap_pending', '1')
+      } else {
+        sessionStorage.removeItem('safenode_passkey_bootstrap_pending')
+      }
+
+      flushSync(() => {
+        setAuthUser(result.user, result.token!)
+      })
+
+      setIsLoading(false)
+      isProcessingRef.current = false
+      navigate('/vault', { replace: true })
+    } catch (err: any) {
+      const errorMsg = err.message || 'Passkey sign-in failed. Please try again.'
+      setError(errorMsg)
+      showToast.error(errorMsg)
+      setIsLoading(false)
+      isProcessingRef.current = false
+    }
+  }
+
   const handleVerifyTwoFactor = async () => {
     if (!pendingTwoFactor || !twoFactorCode.trim() || isLoading) {
       return
@@ -162,12 +195,12 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
     setError(null)
     
     try {
-      const result = await authRegister({
+      const result = await signUpWithPasskey({
         email: signupData.email,
-        password: signupData.password,
         displayName: signupData.displayName
       })
       devLog('[Auth] Signup successful, updating auth context')
+      sessionStorage.setItem('safenode_passkey_bootstrap_pending', '1')
       
       // Use flushSync to ensure state updates synchronously before navigation
       flushSync(() => {
@@ -295,6 +328,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
             >
               <LoginForm
                 onLogin={handleLogin}
+                onPasskeyLogin={handlePasskeyLogin}
                 onSwitchToSignup={() => setIsLogin(false)}
                 isLoading={isLoading}
                 error={error || undefined}
