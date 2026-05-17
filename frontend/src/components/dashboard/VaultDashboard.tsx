@@ -60,6 +60,8 @@ interface VaultDashboardProps {
   onShare: (entry: VaultEntry) => void
   onEdit: (entry: VaultEntry) => void
   passkeySupported: boolean
+  vaultAccessMode?: 'passphrase' | 'wrapped_key'
+  recoveryKitConfigured?: boolean
 }
 
 const metricCardClass =
@@ -150,7 +152,9 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   onCopyPassword,
   onShare,
   onEdit,
-  passkeySupported
+  passkeySupported,
+  vaultAccessMode,
+  recoveryKitConfigured
 }) => {
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -251,6 +255,29 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           </div>
         </div>
       </motion.section>
+
+      {(vaultAccessMode === 'passphrase' || (vaultAccessMode === 'wrapped_key' && !recoveryKitConfigured)) && (
+        <section className="rounded-[28px] border border-amber-200 bg-amber-50/80 p-5 shadow-[0_16px_40px_rgba(120,53,15,0.08)] dark:border-amber-900/40 dark:bg-amber-950/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">Migration path</p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">
+                {vaultAccessMode === 'passphrase'
+                  ? 'Upgrade this vault to the modern recovery model'
+                  : 'Store your recovery coverage before you trust this device less'}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-amber-900/80 dark:text-amber-100/80">
+                {vaultAccessMode === 'passphrase'
+                  ? 'This vault still depends on the older passphrase-only unlock model. Upgrade it to a wrapped-key profile so passkeys, trusted devices, and recovery kits can work together cleanly.'
+                  : 'Your vault uses the wrapped-key model already, but the recovery kit still needs to be refreshed and stored safely.'}
+              </p>
+            </div>
+            <Button onClick={onOpenRecovery} variant="primary" size="sm">
+              Open Recovery Center
+            </Button>
+          </div>
+        </section>
+      )}
 
       <section className={sectionCardClass}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

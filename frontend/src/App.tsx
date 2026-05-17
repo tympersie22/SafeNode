@@ -1284,6 +1284,8 @@ const App: React.FC = () => {
         onShare={setShareEntry}
         onEdit={handleEditEntry}
         passkeySupported={passkeySupported}
+        vaultAccessMode={user?.vaultAccessMode}
+        recoveryKitConfigured={user?.recoveryKitConfigured}
       />
 
       {/* Entry Form Modal */}

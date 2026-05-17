@@ -2,22 +2,31 @@ import {
   arrayBufferToBase64,
   base64ToArrayBuffer,
   createRecoveryKitCode,
+  decryptWithKey,
   encryptWithKey,
+  exportVaultKey,
   generateSalt,
   generateVaultKey,
   importVaultKey,
+  unwrapVaultKeyWithPassword,
   wrapVaultKeyWithPassword
 } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
 import { getCurrentDeviceHeaders } from './deviceService'
 import { keychainService } from '../utils/keychain'
-import { unlockVault, type WrappedVaultAccessProfile } from './vaultService'
+import { unlockVault, type Vault, type WrappedVaultAccessProfile } from './vaultService'
 import { vaultStorage } from '../storage/vaultStorage'
 
 export interface RecoveryUpgradeResult {
   recoveryKit: string
   vaultAccessMode: 'wrapped_key'
   recoveryKitConfigured: true
+}
+
+export interface RecoveryUnlockResult {
+  vault: Vault
+  deviceSecret: string
+  salt: ArrayBuffer
 }
 
 async function getLocalMasterPassword(masterPassword?: string): Promise<string> {
@@ -113,5 +122,126 @@ export async function upgradeVaultAccess(masterPassword?: string): Promise<Recov
     recoveryKit,
     vaultAccessMode: 'wrapped_key',
     recoveryKitConfigured: true
+  }
+}
+
+export async function recoverVaultWithKit(recoveryKit: string): Promise<RecoveryUnlockResult> {
+  const normalizedRecoveryKit = recoveryKit.trim()
+  if (!normalizedRecoveryKit) {
+    throw new Error('Enter your recovery kit to restore vault access on this device.')
+  }
+
+  const token = localStorage.getItem('safenode_token')
+  if (!token) {
+    throw new Error('Not authenticated')
+  }
+
+  const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
+    },
+    credentials: 'include'
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to fetch vault for recovery' }))
+    throw new Error(error.message || 'Failed to fetch vault for recovery')
+  }
+
+  const data = await response.json()
+  if (!data.exists || !data.encryptedVault || !data.iv || !data.salt) {
+    throw new Error('This account does not have a recoverable vault yet.')
+  }
+
+  if (!data.recoveryWrappedVaultKey || !data.recoveryWrappedVaultKeyIV || !data.recoverySalt) {
+    throw new Error('Recovery is not configured for this vault yet. Use the existing passphrase path first.')
+  }
+
+  const salt = base64ToArrayBuffer(data.salt)
+  const encryptedVault = base64ToArrayBuffer(data.encryptedVault)
+  const iv = base64ToArrayBuffer(data.iv)
+  const recoverySalt = base64ToArrayBuffer(data.recoverySalt)
+
+  const vaultKey = await unwrapVaultKeyWithPassword(
+    {
+      encrypted: base64ToArrayBuffer(data.recoveryWrappedVaultKey),
+      iv: base64ToArrayBuffer(data.recoveryWrappedVaultKeyIV),
+      salt: recoverySalt
+    },
+    normalizedRecoveryKit
+  )
+
+  const decryptedVault = await decryptWithKey({ encrypted: encryptedVault, iv }, vaultKey)
+  const parsedVault = JSON.parse(decryptedVault)
+  if (!parsedVault || typeof parsedVault !== 'object' || !Array.isArray(parsedVault.entries)) {
+    throw new Error('Recovered vault data is invalid.')
+  }
+
+  const deviceSecret = createRecoveryKitCode(24)
+  const wrappedForDevice = await wrapVaultKeyWithPassword(vaultKey, deviceSecret, salt)
+
+  const accessProfile: WrappedVaultAccessProfile = {
+    accessMode: 'wrapped_key',
+    wrappedVaultKey: arrayBufferToBase64(wrappedForDevice.encrypted),
+    wrappedVaultKeyIV: arrayBufferToBase64(wrappedForDevice.iv),
+    recoveryWrappedVaultKey: data.recoveryWrappedVaultKey,
+    recoveryWrappedVaultKeyIV: data.recoveryWrappedVaultKeyIV,
+    recoverySalt: data.recoverySalt,
+    recoveryKitConfigured: true
+  }
+
+  const nextVersion = Math.max(0, Number(data.version || 0)) + 1
+  const saveResponse = await fetch(`${API_BASE}/api/auth/vault/save`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      encryptedVault: data.encryptedVault,
+      iv: data.iv,
+      version: nextVersion,
+      accessProfile
+    })
+  })
+
+  if (!saveResponse.ok) {
+    const error = await saveResponse.json().catch(() => ({ message: 'Failed to re-trust this device for vault access' }))
+    throw new Error(error.message || 'Failed to re-trust this device for vault access')
+  }
+
+  await keychainService.save({
+    service: 'safenode',
+    account: 'master_password',
+    password: deviceSecret
+  }).catch((error) => {
+    console.warn('Failed to persist recovered device secret:', error)
+  })
+
+  await vaultStorage.init()
+  const storedVault = vaultStorage.createVault(
+    data.encryptedVault,
+    data.iv,
+    data.salt,
+    nextVersion,
+    accessProfile
+  )
+  await vaultStorage.storeVault(storedVault)
+
+  const rawVaultKey = arrayBufferToBase64(await exportVaultKey(vaultKey))
+  const vault: Vault = {
+    ...parsedVault,
+    _salt: data.salt,
+    _accessProfile: accessProfile,
+    _rawVaultKey: rawVaultKey
+  }
+
+  return {
+    vault,
+    deviceSecret,
+    salt
   }
 }

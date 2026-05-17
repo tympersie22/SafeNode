@@ -9,6 +9,7 @@ import { getAccountSuccessor, type AccountSuccessor } from '../../services/accou
 import { getDevices, type Device } from '../../services/deviceService'
 import { listPasskeys } from '../../api/passkeys'
 import { vaultStorage, type VaultMetadata } from '../../storage/vaultStorage'
+import { keychainService } from '../../utils/keychain'
 import { upgradeVaultAccess } from '../../services/recoveryService'
 
 type RecoveryState = 'ready' | 'attention' | 'missing'
@@ -43,6 +44,7 @@ export const RecoveryCenterSettings: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([])
   const [passkeyCount, setPasskeyCount] = useState(0)
   const [vaultMetadata, setVaultMetadata] = useState<VaultMetadata | null>(null)
+  const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [latestRecoveryKit, setLatestRecoveryKit] = useState<string | null>(null)
 
@@ -63,6 +65,7 @@ export const RecoveryCenterSettings: React.FC = () => {
 
         await vaultStorage.init()
         const metadata = await vaultStorage.getVaultMetadata()
+        const storedVaultSecret = await keychainService.get('safenode', 'master_password')
 
         if (!mounted) return
 
@@ -71,6 +74,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         setDevices(deviceOverview.devices)
         setPasskeyCount(passkeys.length)
         setVaultMetadata(metadata)
+        setTrustedDeviceReady(Boolean(storedVaultSecret))
       } catch (err: any) {
         if (!mounted) return
         setError(err.message || 'Failed to load recovery readiness')
@@ -94,6 +98,8 @@ export const RecoveryCenterSettings: React.FC = () => {
         : user?.hasVault ? 'attention' : 'missing'
     const factorState: RecoveryState =
       user?.twoFactorEnabled || user?.biometricEnabled ? 'ready' : 'attention'
+    const deviceUnlockState: RecoveryState =
+      trustedDeviceReady ? 'ready' : user?.recoveryKitConfigured ? 'attention' : 'missing'
     const deviceState: RecoveryState =
       devices.length >= 2 ? 'ready' : devices.length === 1 ? 'attention' : 'missing'
     const successorState: RecoveryState = successor?.status === 'active' ? 'ready' : 'attention'
@@ -140,6 +146,18 @@ export const RecoveryCenterSettings: React.FC = () => {
         action: () => navigate('/settings?tab=security')
       },
       {
+        id: 'device-unlock',
+        label: 'Current device trust',
+        detail: trustedDeviceReady
+          ? 'This device already has local vault access material for passkey-assisted unlock'
+          : user?.recoveryKitConfigured
+            ? 'Use your recovery kit or vault passphrase once on this device to enable faster passkey-assisted unlock'
+            : 'Current device trust cannot be restored until recovery is configured',
+        state: deviceUnlockState,
+        actionLabel: 'Review unlock path',
+        action: () => navigate('/vault')
+      },
+      {
         id: 'devices',
         label: 'Trusted devices',
         detail: devices.length > 0 ? `${devices.length} active device${devices.length === 1 ? '' : 's'} registered` : 'No trusted devices detected',
@@ -164,7 +182,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         action: () => navigate('/settings?tab=data')
       }
     ]
-  }, [devices.length, navigate, passkeyCount, successor, user?.biometricEnabled, user?.emailVerified, user?.hasVault, user?.recoveryKitConfigured, user?.twoFactorEnabled, user?.vaultAccessMode, vaultMetadata])
+  }, [devices.length, navigate, passkeyCount, successor, trustedDeviceReady, user?.biometricEnabled, user?.emailVerified, user?.hasVault, user?.recoveryKitConfigured, user?.twoFactorEnabled, user?.vaultAccessMode, vaultMetadata])
 
   const readinessScore = useMemo(() => {
     if (recoveryItems.length === 0) return 0
@@ -218,14 +236,15 @@ export const RecoveryCenterSettings: React.FC = () => {
       </SaasCard>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {[
-          { icon: <KeyRound className="h-5 w-5" />, label: 'Passkeys', value: `${passkeyCount}`, meta: passkeyCount === 1 ? 'credential registered' : 'credentials registered' },
-          { icon: <Smartphone className="h-5 w-5" />, label: 'Trusted devices', value: `${devices.length}`, meta: devices.length === 1 ? 'device enrolled' : 'devices enrolled' },
-          { icon: <Users className="h-5 w-5" />, label: 'Successor', value: successor?.status === 'active' ? 'Set' : 'Unset', meta: successor?.status === 'active' ? 'continuity contact configured' : 'continuity contact missing' },
-          { icon: <MailCheck className="h-5 w-5" />, label: 'Verified email', value: user?.emailVerified ? 'Ready' : 'Missing', meta: user?.emailVerified ? 'notification channel confirmed' : 'identity proof incomplete' },
-          { icon: <ShieldCheck className="h-5 w-5" />, label: 'Fallback factors', value: user?.twoFactorEnabled || user?.biometricEnabled ? 'Ready' : 'Needs work', meta: user?.twoFactorEnabled ? '2FA configured' : user?.biometricEnabled ? 'biometric enabled' : 'no fallback factor configured' },
-          { icon: <LifeBuoy className="h-5 w-5" />, label: 'Export readiness', value: vaultMetadata ? 'Ready' : 'Review', meta: vaultMetadata ? 'local encrypted vault metadata present' : 'verify local export and backup path' }
-        ].map((stat) => (
+          {[
+            { icon: <KeyRound className="h-5 w-5" />, label: 'Passkeys', value: `${passkeyCount}`, meta: passkeyCount === 1 ? 'credential registered' : 'credentials registered' },
+            { icon: <ShieldCheck className="h-5 w-5" />, label: 'This device', value: trustedDeviceReady ? 'Trusted' : 'Needs unlock', meta: trustedDeviceReady ? 'local vault access is provisioned' : 'recover or unlock once to trust this device' },
+            { icon: <Smartphone className="h-5 w-5" />, label: 'Trusted devices', value: `${devices.length}`, meta: devices.length === 1 ? 'device enrolled' : 'devices enrolled' },
+            { icon: <Users className="h-5 w-5" />, label: 'Successor', value: successor?.status === 'active' ? 'Set' : 'Unset', meta: successor?.status === 'active' ? 'continuity contact configured' : 'continuity contact missing' },
+            { icon: <MailCheck className="h-5 w-5" />, label: 'Verified email', value: user?.emailVerified ? 'Ready' : 'Missing', meta: user?.emailVerified ? 'notification channel confirmed' : 'identity proof incomplete' },
+            { icon: <LifeBuoy className="h-5 w-5" />, label: 'Fallback factors', value: user?.twoFactorEnabled || user?.biometricEnabled ? 'Ready' : 'Needs work', meta: user?.twoFactorEnabled ? '2FA configured' : user?.biometricEnabled ? 'biometric enabled' : 'no fallback factor configured' },
+            { icon: <LifeBuoy className="h-5 w-5" />, label: 'Export readiness', value: vaultMetadata ? 'Ready' : 'Review', meta: vaultMetadata ? 'local encrypted vault metadata present' : 'verify local export and backup path' }
+          ].map((stat) => (
           <SaasCard key={stat.label} className="p-5">
             <div className="flex items-center justify-between">
               <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -318,6 +337,7 @@ export const RecoveryCenterSettings: React.FC = () => {
                 try {
                   const result = await upgradeVaultAccess()
                   setLatestRecoveryKit(result.recoveryKit)
+                  setTrustedDeviceReady(true)
                   const refreshedUser = await getCurrentUser()
                   setUser(refreshedUser)
                   await vaultStorage.init()

@@ -14,10 +14,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { VaultAccessError, unlockVault, vaultExists } from '../services/vaultService'
+import { recoverVaultWithKit } from '../services/recoveryService'
 import { logout } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
 import { SaasButton, SaasInput, SaasCard } from '../ui'
-import { Vault, Lock, Eye, EyeOff, LogOut, ShieldCheck, Fingerprint } from 'lucide-react'
+import { Vault, Eye, EyeOff, LogOut, ShieldCheck, Fingerprint, LifeBuoy } from 'lucide-react'
 import { base64ToArrayBuffer } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
 import { keychainService } from '../utils/keychain'
@@ -69,10 +70,13 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   vaultPresenceHint = null,
 }) => {
   const [masterPassword, setMasterPassword] = useState('')
+  const [recoveryKit, setRecoveryKit] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [showRecoveryKit, setShowRecoveryKit] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [unlockMode, setUnlockMode] = useState<'passphrase' | 'recovery'>('passphrase')
 
   /**
    * hasVault tri-state:
@@ -91,6 +95,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   const [biometricAvailable, setBiometricAvailable] = useState(false)
   const [passkeyAvailable, setPasskeyAvailable] = useState(false)
   const [passkeyEnabled, setPasskeyEnabled] = useState(false)
+  const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
 
   const { user } = useAuth()
   const prefersReducedMotion = useReducedMotion()
@@ -172,11 +177,13 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
         setBiometricAvailable(caps.available)
         const enabled = localStorage.getItem('safenode_biometric_enabled') === 'true'
         const hasStoredPassword = await keychainService.get('safenode', 'master_password')
+        setTrustedDeviceReady(Boolean(hasStoredPassword))
         setBiometricEnabled(Boolean(user?.biometricEnabled) && enabled && caps.available && !!hasStoredPassword)
       } catch (err) {
         devWarn('Biometric check failed:', err)
         setBiometricAvailable(false)
         setBiometricEnabled(false)
+        setTrustedDeviceReady(false)
       }
     }
     const timer = window.setTimeout(() => {
@@ -203,6 +210,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
           keychainService.get('safenode', 'master_password'),
           listPasskeys().catch(() => [])
         ])
+        setTrustedDeviceReady(Boolean(storedPassword))
         setPasskeyAvailable(true)
         setPasskeyEnabled(Boolean(storedPassword) && passkeys.length > 0)
       } catch (err) {
@@ -276,6 +284,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
 
       setUnlockAttempts(0)
       setLockoutUntil(null)
+      setTrustedDeviceReady(true)
       onVaultUnlocked(vault, storedPassword, salt)
     } catch (err: any) {
       console.error('Biometric unlock failed:', err)
@@ -296,13 +305,14 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       await authenticateWithPasskey()
 
       const storedPassword = await keychainService.get('safenode', 'master_password')
-      if (!storedPassword) throw new Error('Unlock with your master password once on this device before using passkeys.')
+      if (!storedPassword) throw new Error('This passkey is registered, but this device is not trusted for vault access yet. Use your vault passphrase or recovery kit once on this device first.')
 
       const vault = await unlockVault(storedPassword)
       const salt = await getSalt(vault)
 
       setUnlockAttempts(0)
       setLockoutUntil(null)
+      setTrustedDeviceReady(true)
       onVaultUnlocked(vault, storedPassword, salt)
     } catch (err: any) {
       console.error('Passkey unlock failed:', err)
@@ -311,6 +321,30 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       setIsLoading(false)
     }
   }, [passkeyEnabled, getSalt, onVaultUnlocked])
+
+  const handleRecoveryUnlock = useCallback(async () => {
+    if (!recoveryKit.trim()) {
+      setError('Please enter your recovery kit')
+      return
+    }
+    if (hasVault !== true) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const result = await recoverVaultWithKit(recoveryKit)
+      setUnlockAttempts(0)
+      setLockoutUntil(null)
+      setTrustedDeviceReady(true)
+      onVaultUnlocked(result.vault, result.deviceSecret, result.salt)
+    } catch (err: any) {
+      console.error('Recovery unlock failed:', err)
+      setError(err.message || 'Recovery unlock failed. Please check your recovery kit and try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [recoveryKit, hasVault, onVaultUnlocked])
 
   // ── Master-password unlock ─────────────────────────────────────────────────
   const handleUnlock = useCallback(async () => {
@@ -359,14 +393,20 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     }
   }, [masterPassword, lockoutUntil, hasVault, unlockAttempts, getSalt, onVaultUnlocked])
 
+  const recoveryAvailable = user?.vaultAccessMode === 'wrapped_key' && Boolean(user?.recoveryKitConfigured)
+
   // ── Enter key ──────────────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !isLoading && masterPassword && !(lockoutUntil && Date.now() < lockoutUntil)) {
-        handleUnlock()
+      if (e.key === 'Enter' && !isLoading && !(lockoutUntil && Date.now() < lockoutUntil)) {
+        if (unlockMode === 'recovery' && recoveryKit.trim()) {
+          handleRecoveryUnlock()
+        } else if (unlockMode === 'passphrase' && masterPassword) {
+          handleUnlock()
+        }
       }
     },
-    [handleUnlock, isLoading, masterPassword, lockoutUntil]
+    [handleRecoveryUnlock, handleUnlock, isLoading, lockoutUntil, masterPassword, recoveryKit, unlockMode]
   )
 
   // ── Logout ─────────────────────────────────────────────────────────────────
@@ -419,7 +459,9 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
               Unlock Your Vault
             </h2>
             <p className="text-slate-600 dark:text-slate-400">
-              Enter your master password to access your encrypted vault
+              {recoveryAvailable
+                ? 'Use a trusted device factor, your vault passphrase, or a recovery kit to restore access.'
+                : 'Enter your vault passphrase to access your encrypted vault.'}
             </p>
           </div>
 
@@ -451,6 +493,22 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {(passkeyAvailable || recoveryAvailable) && (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/40">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500 dark:text-slate-300" />
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Trusted device status</p>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {trustedDeviceReady
+                      ? 'This device already has local vault access material, so passkeys and biometrics can assist unlock here.'
+                      : 'This device is not trusted for direct vault access yet. Use your passphrase or recovery kit once here to enable passkey-assisted unlock next time.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Passkey / Biometric quick-unlock */}
           {(passkeyEnabled || biometricEnabled) && (
@@ -495,55 +553,135 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
             </motion.div>
           )}
 
-          {/* Password input */}
-          <div className="space-y-4">
-            <div>
-              <SaasInput
-                type={showPassword ? 'text' : 'password'}
-                label="Master Password"
-                value={masterPassword}
-                onChange={(e) => { setMasterPassword(e.target.value); setError(null) }}
-                onKeyDown={handleKeyDown}
-                placeholder="Enter your master password"
-                required
-                autoFocus={!biometricEnabled && !passkeyEnabled}
-                className={error && error.includes('Incorrect') ? 'border-red-500 focus:ring-red-500' : ''}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                }
-              />
-              {unlockAttempts > 0 && unlockAttempts < 3 && (
-                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                  ⚠ {3 - unlockAttempts} attempt{3 - unlockAttempts !== 1 ? 's' : ''} remaining before lockout
-                </p>
-              )}
+          {recoveryAvailable && (
+            <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setUnlockMode('passphrase')
+                  setError(null)
+                }}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                  unlockMode === 'passphrase'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                Vault passphrase
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUnlockMode('recovery')
+                  setError(null)
+                }}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                  unlockMode === 'recovery'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                Recovery kit
+              </button>
             </div>
+          )}
 
-            <SaasButton
-              type="button"
-              variant={biometricEnabled || passkeyEnabled ? 'outline' : 'gradient'}
-              size="lg"
-              className="w-full min-h-[50px] touch-manipulation rounded-2xl"
-              onClick={handleUnlock}
-              loading={isLoading}
-              disabled={!masterPassword || isLoading || isLockedOut}
-            >
-              {isLoading ? 'Unlocking…' : 'Unlock with Password'}
-            </SaasButton>
+          {/* Password / recovery input */}
+          <div className="space-y-4">
+            {unlockMode === 'passphrase' ? (
+              <>
+                <div>
+                  <SaasInput
+                    type={showPassword ? 'text' : 'password'}
+                    label="Vault Passphrase"
+                    value={masterPassword}
+                    onChange={(e) => { setMasterPassword(e.target.value); setError(null) }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Enter your vault passphrase"
+                    required
+                    autoFocus={!biometricEnabled && !passkeyEnabled}
+                    className={error && error.includes('Incorrect') ? 'border-red-500 focus:ring-red-500' : ''}
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    }
+                  />
+                  {unlockAttempts > 0 && unlockAttempts < 3 && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      ⚠ {3 - unlockAttempts} attempt{3 - unlockAttempts !== 1 ? 's' : ''} remaining before lockout
+                    </p>
+                  )}
+                </div>
+
+                <SaasButton
+                  type="button"
+                  variant={biometricEnabled || passkeyEnabled ? 'outline' : 'gradient'}
+                  size="lg"
+                  className="w-full min-h-[50px] touch-manipulation rounded-2xl"
+                  onClick={handleUnlock}
+                  loading={isLoading}
+                  disabled={!masterPassword || isLoading || isLockedOut}
+                >
+                  {isLoading ? 'Unlocking…' : 'Unlock with Passphrase'}
+                </SaasButton>
+              </>
+            ) : (
+              <>
+                <div>
+                  <SaasInput
+                    type={showRecoveryKit ? 'text' : 'password'}
+                    label="Recovery Kit"
+                    value={recoveryKit}
+                    onChange={(e) => { setRecoveryKit(e.target.value.toUpperCase()); setError(null) }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="ABCDE-12345-..."
+                    required
+                    autoFocus={!biometricEnabled && !passkeyEnabled}
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowRecoveryKit((v) => !v)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                        aria-label={showRecoveryKit ? 'Hide recovery kit' : 'Show recovery kit'}
+                      >
+                        {showRecoveryKit ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    }
+                  />
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Recovery unlock will restore local vault access on this device and enable faster passkey-assisted access next time.
+                  </p>
+                </div>
+
+                <SaasButton
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full min-h-[50px] touch-manipulation rounded-2xl"
+                  onClick={handleRecoveryUnlock}
+                  loading={isLoading}
+                  disabled={!recoveryKit.trim() || isLoading || isLockedOut}
+                >
+                  <span className="mr-2 inline-flex h-5 w-5 items-center justify-center">
+                    <LifeBuoy className="h-4.5 w-4.5" />
+                  </span>
+                  {isLoading ? 'Restoring access…' : 'Recover and Trust This Device'}
+                </SaasButton>
+              </>
+            )}
           </div>
 
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-              <span>AES-256-GCM · zero-knowledge · your password never leaves this device</span>
+              <span>AES-256-GCM · zero-knowledge · recovery restores access without asking the server to decrypt the vault</span>
             </div>
             <div className="flex justify-center">
               <button
