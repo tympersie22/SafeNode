@@ -23,8 +23,13 @@ export interface EncryptionResult {
 }
 
 /**
- * Derives a 32-byte key from a string using SHA-256
- * This is a fallback if ENCRYPTION_KEY is not base64
+ * Derives a 32-byte AES key from the configured key string.
+ *
+ * The intended format is a 32-byte base64 value (44 chars). Previously any
+ * string was silently SHA-256-hashed to 32 bytes, so a short/weak key was
+ * accepted without warning. We now reject non-conforming keys in production
+ * (unless ALLOW_WEAK_ENCRYPTION_KEY=true) while keeping the hash fallback in
+ * non-production so local dev and any legacy-encrypted data still work.
  */
 function deriveKey(keyString: string): Buffer {
   if (keyString.length === 44 && /^[A-Za-z0-9+/=]+$/.test(keyString)) {
@@ -35,11 +40,22 @@ function deriveKey(keyString: string): Buffer {
         return decoded
       }
     } catch {
-      // Not valid base64, fall through to hash
+      // Not valid base64, fall through to validation below
     }
   }
-  
-  // Fallback: hash the string to get 32 bytes
+
+  const isProduction = (process.env.NODE_ENV || 'development') === 'production'
+  const allowWeak = process.env.ALLOW_WEAK_ENCRYPTION_KEY === 'true'
+  if (isProduction && !allowWeak) {
+    throw new Error(
+      'ENCRYPTION_KEY must be a 32-byte base64-encoded value in production. ' +
+      'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))". ' +
+      'Set ALLOW_WEAK_ENCRYPTION_KEY=true only to decrypt legacy data during migration.'
+    )
+  }
+
+  // Non-production (or explicit override): hash the string to get 32 bytes.
+  console.warn('WARNING: ENCRYPTION_KEY is not a 32-byte base64 value; deriving via SHA-256 fallback (not recommended).')
   return createHash('sha256').update(keyString).digest()
 }
 

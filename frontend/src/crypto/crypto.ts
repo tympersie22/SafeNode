@@ -29,13 +29,11 @@ export async function generateSalt(length: number = 32): Promise<ArrayBuffer> {
   if (window.crypto && window.crypto.getRandomValues) {
     return window.crypto.getRandomValues(new Uint8Array(length)).buffer;
   }
-  
-  // Fallback for older browsers
-  const array = new Uint8Array(length);
-  for (let i = 0; i < length; i++) {
-    array[i] = Math.floor(Math.random() * 256);
-  }
-  return array.buffer;
+
+  // No CSPRNG available: fail closed rather than fall back to Math.random(),
+  // which is not cryptographically secure and would produce predictable
+  // salts/IVs/keys.
+  throw new Error('Secure random number generator (crypto.getRandomValues) is not available in this environment.');
 }
 
 /**
