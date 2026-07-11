@@ -13,9 +13,15 @@ vi.mock('../src/contexts/AuthContext', () => ({
   }))
 }))
 
+// Auth.tsx imports several named functions from authService; mock them all so
+// the module resolves and each flow can be asserted independently.
 vi.mock('../src/services/authService', () => ({
   login: vi.fn(),
-  register: vi.fn()
+  register: vi.fn(),
+  signInWithPasskey: vi.fn(),
+  signUpWithPasskey: vi.fn(),
+  verifyLoginTwoFactor: vi.fn(),
+  getCurrentUser: vi.fn()
 }))
 
 vi.mock('../src/services/ssoService', () => ({
@@ -30,7 +36,7 @@ describe('Authentication Flow', () => {
     vi.clearAllMocks()
   })
 
-  it('submits login and updates auth context', async () => {
+  it('submits legacy password login and updates auth context', async () => {
     ;(authService.login as any).mockResolvedValueOnce({
       token: 'test-token',
       user: { id: 'u1', email: 'test@example.com' }
@@ -42,9 +48,11 @@ describe('Authentication Flow', () => {
       </BrowserRouter>
     )
 
+    // The UI is passkey-first; the password field lives behind the legacy toggle.
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'test@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /use password instead/i }))
     fireEvent.change(screen.getByPlaceholderText(/enter your password/i), { target: { value: 'Password123!' } })
-    fireEvent.click(screen.getByRole('button', { name: /sign in to your account/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sign in to your account with a password/i }))
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith({
@@ -58,8 +66,8 @@ describe('Authentication Flow', () => {
     })
   })
 
-  it('switches to signup and submits registration', async () => {
-    ;(authService.register as any).mockResolvedValueOnce({
+  it('switches to signup and submits passkey registration', async () => {
+    ;(authService.signUpWithPasskey as any).mockResolvedValueOnce({
       token: 'signup-token',
       user: { id: 'u2', email: 'new@example.com' }
     })
@@ -70,18 +78,16 @@ describe('Authentication Flow', () => {
       </BrowserRouter>
     )
 
-    fireEvent.click(screen.getByText(/create account/i))
+    fireEvent.click(screen.getByRole('button', { name: /switch to sign up form/i }))
 
-    fireEvent.change(screen.getByLabelText(/display name/i), { target: { value: 'New User' } })
+    // Signup is passkey-first: it collects name + email, no password.
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'New User' } })
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'new@example.com' } })
-    fireEvent.change(screen.getByPlaceholderText(/create a strong master password/i), { target: { value: 'Password123!' } })
-    fireEvent.change(screen.getByPlaceholderText(/confirm your password/i), { target: { value: 'Password123!' } })
-    fireEvent.click(screen.getByRole('button', { name: /create your safenode account/i }))
+    fireEvent.click(screen.getByRole('button', { name: /create your safenode account with a passkey/i }))
 
     await waitFor(() => {
-      expect(authService.register).toHaveBeenCalledWith({
+      expect(authService.signUpWithPasskey).toHaveBeenCalledWith({
         email: 'new@example.com',
-        password: 'Password123!',
         displayName: 'New User'
       })
       expect(mockSetAuthUser).toHaveBeenCalledWith(

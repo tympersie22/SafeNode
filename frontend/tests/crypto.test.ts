@@ -72,18 +72,24 @@ describe('Crypto Utilities', () => {
     })
 
     it('should throw error if WebCrypto not available', async () => {
+      // Generate the salt BEFORE removing WebCrypto: generateSalt now fails
+      // closed when no CSPRNG is available, so evaluating it after the removal
+      // would throw here (and skip the restore below, breaking later tests).
+      const salt = await generateSalt(32)
       const originalCrypto = window.crypto
       Object.defineProperty(window, 'crypto', {
         configurable: true,
         value: undefined
       })
 
-      await expect(deriveKey('password', await generateSalt(32))).rejects.toThrow('WebCrypto API not supported')
-
-      Object.defineProperty(window, 'crypto', {
-        configurable: true,
-        value: originalCrypto
-      })
+      try {
+        await expect(deriveKey('password', salt)).rejects.toThrow('WebCrypto API not supported')
+      } finally {
+        Object.defineProperty(window, 'crypto', {
+          configurable: true,
+          value: originalCrypto
+        })
+      }
     })
 
     it('should produce same key for same password and salt', async () => {
@@ -190,12 +196,14 @@ describe('Crypto Utilities', () => {
         value: undefined
       })
 
-      await expect(encrypt('data', 'password')).rejects.toThrow('WebCrypto API not supported')
-
-      Object.defineProperty(window, 'crypto', {
-        configurable: true,
-        value: originalCrypto
-      })
+      try {
+        await expect(encrypt('data', 'password')).rejects.toThrow('WebCrypto API not supported')
+      } finally {
+        Object.defineProperty(window, 'crypto', {
+          configurable: true,
+          value: originalCrypto
+        })
+      }
     })
   })
 })
