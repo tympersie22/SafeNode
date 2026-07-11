@@ -87,3 +87,12 @@ ssl/*.pem
 .vercel
 .env*.local
 .codex-backups/
+
+# --- Security: never commit env dumps / secret exports ---
+# (added during P0 secret-leak remediation)
+railway-*.txt
+vercel-*.txt
+*-env*.txt
+*.env.txt
+secrets*.txt
+PRODUCTION_SECRETS.*
