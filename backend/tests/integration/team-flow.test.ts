@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals'
 import { createTeam, inviteTeamMember, getPermissionsForRole } from '../../src/services/teamService'
 import { getPrismaClient } from '../../src/db/prisma'
-import { createUser } from '../../src/services/userService'
+import { createUser, updateUser } from '../../src/services/userService'
 import { createAuditLog } from '../../src/services/auditLogService'
 
 describe('Team Flow Integration', () => {
@@ -20,6 +20,8 @@ describe('Team Flow Integration', () => {
       password: 'Password123!',
       displayName: 'Team Owner'
     })).id
+    // createTeam now requires a Teams-tier plan; 'enterprise' resolves to the teams plan.
+    await updateUser(ownerId, { subscriptionTier: 'enterprise', subscriptionStatus: 'active' })
 
     memberId = (await createUser({
       email: `member-${Date.now()}@example.com`,

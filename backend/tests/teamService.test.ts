@@ -12,7 +12,7 @@ import {
   getPermissionsForRole
 } from '../src/services/teamService'
 import { getPrismaClient } from '../src/db/prisma'
-import { createUser } from '../src/services/userService'
+import { createUser, updateUser } from '../src/services/userService'
 
 describe('Team Service', () => {
   let ownerId: string
@@ -24,6 +24,8 @@ describe('Team Service', () => {
       password: 'Password123!',
       displayName: 'Team Owner'
     })).id
+    // createTeam now requires a Teams-tier plan; 'enterprise' resolves to the teams plan.
+    await updateUser(ownerId, { subscriptionTier: 'enterprise', subscriptionStatus: 'active' })
 
     memberId = (await createUser({
       email: `member-${Date.now()}@example.com`,
