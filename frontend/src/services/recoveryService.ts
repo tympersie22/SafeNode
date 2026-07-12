@@ -13,9 +13,9 @@ import {
 } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
 import { getCurrentDeviceHeaders } from './deviceService'
-import { keychainService } from '../utils/keychain'
 import { unlockVault, type Vault, type WrappedVaultAccessProfile } from './vaultService'
 import { vaultStorage } from '../storage/vaultStorage'
+import { getVaultSessionSecret } from './vaultSession'
 
 export interface RecoveryUpgradeResult {
   recoveryKit: string
@@ -32,12 +32,12 @@ export interface RecoveryUnlockResult {
 async function getLocalMasterPassword(masterPassword?: string): Promise<string> {
   if (masterPassword) return masterPassword
 
-  const stored = await keychainService.get('safenode', 'master_password')
-  if (!stored) {
-    throw new Error('Unlock your vault on this device before enabling recovery migration.')
+  const sessionSecret = getVaultSessionSecret()
+  if (!sessionSecret) {
+    throw new Error('Unlock your vault in this session before enabling recovery migration.')
   }
 
-  return stored
+  return sessionSecret
 }
 
 export async function upgradeVaultAccess(masterPassword?: string): Promise<RecoveryUpgradeResult> {
@@ -212,14 +212,6 @@ export async function recoverVaultWithKit(recoveryKit: string): Promise<Recovery
     const error = await saveResponse.json().catch(() => ({ message: 'Failed to re-trust this device for vault access' }))
     throw new Error(error.message || 'Failed to re-trust this device for vault access')
   }
-
-  await keychainService.save({
-    service: 'safenode',
-    account: 'master_password',
-    password: deviceSecret
-  }).catch((error) => {
-    console.warn('Failed to persist recovered device secret:', error)
-  })
 
   await vaultStorage.init()
   const storedVault = vaultStorage.createVault(

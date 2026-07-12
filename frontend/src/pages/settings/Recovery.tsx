@@ -9,8 +9,8 @@ import { getAccountSuccessor, type AccountSuccessor } from '../../services/accou
 import { getDevices, type Device } from '../../services/deviceService'
 import { listPasskeys } from '../../api/passkeys'
 import { vaultStorage, type VaultMetadata } from '../../storage/vaultStorage'
-import { keychainService } from '../../utils/keychain'
 import { upgradeVaultAccess } from '../../services/recoveryService'
+import { hasVaultSessionSecret } from '../../services/vaultSession'
 
 type RecoveryState = 'ready' | 'attention' | 'missing'
 
@@ -65,8 +65,6 @@ export const RecoveryCenterSettings: React.FC = () => {
 
         await vaultStorage.init()
         const metadata = await vaultStorage.getVaultMetadata()
-        const storedVaultSecret = await keychainService.get('safenode', 'master_password')
-
         if (!mounted) return
 
         setUser(currentUser)
@@ -74,7 +72,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         setDevices(deviceOverview.devices)
         setPasskeyCount(passkeys.length)
         setVaultMetadata(metadata)
-        setTrustedDeviceReady(Boolean(storedVaultSecret))
+        setTrustedDeviceReady(hasVaultSessionSecret())
       } catch (err: any) {
         if (!mounted) return
         setError(err.message || 'Failed to load recovery readiness')
@@ -149,10 +147,10 @@ export const RecoveryCenterSettings: React.FC = () => {
         id: 'device-unlock',
         label: 'Current device trust',
         detail: trustedDeviceReady
-          ? 'This device already has local vault access material for passkey-assisted unlock'
+          ? 'The vault is currently unlocked in this browser session'
           : user?.recoveryKitConfigured
-            ? 'Use your recovery kit or vault passphrase once on this device to enable faster passkey-assisted unlock'
-            : 'Current device trust cannot be restored until recovery is configured',
+            ? 'Use your vault passphrase or recovery kit each session on this device until passkey-based cryptographic unlock ships'
+            : 'Current device recovery still needs to be configured',
         state: deviceUnlockState,
         actionLabel: 'Review unlock path',
         action: () => navigate('/vault')
@@ -238,7 +236,7 @@ export const RecoveryCenterSettings: React.FC = () => {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             { icon: <KeyRound className="h-5 w-5" />, label: 'Passkeys', value: `${passkeyCount}`, meta: passkeyCount === 1 ? 'credential registered' : 'credentials registered' },
-            { icon: <ShieldCheck className="h-5 w-5" />, label: 'This device', value: trustedDeviceReady ? 'Trusted' : 'Needs unlock', meta: trustedDeviceReady ? 'local vault access is provisioned' : 'recover or unlock once to trust this device' },
+            { icon: <ShieldCheck className="h-5 w-5" />, label: 'This session', value: trustedDeviceReady ? 'Unlocked' : 'Needs unlock', meta: trustedDeviceReady ? 'vault secret is held in memory only' : 'unlock with passphrase or recovery kit when needed' },
             { icon: <Smartphone className="h-5 w-5" />, label: 'Trusted devices', value: `${devices.length}`, meta: devices.length === 1 ? 'device enrolled' : 'devices enrolled' },
             { icon: <Users className="h-5 w-5" />, label: 'Successor', value: successor?.status === 'active' ? 'Set' : 'Unset', meta: successor?.status === 'active' ? 'continuity contact configured' : 'continuity contact missing' },
             { icon: <MailCheck className="h-5 w-5" />, label: 'Verified email', value: user?.emailVerified ? 'Ready' : 'Missing', meta: user?.emailVerified ? 'notification channel confirmed' : 'identity proof incomplete' },

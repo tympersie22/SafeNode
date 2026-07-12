@@ -41,7 +41,6 @@ import PINSetupModal from './components/PINSetupModal';
 import { accountStorage, type Account } from './storage/accountStorage';
 import { auditLogStorage } from './storage/auditLogs';
 import { teamVaultStorage } from './storage/teamVaults';
-import { keychainService } from './utils/keychain';
 import { pinManager } from './utils/pinManager';
 // keychainService is dynamically imported where needed to reduce bundle size
 import { apiPost, apiPut, apiDelete } from './utils/apiClient';
@@ -52,9 +51,12 @@ import VaultDashboard from './components/dashboard/VaultDashboard';
 import { DashboardLayout } from './layout/DashboardLayout';
 import type { SidebarItem } from './ui/SaasSidebar';
 import type { VaultAccessProfile } from './services/vaultService';
+import { clearVaultSessionSecret, setVaultSessionSecret } from './services/vaultSession';
 
 interface VaultData {
   entries: VaultEntry[];
+  _accessProfile?: VaultAccessProfile;
+  _rawVaultKey?: string;
 }
 
 // Single source of truth for vault state
@@ -137,6 +139,12 @@ const App: React.FC = () => {
     setKnownHasVault(typeof user?.hasVault === 'boolean' ? user.hasVault : null);
   }, [user?.id, user?.hasVault]);
 
+  useEffect(() => {
+    if (!user?.id) {
+      clearVaultSessionSecret();
+    }
+  }, [user?.id])
+
   const isPendingPasskeyBootstrap = typeof window !== 'undefined' &&
     sessionStorage.getItem('safenode_passkey_bootstrap_pending') === '1'
 
@@ -166,6 +174,10 @@ const App: React.FC = () => {
       window.removeEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
     }
   }, []);
+
+  useEffect(() => {
+    void import('./utils/keychain').then(({ keychainService }) => keychainService.purgeLegacyVaultSecrets())
+  }, [])
 
   // Session timeout tracking — ref-based so activity resets don't cause re-renders
   useEffect(() => {
@@ -373,6 +385,7 @@ const App: React.FC = () => {
     setVaultStatus('UNLOCKED');
     setKnownHasVault(true);
     setMasterPassword(password);
+    setVaultSessionSecret(password);
     setVaultSalt(salt);
     setVaultAccessProfile(unlockedVault?._accessProfile || null);
     setRawVaultKey(unlockedVault?._rawVaultKey || null);
@@ -409,19 +422,6 @@ const App: React.FC = () => {
       showToast.error('Failed to load account settings. Using defaults.');
     });
     
-    // Store master password in keychain for biometric unlock (fire-and-forget)
-    // Use dynamic import - Vite will handle it correctly
-    if (password) {
-      keychainService.save({
-        service: 'safenode',
-        account: 'master_password',
-        password: password
-      }).catch((error: any) => {
-        console.warn('Failed to store password in keychain:', error);
-        showToast.info('Could not enable biometric unlock. You can set this up later in settings.');
-      });
-    }
-    
     // IndexedDB storage is handled inside unlockVault() itself —
     // no redundant GET /api/auth/vault/latest needed here.
   };
@@ -433,6 +433,7 @@ const App: React.FC = () => {
     setVault(null);
     setVaultStatus('LOCKED');
     setMasterPassword('');
+    clearVaultSessionSecret();
     setVaultSalt(null);
     setVaultAccessProfile(null);
     setRawVaultKey(null);
@@ -453,6 +454,7 @@ const App: React.FC = () => {
       setVault(null);
       setVaultStatus('LOCKED');
       setMasterPassword('');
+      clearVaultSessionSecret();
       setVaultSalt(null);
       setVaultAccessProfile(null);
       setRawVaultKey(null);

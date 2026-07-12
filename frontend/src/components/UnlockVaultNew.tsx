@@ -19,23 +19,11 @@ import { recoverVaultWithKit } from '../services/recoveryService'
 import { logout } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
 import { SaasButton, SaasInput, SaasCard } from '../ui'
-import { Vault, Eye, EyeOff, LogOut, ShieldCheck, Fingerprint, LifeBuoy } from 'lucide-react'
+import { Vault, Eye, EyeOff, LogOut, ShieldCheck, LifeBuoy } from 'lucide-react'
 import { base64ToArrayBuffer } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
-import { keychainService } from '../utils/keychain'
 import { getCurrentDeviceHeaders } from '../services/deviceService'
 import { devLog, devWarn } from '../utils/debug'
-
-const loadPasskeyApi = () => import('../api/passkeys')
-const loadBiometricAuthService = async () => (await import('../utils/biometricAuth')).biometricAuthService
-
-const PasskeyIcon = () => (
-  <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="5" width="18" height="14" rx="4" className="fill-current opacity-10" />
-    <path d="M9 12a3 3 0 1 1 6 0c0 1.1-.6 1.9-1.4 2.4v1.6h-3.2v-1.6A2.82 2.82 0 0 1 9 12Z" className="stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M17.5 9.5h1.5M17.5 12h2M17.5 14.5h1.5" className="stroke-current" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-)
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -91,12 +79,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   const [unlockAttempts, setUnlockAttempts] = useState(0)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
 
-  // Biometric / passkey state
-  const [biometricEnabled, setBiometricEnabled] = useState(false)
-  const [biometricAvailable, setBiometricAvailable] = useState(false)
-  const [passkeyAvailable, setPasskeyAvailable] = useState(false)
-  const [passkeyEnabled, setPasskeyEnabled] = useState(false)
-  const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
   const [deviceLimit, setDeviceLimit] = useState<{
     devices: Array<{ id: string; deviceId: string; name: string; platform: string; lastSeen: number; isCurrent?: boolean }>
     current: number
@@ -192,64 +174,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     }
   }, [hasVault])
 
-  // ── Biometric availability ─────────────────────────────────────────────────
-  useEffect(() => {
-    const checkBiometric = async () => {
-      try {
-        const biometricAuthService = await loadBiometricAuthService()
-        const caps = await biometricAuthService.isAvailable()
-        setBiometricAvailable(caps.available)
-        const enabled = localStorage.getItem('safenode_biometric_enabled') === 'true'
-        const hasStoredPassword = await keychainService.get('safenode', 'master_password')
-        setTrustedDeviceReady(Boolean(hasStoredPassword))
-        setBiometricEnabled(Boolean(user?.biometricEnabled) && enabled && caps.available && !!hasStoredPassword)
-      } catch (err) {
-        devWarn('Biometric check failed:', err)
-        setBiometricAvailable(false)
-        setBiometricEnabled(false)
-        setTrustedDeviceReady(false)
-      }
-    }
-    const timer = window.setTimeout(() => {
-      checkBiometric()
-    }, 150)
-
-    return () => window.clearTimeout(timer)
-  }, [user?.biometricEnabled])
-
-  // ── Passkey availability (only when vault exists — skip for new users) ──────
-  useEffect(() => {
-    // Don't check passkeys until we know the user has a vault
-    if (hasVault !== true) return
-    if (!user?.id || typeof window === 'undefined' || !('PublicKeyCredential' in window)) {
-      setPasskeyAvailable(false)
-      setPasskeyEnabled(false)
-      return
-    }
-
-    const checkPasskeys = async () => {
-      try {
-        const { listPasskeys } = await loadPasskeyApi()
-        const [storedPassword, passkeys] = await Promise.all([
-          keychainService.get('safenode', 'master_password'),
-          listPasskeys().catch(() => [])
-        ])
-        setTrustedDeviceReady(Boolean(storedPassword))
-        setPasskeyAvailable(true)
-        setPasskeyEnabled(Boolean(storedPassword) && passkeys.length > 0)
-      } catch (err) {
-        devWarn('Passkey check failed:', err)
-        setPasskeyAvailable(true)
-        setPasskeyEnabled(false)
-      }
-    }
-    const timer = window.setTimeout(() => {
-      checkPasskeys()
-    }, 150)
-
-    return () => window.clearTimeout(timer)
-  }, [user?.id, hasVault]) // Only run when hasVault becomes true
-
   // ── Lockout timer ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (lockoutUntil && Date.now() < lockoutUntil) {
@@ -285,67 +209,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     return base64ToArrayBuffer(salt)
   }, [])
 
-  // ── Biometric unlock ───────────────────────────────────────────────────────
-  const handleBiometricUnlock = useCallback(async () => {
-    if (!biometricEnabled) return
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const biometricAuthService = await loadBiometricAuthService()
-      const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
-        enableML: true,
-        userId: user?.id || 'user',
-        collectBehavioral: true
-      })
-      if (!result.success) throw new Error(result.error || 'Biometric authentication failed')
-
-      const storedPassword = await keychainService.get('safenode', 'master_password')
-      if (!storedPassword) throw new Error('Master password not found. Please unlock with password first.')
-
-      const vault = await unlockVault(storedPassword)
-      const salt = await getSalt(vault)
-
-      setUnlockAttempts(0)
-      setLockoutUntil(null)
-      setTrustedDeviceReady(true)
-      onVaultUnlocked(vault, storedPassword, salt)
-    } catch (err: any) {
-      console.error('Biometric unlock failed:', err)
-      setError(err.message || 'Biometric authentication failed. Please use your master password.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [biometricEnabled, user?.id, getSalt, onVaultUnlocked])
-
-  // ── Passkey unlock ─────────────────────────────────────────────────────────
-  const handlePasskeyUnlock = useCallback(async () => {
-    if (!passkeyEnabled) return
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const { authenticateWithPasskey } = await loadPasskeyApi()
-      await authenticateWithPasskey()
-
-      const storedPassword = await keychainService.get('safenode', 'master_password')
-      if (!storedPassword) throw new Error('This passkey is registered, but this device is not trusted for vault access yet. Use your vault passphrase or recovery kit once on this device first.')
-
-      const vault = await unlockVault(storedPassword)
-      const salt = await getSalt(vault)
-
-      setUnlockAttempts(0)
-      setLockoutUntil(null)
-      setTrustedDeviceReady(true)
-      onVaultUnlocked(vault, storedPassword, salt)
-    } catch (err: any) {
-      console.error('Passkey unlock failed:', err)
-      setError(err.message || 'Passkey authentication failed. Please use your master password.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [passkeyEnabled, getSalt, onVaultUnlocked])
-
   const handleRecoveryUnlock = useCallback(async () => {
     if (!recoveryKit.trim()) {
       setError('Please enter your recovery kit')
@@ -360,7 +223,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       const result = await recoverVaultWithKit(recoveryKit)
       setUnlockAttempts(0)
       setLockoutUntil(null)
-      setTrustedDeviceReady(true)
       onVaultUnlocked(result.vault, result.deviceSecret, result.salt)
     } catch (err: any) {
       console.error('Recovery unlock failed:', err)
@@ -484,7 +346,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
             </h2>
             <p className="text-slate-600 dark:text-slate-400">
               {recoveryAvailable
-                ? 'Use a trusted device factor, your vault passphrase, or a recovery kit to restore access.'
+                ? 'Use your vault passphrase or recovery kit to restore access.'
                 : 'Enter your vault passphrase to access your encrypted vault.'}
             </p>
           </div>
@@ -532,64 +394,17 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
             )}
           </AnimatePresence>
 
-          {(passkeyAvailable || recoveryAvailable) && (
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/40">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500 dark:text-slate-300" />
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-900 dark:text-slate-100">Trusted device status</p>
-                  <p className="text-slate-600 dark:text-slate-400">
-                    {trustedDeviceReady
-                      ? 'This device already has local vault access material, so passkeys and biometrics can assist unlock here.'
-                      : 'This device is not trusted for direct vault access yet. Use your passphrase or recovery kit once here to enable passkey-assisted unlock next time.'}
-                  </p>
-                </div>
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/40">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500 dark:text-slate-300" />
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Vault unlock stays local</p>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Passkeys and biometrics sign you in to SafeNode, but they do not store or replay your vault secret on this browser. Unlock with your vault passphrase or recovery kit when you need access.
+                </p>
               </div>
             </div>
-          )}
-
-          {/* Passkey / Biometric quick-unlock */}
-          {(passkeyEnabled || biometricEnabled) && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 space-y-3"
-            >
-              {passkeyEnabled && (
-                <SaasButton
-                  type="button"
-                  variant="gradient"
-                  size="md"
-                  className="w-full min-h-[44px] touch-manipulation rounded-2xl px-4 py-2.5 text-sm"
-                  onClick={handlePasskeyUnlock}
-                  loading={isLoading}
-                  disabled={isLoading || isLockedOut}
-                >
-                  <span className="mr-1.5 inline-flex h-7 w-7 shrink-0 items-center justify-center text-white">
-                    <PasskeyIcon />
-                  </span>
-                  {isLoading ? 'Authenticating…' : 'Unlock with Passkey'}
-                </SaasButton>
-              )}
-              {biometricEnabled && (
-                <SaasButton
-                  type="button"
-                  variant={passkeyEnabled ? 'outline' : 'gradient'}
-                  size="md"
-                  className="w-full min-h-[44px] touch-manipulation rounded-2xl px-4 py-2.5 text-sm"
-                  onClick={handleBiometricUnlock}
-                  loading={isLoading}
-                  disabled={isLoading || isLockedOut}
-                >
-                  <span className={`mr-1.5 inline-flex h-7 w-7 shrink-0 items-center justify-center ${passkeyEnabled ? 'text-slate-700 dark:text-slate-200' : 'text-white'}`}>
-                    <Fingerprint className="h-6 w-6" />
-                  </span>
-                  {isLoading ? 'Authenticating…' : 'Unlock with Biometric'}
-                </SaasButton>
-              )}
-              <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-1">or</p>
-            </motion.div>
-          )}
+          </div>
 
           {recoveryAvailable && (
             <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900/50">
@@ -637,7 +452,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     onKeyDown={handleKeyDown}
                     placeholder="Enter your vault passphrase"
                     required
-                    autoFocus={!biometricEnabled && !passkeyEnabled}
+                    autoFocus
                     className={error && error.includes('Incorrect') ? 'border-red-500 focus:ring-red-500' : ''}
                     rightIcon={
                       <button
@@ -659,7 +474,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
 
                 <SaasButton
                   type="button"
-                  variant={biometricEnabled || passkeyEnabled ? 'outline' : 'gradient'}
+                  variant="gradient"
                   size="lg"
                   className="w-full min-h-[50px] touch-manipulation rounded-2xl"
                   onClick={handleUnlock}
@@ -680,7 +495,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     onKeyDown={handleKeyDown}
                     placeholder="ABCDE-12345-..."
                     required
-                    autoFocus={!biometricEnabled && !passkeyEnabled}
                     rightIcon={
                       <button
                         type="button"
@@ -693,7 +507,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     }
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Recovery unlock will restore local vault access on this device and enable faster passkey-assisted access next time.
+                    Recovery unlock restores access for the current session only. You will use your passphrase or recovery kit again after the session ends.
                   </p>
                 </div>
 

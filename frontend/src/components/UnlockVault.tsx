@@ -6,7 +6,6 @@ import { vaultSync } from '../sync/vaultSync';
 import { pinManager } from '../utils/pinManager';
 import { auditLogStorage } from '../storage/auditLogs';
 import { biometricAuthService, type BiometricCapabilities } from '../utils/biometricAuth';
-import { keychainService } from '../utils/keychain';
 import { API_BASE } from '../config/api';
 import { getCurrentDeviceHeaders } from '../services/deviceService';
 import Logo from './Logo';
@@ -101,15 +100,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
         });
       }
 
-      // For biometric unlock, we need to get the master password from keychain
-      // or use a stored credential
-      const storedPassword = await keychainService.get('safenode', 'master_password');
-      if (!storedPassword) {
-        throw new Error('Master password not found. Please unlock with password first.');
-      }
-
-      // Continue with normal unlock flow using stored password
-      await performUnlock(storedPassword, null);
+      throw new Error('Biometric sign-in does not unlock the vault on web. Please use your vault passphrase.');
     } catch (err) {
       console.error('Biometric unlock failed:', err);
       if (err instanceof Error) {
