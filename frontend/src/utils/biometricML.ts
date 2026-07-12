@@ -501,8 +501,8 @@ class BiometricMLService {
     const hour = now.getHours();
     const day = now.getDay();
 
-    const hourMatch = stored.typicalHours.includes(hour) ? 1 : 0.5;
-    const dayMatch = stored.typicalDays.includes(day) ? 1 : 0.5;
+    const hourMatch = (stored?.typicalHours ?? []).includes(hour) ? 1 : 0.5;
+    const dayMatch = (stored?.typicalDays ?? []).includes(day) ? 1 : 0.5;
 
     return (hourMatch + dayMatch) / 2;
   }
@@ -621,8 +621,8 @@ class BiometricMLService {
     const hour = date.getHours();
     const day = date.getDay();
 
-    const hourMatch = profile.accessPattern.typicalHours.includes(hour);
-    const dayMatch = profile.accessPattern.typicalDays.includes(day);
+    const hourMatch = (profile.accessPattern?.typicalHours ?? []).includes(hour);
+    const dayMatch = (profile.accessPattern?.typicalDays ?? []).includes(day);
 
     return hourMatch && dayMatch ? 0.2 : 0.8;
   }
