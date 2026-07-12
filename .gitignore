@@ -96,3 +96,7 @@ vercel-*.txt
 *.env.txt
 secrets*.txt
 PRODUCTION_SECRETS.*
+
+# Test env (local-only, safe to commit)
+!.env.test
+!backend/.env.test

@@ -17,7 +17,7 @@ describe('Subscription Limits', () => {
     })
 
     it('should have correct limits for individual tier', () => {
-      expect(SUBSCRIPTION_LIMITS.individual.devices).toBe(3)
+      expect(SUBSCRIPTION_LIMITS.individual.devices).toBe(5)
       expect(SUBSCRIPTION_LIMITS.individual.vaults).toBe(5)
       expect(SUBSCRIPTION_LIMITS.individual.teamMembers).toBe(0)
       expect(SUBSCRIPTION_LIMITS.individual.storageMB).toBe(1024)
@@ -37,18 +37,11 @@ describe('Subscription Limits', () => {
       expect(SUBSCRIPTION_LIMITS.teams.storageMB).toBe(10240)
     })
 
-    it('should have correct limits for business tier', () => {
-      expect(SUBSCRIPTION_LIMITS.business.devices).toBe(200)
-      expect(SUBSCRIPTION_LIMITS.business.vaults).toBe(500)
-      expect(SUBSCRIPTION_LIMITS.business.teamMembers).toBe(200)
-      expect(SUBSCRIPTION_LIMITS.business.storageMB).toBe(51200)
-    })
-
-    it('should have unlimited limits for enterprise tier', () => {
-      expect(SUBSCRIPTION_LIMITS.enterprise.devices).toBe(-1)
-      expect(SUBSCRIPTION_LIMITS.enterprise.vaults).toBe(-1)
-      expect(SUBSCRIPTION_LIMITS.enterprise.teamMembers).toBe(-1)
-      expect(SUBSCRIPTION_LIMITS.enterprise.storageMB).toBe(-1)
+    it('should map enterprise tier to the teams plan limits', () => {
+      expect(SUBSCRIPTION_LIMITS.enterprise.devices).toBe(50)
+      expect(SUBSCRIPTION_LIMITS.enterprise.vaults).toBe(100)
+      expect(SUBSCRIPTION_LIMITS.enterprise.teamMembers).toBe(50)
+      expect(SUBSCRIPTION_LIMITS.enterprise.storageMB).toBe(10240)
     })
   })
 

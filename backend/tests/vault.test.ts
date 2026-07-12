@@ -9,7 +9,7 @@ import { adapter } from '../src/adapters'
 import { FastifyRequest, FastifyReply } from 'fastify'
 
 // Mock Fastify request/reply
-const createMockRequest = (body?: any, query?: any): FastifyRequest => ({
+const createMockRequest = (body?: any, query?: any): any => ({
   body,
   query,
   log: {
@@ -20,7 +20,7 @@ const createMockRequest = (body?: any, query?: any): FastifyRequest => ({
   }
 } as any)
 
-const createMockReply = (): FastifyReply => {
+const createMockReply = (): any => {
   const reply = {
     code: jest.fn().mockReturnThis(),
     send: jest.fn().mockReturnThis(),

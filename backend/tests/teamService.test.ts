@@ -168,7 +168,7 @@ describe('Team Service', () => {
         where: { teamId: team.id, userId: memberUser.id }
       })
       
-      const updated = await updateTeamMemberRole(team.id, member!.id, 'manager', ownerId)
+      const updated = await updateTeamMemberRole(team.id, ownerId, member!.id, 'manager')
       
       expect(updated.role).toBe('manager')
     })

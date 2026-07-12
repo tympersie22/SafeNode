@@ -22,7 +22,7 @@ describe('Per-User Rate Limiting', () => {
         id: 'user-1',
         subscriptionTier: 'free'
       }
-      ;(findUserById as jest.Mock).mockResolvedValue(mockUser)
+      ;(findUserById as jest.Mock).mockResolvedValue(mockUser as any)
 
       const status = await getUserRateLimitStatus('user-1')
       
@@ -37,7 +37,7 @@ describe('Per-User Rate Limiting', () => {
         id: 'user-2',
         subscriptionTier: 'enterprise'
       }
-      ;(findUserById as jest.Mock).mockResolvedValue(mockUser)
+      ;(findUserById as jest.Mock).mockResolvedValue(mockUser as any)
 
       const status = await getUserRateLimitStatus('user-2')
       
@@ -47,7 +47,7 @@ describe('Per-User Rate Limiting', () => {
     })
 
     it('should throw error for non-existent user', async () => {
-      ;(findUserById as jest.Mock).mockResolvedValue(null)
+      ;(findUserById as jest.Mock).mockResolvedValue(null as any)
 
       await expect(
         getUserRateLimitStatus('invalid-user')

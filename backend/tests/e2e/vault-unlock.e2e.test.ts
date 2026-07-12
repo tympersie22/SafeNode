@@ -27,7 +27,7 @@ describe('E2E: Vault Unlock Flow', () => {
   describe('Vault Operations', () => {
     it('should unlock vault and view entries', async () => {
       // Step 1: Authenticate
-      const user = await authenticateUser(userEmail, 'AccountPassword123!')
+      const { user } = await authenticateUser(userEmail, 'AccountPassword123!')
       expect(user).not.toBeNull()
 
       // Step 2: Save vault
@@ -48,11 +48,11 @@ describe('E2E: Vault Unlock Flow', () => {
     })
 
     it('should handle empty vault', async () => {
-      const user = await authenticateUser(userEmail, 'AccountPassword123!')
+      const { user } = await authenticateUser(userEmail, 'AccountPassword123!')
       expect(user).not.toBeNull()
 
       // Empty vault scenario
-      expect(user?.vaultEncrypted).toBeDefined()
+      expect((user as any)?.vaultEncrypted).toBeDefined()
     })
   })
 })

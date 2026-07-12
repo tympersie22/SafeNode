@@ -3,23 +3,23 @@
  * Unit tests for Stripe integration (mocked)
  */
 
-import { describe, it, expect, beforeEach, vi } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { SUBSCRIPTION_LIMITS, checkSubscriptionLimits } from '../src/services/stripeService'
 import { createUser, updateUser } from '../src/services/userService'
 
 // Mock Stripe
-vi.mock('stripe', () => {
+jest.mock('stripe', () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
+    default: jest.fn().mockImplementation(() => ({
       customers: {
-        create: vi.fn().mockResolvedValue({
+        create: jest.fn().mockResolvedValue({
           id: 'cus_test123',
           email: 'test@example.com'
         })
       },
       checkout: {
         sessions: {
-          create: vi.fn().mockResolvedValue({
+          create: jest.fn().mockResolvedValue({
             id: 'cs_test123',
             url: 'https://checkout.stripe.com/test'
           })
@@ -27,13 +27,13 @@ vi.mock('stripe', () => {
       },
       billingPortal: {
         sessions: {
-          create: vi.fn().mockResolvedValue({
+          create: jest.fn().mockResolvedValue({
             url: 'https://billing.stripe.com/test'
           })
         }
       },
       subscriptions: {
-        retrieve: vi.fn().mockResolvedValue({
+        retrieve: jest.fn().mockResolvedValue({
           id: 'sub_test123',
           status: 'active',
           items: {
