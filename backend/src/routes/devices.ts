@@ -406,6 +406,65 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
    * DELETE /api/devices/:id
    * Remove a device (requires authentication)
    */
+  /**
+   * POST /api/devices/reclaim
+   * Free a device slot from an authenticated session WITHOUT requiring the
+   * current device to be registered. Lets a user locked out by the device limit
+   * (new browser / cleared storage / lost device) remove one of their existing
+   * devices so this device can then register. Auth-only by design.
+   */
+  server.post('/api/devices/reclaim', {
+    preHandler: requireAuth
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const body = (request.body as any) || {}
+      const targetId: string | undefined = body.id
+      const targetDeviceId: string | undefined = body.deviceId
+
+      if (!targetId && !targetDeviceId) {
+        return reply.code(400).send({
+          error: 'validation_error',
+          message: 'Provide the id (or deviceId) of the device to remove.'
+        })
+      }
+
+      const prisma = getPrismaClient()
+      const device = await prisma.device.findFirst({
+        where: {
+          userId: user.id,
+          ...(targetId ? { id: targetId } : { deviceId: targetDeviceId })
+        }
+      })
+
+      if (!device) {
+        return reply.code(404).send({ error: 'device_not_found', message: 'Device not found' })
+      }
+
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { isActive: false, requiresReapproval: true, removedAt: new Date() }
+      })
+
+      const revokedSessions = await revokeDeviceSessions(user.id, device.deviceId, 'device_reclaimed')
+
+      createAuditLog({
+        userId: user.id,
+        action: 'device_removed',
+        resourceType: 'device',
+        resourceId: device.id,
+        metadata: { deviceName: device.name, revokedSessions, reason: 'reclaim_slot' },
+        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+        userAgent: request.headers['user-agent'] || undefined
+      }).catch(() => undefined)
+
+      return { success: true, removedDeviceId: device.deviceId, revokedSessions }
+    } catch (error: any) {
+      request.log.error({ error: error?.message }, 'Failed to reclaim device slot')
+      return reply.code(500).send({ error: 'reclaim_failed', message: 'Failed to remove device' })
+    }
+  })
+
   server.delete('/api/devices/:id', {
     preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {

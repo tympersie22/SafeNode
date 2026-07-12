@@ -194,12 +194,28 @@ export async function requireRegisteredDevice(
     })
   }
 
+  // Include the user's active devices so the client can offer a "remove a device
+  // to continue" action (self-service device swap without vault access).
+  const activeDevices = await prisma.device.findMany({
+    where: { userId: user.id, isActive: true },
+    orderBy: { lastSeen: 'asc' },
+    select: { id: true, deviceId: true, name: true, platform: true, lastSeen: true }
+  })
+
   return deny(activeDevice ? 'DEVICE_INACTIVE' : 'DEVICE_NOT_REGISTERED', guidance.message, {
     currentPlan,
     currentPlanName: PLAN_NAMES[currentPlan],
     recommendedPlan: guidance.recommendedPlan,
     recommendedPlanName: guidance.recommendedPlan ? PLAN_NAMES[guidance.recommendedPlan] : null,
     current: deviceLimit.current,
-    limit: deviceLimit.limit
+    limit: deviceLimit.limit,
+    devices: activeDevices.map((d) => ({
+      id: d.id,
+      deviceId: d.deviceId,
+      name: d.name,
+      platform: d.platform,
+      lastSeen: d.lastSeen.getTime(),
+      isCurrent: d.deviceId === deviceId
+    }))
   })
 }

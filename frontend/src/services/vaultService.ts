@@ -77,12 +77,14 @@ export interface EncryptedVault {
 export class VaultAccessError extends Error {
   status?: number
   code?: string
+  details?: any
 
-  constructor(message: string, status?: number, code?: string) {
+  constructor(message: string, status?: number, code?: string, details?: any) {
     super(message)
     this.name = 'VaultAccessError'
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 
@@ -602,7 +604,8 @@ export async function vaultExists(): Promise<boolean> {
       throw new VaultAccessError(
         error.message || 'Failed to verify vault access',
         response.status,
-        error.code || error.error
+        error.code || error.error,
+        error
       )
     }
 

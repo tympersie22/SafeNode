@@ -14,6 +14,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { VaultAccessError, unlockVault, vaultExists } from '../services/vaultService'
+import DeviceLimitPanel from './DeviceLimitPanel'
 import { recoverVaultWithKit } from '../services/recoveryService'
 import { logout } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
@@ -96,6 +97,13 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   const [passkeyAvailable, setPasskeyAvailable] = useState(false)
   const [passkeyEnabled, setPasskeyEnabled] = useState(false)
   const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
+  const [deviceLimit, setDeviceLimit] = useState<{
+    devices: Array<{ id: string; deviceId: string; name: string; platform: string; lastSeen: number; isCurrent?: boolean }>
+    current: number
+    limit: number
+    planName?: string
+    recommendedPlanName?: string
+  } | null>(null)
 
   const { user } = useAuth()
   const prefersReducedMotion = useReducedMotion()
@@ -114,30 +122,41 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     }
   }, [vaultPresenceHint])
 
-  // ── Check vault existence once per user ────────────────────────────────────
-  useEffect(() => {
+  // ── Check vault existence (re-runnable so we can retry after a device swap) ──
+  const runVaultCheck = useCallback((force = false) => {
     if (!user?.id) {
       lastCheckedUserId.current = null
       setHasVault(null)
       return
     }
 
-    if (typeof vaultPresenceHint === 'boolean') {
+    if (typeof vaultPresenceHint === 'boolean' && !force) {
       lastCheckedUserId.current = user.id
       return
     }
 
-    if (user.id === lastCheckedUserId.current || checkInProgress.current) return
+    if (!force && (user.id === lastCheckedUserId.current || checkInProgress.current)) return
 
     checkInProgress.current = true
     lastCheckedUserId.current = user.id
+    setDeviceLimit(null)
 
     vaultExists()
       .then((exists) => setHasVault(exists))
       .catch((err) => {
         devWarn('[UnlockVault] vault existence check failed:', err)
         if (err instanceof VaultAccessError) {
-          if (err.status === 403) {
+          if (err.status === 403 && Array.isArray(err.details?.devices) && err.details.devices.length > 0) {
+            // Device-limit lockout: offer self-service device removal instead of a dead end.
+            setDeviceLimit({
+              devices: err.details.devices,
+              current: err.details.current,
+              limit: err.details.limit,
+              planName: err.details.currentPlanName,
+              recommendedPlanName: err.details.recommendedPlanName
+            })
+            setError(null)
+          } else if (err.status === 403) {
             setError(err.message || 'This device is not approved to access your existing vault yet.')
           } else if (err.status === 401) {
             setError(err.message || 'Your session is no longer active. Please sign in again.')
@@ -156,7 +175,12 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       .finally(() => {
         checkInProgress.current = false
       })
-  }, [user?.id])
+  }, [user?.id, vaultPresenceHint])
+
+  // ── Check vault existence once per user ────────────────────────────────────
+  useEffect(() => {
+    runVaultCheck()
+  }, [runVaultCheck])
 
   // ── Auto-proceed to setup when no vault found ──────────────────────────────
   useEffect(() => {
@@ -464,6 +488,20 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                 : 'Enter your vault passphrase to access your encrypted vault.'}
             </p>
           </div>
+
+          {/* Device limit reached — self-service device removal */}
+          {deviceLimit && (
+            <div className="mb-6">
+              <DeviceLimitPanel
+                devices={deviceLimit.devices}
+                current={deviceLimit.current}
+                limit={deviceLimit.limit}
+                planName={deviceLimit.planName}
+                recommendedPlanName={deviceLimit.recommendedPlanName}
+                onResolved={() => runVaultCheck(true)}
+              />
+            </div>
+          )}
 
           {/* Error */}
           <AnimatePresence>

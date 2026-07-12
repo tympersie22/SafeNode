@@ -263,3 +263,28 @@ export async function approveDevice(deviceId: string): Promise<void> {
     throw new Error(error.message || 'Failed to approve device')
   }
 }
+
+/**
+ * Free a device slot from an authenticated session (no registered-device
+ * requirement). Used by the "device limit reached" screen so a locked-out user
+ * can remove one of their devices and register this one.
+ */
+export async function reclaimDeviceSlot(deviceRowId: string): Promise<void> {
+  const token = localStorage.getItem('safenode_token')
+  if (!token) throw new Error('Not authenticated')
+
+  const response = await fetch(`${API_BASE}/api/devices/reclaim`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-Device-ID': getCurrentDeviceId()
+    },
+    body: JSON.stringify({ id: deviceRowId })
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || 'Failed to remove device')
+  }
+}
