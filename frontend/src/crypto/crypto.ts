@@ -99,11 +99,14 @@ export async function importVaultKey(rawKey: ArrayBuffer): Promise<CryptoKey> {
     throw new Error('WebCrypto API not supported');
   }
 
+  // Extractable: true — the vault key is unwrapped and then re-exported
+  // (exportVaultKey) to hold the raw key for the session. This is entirely
+  // client-side; the server never receives it, so zero-knowledge is preserved.
   return window.crypto.subtle.importKey(
     'raw',
     rawKey,
     { name: 'AES-GCM' },
-    false,
+    true,
     ['encrypt', 'decrypt']
   )
 }
