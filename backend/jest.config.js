@@ -26,6 +26,11 @@ module.exports = {
   },
   maxWorkers: 1,
   testTimeout: 10000,
+  // Prisma's query-engine process can linger after the suite even when all
+  // application handles are closed (setup.ts disconnects Prisma in afterAll).
+  // `--detectOpenHandles` reports no leak, so force a clean exit rather than
+  // hang CI. Safe here precisely because there is no unreported handle.
+  forceExit: true,
   coverageThreshold: {
     global: {
       branches: 70,
