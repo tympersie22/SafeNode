@@ -289,20 +289,29 @@ export const prismaUserAdapter = {
       updateData.stripeSubscriptionId = input.stripeSubscriptionId || null
     }
     
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      include: {
-        devices: {
-          where: { isActive: true },
-          orderBy: { lastSeen: 'desc' }
+    try {
+      const updated = await prisma.user.update({
+        where: { id },
+        data: updateData,
+        include: {
+          devices: {
+            where: { isActive: true },
+            orderBy: { lastSeen: 'desc' }
+          }
         }
+      })
+
+      const result = prismaUserToDomain(updated)
+      ;(result as any).tokenVersion = updated.tokenVersion || 1
+      return result
+    } catch (error) {
+      // Prisma throws P2025 when the target row does not exist; return null so
+      // callers can treat "update a missing user" as a not-found, not a crash.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        return null
       }
-    })
-    
-    const result = prismaUserToDomain(updated)
-    ;(result as any).tokenVersion = updated.tokenVersion || 1
-    return result
+      throw error
+    }
   },
 
   /**
