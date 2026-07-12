@@ -12,28 +12,28 @@ jest.mock('stripe', () => {
   return {
     default: jest.fn().mockImplementation(() => ({
       customers: {
-        create: jest.fn().mockResolvedValue({
+        create: jest.fn().mockImplementation(async () => ({
           id: 'cus_test123',
           email: 'test@example.com'
-        })
+        }))
       },
       checkout: {
         sessions: {
-          create: jest.fn().mockResolvedValue({
+          create: jest.fn().mockImplementation(async () => ({
             id: 'cs_test123',
             url: 'https://checkout.stripe.com/test'
-          })
+          }))
         }
       },
       billingPortal: {
         sessions: {
-          create: jest.fn().mockResolvedValue({
+          create: jest.fn().mockImplementation(async () => ({
             url: 'https://billing.stripe.com/test'
-          })
+          }))
         }
       },
       subscriptions: {
-        retrieve: jest.fn().mockResolvedValue({
+        retrieve: jest.fn().mockImplementation(async () => ({
           id: 'sub_test123',
           status: 'active',
           items: {
@@ -46,7 +46,7 @@ jest.mock('stripe', () => {
           current_period_start: Math.floor(Date.now() / 1000),
           current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
           cancel_at_period_end: false
-        })
+        }))
       }
     }))
   }

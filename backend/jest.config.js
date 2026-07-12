@@ -9,9 +9,7 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        types: ['node', 'jest']
-      }
+      tsconfig: '<rootDir>/tsconfig.test.json'
     }]
   },
   collectCoverageFrom: [
@@ -26,6 +24,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
+  maxWorkers: 1,
   testTimeout: 10000,
   coverageThreshold: {
     global: {

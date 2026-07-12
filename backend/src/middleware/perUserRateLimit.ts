@@ -15,8 +15,8 @@ interface RateLimitRecord {
 
 const rateLimitStore = new Map<string, RateLimitRecord>()
 
-// Clean up expired records every 5 minutes
-setInterval(() => {
+// Keep cleanup running in app processes without blocking test/process shutdown.
+const rateLimitCleanupInterval = setInterval(() => {
   const now = Date.now()
   for (const [key, record] of rateLimitStore.entries()) {
     if (now > record.resetAt) {
@@ -24,6 +24,7 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000)
+rateLimitCleanupInterval.unref?.()
 
 // Rate limits per tier (requests per minute)
 const TIER_RATE_LIMITS = {

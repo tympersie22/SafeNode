@@ -3,22 +3,22 @@
  * Tests vault unlock and entry viewing
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals'
+import { describe, it, expect, beforeEach } from '@jest/globals'
 import { createUser, updateVault } from '../../src/services/userService'
 import { authenticateUser } from '../../src/services/userService'
 
 describe('E2E: Vault Unlock Flow', () => {
   let userId: string
   let userEmail: string
-  let masterPassword: string
+  let userPassword: string
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     userEmail = `vault-e2e-${Date.now()}@example.com`
-    masterPassword = 'MasterPassword123!'
+    userPassword = 'AccountPassword123!'
 
     const user = await createUser({
       email: userEmail,
-      password: 'AccountPassword123!',
+      password: userPassword,
       displayName: 'Vault Test User'
     })
     userId = user.id
@@ -27,13 +27,12 @@ describe('E2E: Vault Unlock Flow', () => {
   describe('Vault Operations', () => {
     it('should unlock vault and view entries', async () => {
       // Step 1: Authenticate
-      const { user } = await authenticateUser(userEmail, 'AccountPassword123!')
+      const { user } = await authenticateUser(userEmail, userPassword)
       expect(user).not.toBeNull()
 
       // Step 2: Save vault
       const encryptedVault = 'encrypted-vault-data'
       const iv = 'iv-data'
-      const salt = 'salt-data'
       const version = Date.now()
 
       await updateVault(userId, encryptedVault, iv, version)
@@ -48,7 +47,7 @@ describe('E2E: Vault Unlock Flow', () => {
     })
 
     it('should handle empty vault', async () => {
-      const { user } = await authenticateUser(userEmail, 'AccountPassword123!')
+      const { user } = await authenticateUser(userEmail, userPassword)
       expect(user).not.toBeNull()
 
       // Empty vault scenario
@@ -56,4 +55,3 @@ describe('E2E: Vault Unlock Flow', () => {
     })
   })
 })
-

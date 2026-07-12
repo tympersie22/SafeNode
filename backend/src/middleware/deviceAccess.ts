@@ -47,8 +47,9 @@ async function resolveEffectivePlan(userId: string, subscriptionTier: string): P
     }
   }
 
-  if (subscriptionTier === 'enterprise') return 'teams'
-  if (subscriptionTier === 'pro') return 'individual'
+  if (subscriptionTier === 'teams' || subscriptionTier === 'enterprise') return 'teams'
+  if (subscriptionTier === 'family') return 'family'
+  if (subscriptionTier === 'individual' || subscriptionTier === 'pro') return 'individual'
   return 'free'
 }
 

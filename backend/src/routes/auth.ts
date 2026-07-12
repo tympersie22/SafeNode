@@ -898,7 +898,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
       
-      const { verifyToken } = await import('../middleware/auth.js')
+      const { verifyToken } = await import('../middleware/auth')
       const payload = verifyToken(token)
       
       if (!payload) {

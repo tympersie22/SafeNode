@@ -6,16 +6,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import {
   getSSOLoginUrl,
-  handleSSOCallback,
   initializeSSOProvider,
-  cleanupExpiredStates
 } from '../src/services/ssoService'
 import type { SSOConfig } from '../src/services/ssoService'
-import fetch from 'node-fetch'
-
-// Mock node-fetch
-jest.mock('node-fetch')
-const mockedFetch = fetch as jest.MockedFunction<typeof fetch>
 
 describe('SSO Service', () => {
   const mockConfig: SSOConfig = {
@@ -102,4 +95,3 @@ describe('SSO Service', () => {
     })
   })
 })
-

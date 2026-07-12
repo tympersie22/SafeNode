@@ -131,6 +131,9 @@ async function resolveUserPlan(userId: string, subscriptionTier: string): Promis
     return planFromPrice
   }
 
+  if (subscriptionTier === 'teams') return 'teams'
+  if (subscriptionTier === 'family') return 'family'
+  if (subscriptionTier === 'individual') return 'individual'
   if (subscriptionTier === 'enterprise') return 'teams'
   if (subscriptionTier === 'pro') return 'individual'
   return 'free'

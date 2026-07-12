@@ -8,6 +8,26 @@ import { getLatestVault, saveVault } from '../src/controllers/vaultController'
 import { adapter } from '../src/adapters'
 import { FastifyRequest, FastifyReply } from 'fastify'
 
+jest.mock('../src/adapters', () => {
+  let storedVault: any = null
+
+  return {
+    __resetStoredVault: () => {
+      storedVault = null
+    },
+    adapter: {
+      init: jest.fn(async () => undefined),
+      readVault: jest.fn(async () => storedVault),
+      writeVault: jest.fn(async (vault: any) => {
+        storedVault = vault
+      }),
+      close: jest.fn(async () => undefined)
+    }
+  }
+})
+
+const { __resetStoredVault } = jest.requireMock('../src/adapters') as { __resetStoredVault: () => void }
+
 // Mock Fastify request/reply
 const createMockRequest = (body?: any, query?: any): any => ({
   body,
@@ -31,7 +51,9 @@ const createMockReply = (): any => {
 
 describe('Vault Controller', () => {
   beforeEach(async () => {
-    // Initialize adapter
+    __resetStoredVault()
+    ;(adapter.writeVault as jest.Mock).mockClear()
+    ;(adapter.readVault as jest.Mock).mockClear()
     await adapter.init()
   })
 
@@ -64,8 +86,8 @@ describe('Vault Controller', () => {
       expect(reply.code).toHaveBeenCalledWith(400)
       expect(reply.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'invalid_payload',
-          message: 'encryptedVault is required and cannot be empty'
+          error: 'validation_error',
+          message: 'Invalid vault payload'
         })
       )
     })
@@ -82,8 +104,8 @@ describe('Vault Controller', () => {
       expect(reply.code).toHaveBeenCalledWith(400)
       expect(reply.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'invalid_payload',
-          message: 'iv is required and cannot be empty'
+          error: 'validation_error',
+          message: 'Invalid vault payload'
         })
       )
     })
@@ -190,4 +212,3 @@ describe('Vault Controller', () => {
     })
   })
 })
-

@@ -29,11 +29,11 @@ export interface PaginatedResponse<T> {
 export const paginationSchema = z.object({
   page: z.string().optional().transform(val => {
     const parsed = val ? parseInt(val, 10) : 1
-    return parsed > 0 ? parsed : 1
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
   }),
   limit: z.string().optional().transform(val => {
     const parsed = val ? parseInt(val, 10) : 20
-    if (parsed < 1) return 20
+    if (!Number.isFinite(parsed) || parsed < 1) return 20
     if (parsed > 100) return 100 // Max 100 items per page
     return parsed
   })
@@ -238,4 +238,3 @@ export function parseSortFromQuery(query: any, defaultField: string = 'createdAt
 export function validateSortField(field: string, allowedFields: string[]): boolean {
   return allowedFields.includes(field)
 }
-

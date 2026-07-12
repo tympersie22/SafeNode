@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals'
 import Fastify from 'fastify'
 import { registerAuthRoutes } from '../../src/routes/auth'
+import { registerDeviceRoutes } from '../../src/routes/devices'
 
 describe('E2E: Login Flow', () => {
   let server: any
@@ -15,6 +16,7 @@ describe('E2E: Login Flow', () => {
   beforeAll(async () => {
     server = Fastify({ logger: false })
     await registerAuthRoutes(server)
+    await registerDeviceRoutes(server)
     await server.ready()
 
     testEmail = `e2e-${Date.now()}@example.com`
@@ -44,13 +46,14 @@ describe('E2E: Login Flow', () => {
       expect(registerData.token).toBeDefined()
 
       const token = registerData.token
+      const deviceId = `device-${Date.now()}`
 
       // Step 2: Verify token
       const verifyResponse = await server.inject({
         method: 'POST',
         url: '/api/auth/verify',
-        headers: {
-          Authorization: `Bearer ${token}`
+        payload: {
+          token
         }
       })
 
@@ -73,12 +76,29 @@ describe('E2E: Login Flow', () => {
       expect(loginData.success).toBe(true)
       expect(loginData.token).toBeDefined()
 
+      const registerDeviceResponse = await server.inject({
+        method: 'POST',
+        url: '/api/devices/register',
+        headers: {
+          Authorization: `Bearer ${loginData.token}`,
+          'x-device-id': deviceId
+        },
+        payload: {
+          deviceId,
+          name: 'Login Flow Browser',
+          platform: 'web'
+        }
+      })
+
+      expect([200, 201]).toContain(registerDeviceResponse.statusCode)
+
       // Step 4: Access protected resource
       const vaultResponse = await server.inject({
         method: 'GET',
         url: '/api/auth/vault/latest',
         headers: {
-          Authorization: `Bearer ${loginData.token}`
+          Authorization: `Bearer ${loginData.token}`,
+          'x-device-id': deviceId
         }
       })
 
@@ -102,8 +122,8 @@ describe('E2E: Login Flow', () => {
       const response = await server.inject({
         method: 'POST',
         url: '/api/auth/verify',
-        headers: {
-          Authorization: 'Bearer invalid-token'
+        payload: {
+          token: 'invalid-token'
         }
       })
 
@@ -111,4 +131,3 @@ describe('E2E: Login Flow', () => {
     })
   })
 })
-
