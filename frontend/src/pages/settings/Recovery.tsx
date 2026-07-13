@@ -138,7 +138,7 @@ export const RecoveryCenterSettings: React.FC = () => {
       {
         id: 'factors',
         label: 'Fallback factors',
-        detail: user?.twoFactorEnabled || user?.biometricEnabled ? 'Additional verification factors are configured' : 'Set up 2FA or biometrics on a trusted device',
+        detail: user?.twoFactorEnabled || user?.biometricEnabled ? 'Additional verification factors are configured' : 'Set up 2FA or an authenticator-backed device factor',
         state: factorState,
         actionLabel: 'Open identity settings',
         action: () => navigate('/settings?tab=security')
@@ -149,7 +149,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         detail: trustedDeviceReady
           ? 'The vault is currently unlocked in this browser session'
           : user?.recoveryKitConfigured
-            ? 'Use your vault passphrase or recovery kit each session on this device until passkey-based cryptographic unlock ships'
+            ? 'Use a passkey when vault unlock is enrolled on this device, or fall back to your vault passphrase or recovery kit.'
             : 'Current device recovery still needs to be configured',
         state: deviceUnlockState,
         actionLabel: 'Review unlock path',
@@ -158,7 +158,7 @@ export const RecoveryCenterSettings: React.FC = () => {
       {
         id: 'devices',
         label: 'Trusted devices',
-        detail: devices.length > 0 ? `${devices.length} active device${devices.length === 1 ? '' : 's'} registered` : 'No trusted devices detected',
+        detail: devices.length > 0 ? `${devices.length} active device${devices.length === 1 ? '' : 's'} registered` : 'No active devices detected',
         state: deviceState,
         actionLabel: 'Review devices',
         action: () => navigate('/settings?tab=devices')
@@ -222,7 +222,7 @@ export const RecoveryCenterSettings: React.FC = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Recovery posture</p>
             <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">Account continuity readiness</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              A strong recovery posture means passkeys, verified identity, trusted devices, export readiness, and a continuity plan are all in place.
+              A strong recovery posture means passkeys, verified identity, active devices, export readiness, and a continuity plan are all in place.
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-right dark:border-slate-700 dark:bg-slate-900/50">
@@ -304,7 +304,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
           {needsAttention.length === 0 ? (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
-              This account has the core recovery controls in place. Next step: add more than one trusted device and periodically verify your encrypted export path.
+              This account has the core recovery controls in place. Next step: keep more than one active device available and periodically verify your encrypted export path.
             </p>
           ) : (
             needsAttention.map((item) => (
@@ -360,7 +360,7 @@ export const RecoveryCenterSettings: React.FC = () => {
                 {latestRecoveryKit}
               </p>
               <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
-                This kit is what keeps the vault recoverable if a trusted device or local passphrase is no longer available.
+                This kit is what keeps the vault recoverable if a passkey-backed device or local passphrase is no longer available.
               </p>
               <div className="mt-4">
                 <SaasButton

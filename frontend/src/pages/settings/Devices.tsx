@@ -189,7 +189,7 @@ export const DevicesSettings: React.FC = () => {
           Trusted Devices
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          View and manage the devices that can access your identity vault and passkey-backed sessions.
+          View and manage the devices that can sign in with your passkeys and reach your vault sessions.
         </p>
       </div>
 
