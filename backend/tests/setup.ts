@@ -33,11 +33,25 @@ function assertTestDatabase(): void {
   }
 }
 
-// Disable Sentry in tests + verify we are pointed at a test database
-beforeAll(() => {
+// Disable Sentry in tests + verify we are pointed at a reachable test database
+beforeAll(async () => {
   process.env.SENTRY_DSN = ''
   process.env.NODE_ENV = 'test'
   assertTestDatabase()
+
+  // Fail fast with a clear message if the test DB is unreachable, instead of
+  // hanging silently on the first query (e.g. blocked/unreachable Postgres).
+  const prisma = getPrismaClient()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([
+    prisma.$connect().then(() => { if (timer) clearTimeout(timer) }),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(
+        'Cannot reach the test database. Check DATABASE_URL and that Postgres is running/reachable. ' +
+        'Failing fast instead of hanging.'
+      )), 8000)
+    })
+  ])
 })
 
 // Clean database before each test
