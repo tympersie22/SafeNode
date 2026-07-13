@@ -290,6 +290,9 @@ model WebAuthnCredential {
   transports String[] @default([])
   deviceType String? @map("device_type")
   backedUp Boolean? @map("backed_up")
+  prfSalt String? @map("prf_salt")
+  prfWrappedVaultKey String? @map("prf_wrapped_vault_key")
+  prfWrappedVaultKeyIV String? @map("prf_wrapped_vault_key_iv")
   createdAt DateTime @default(now()) @map("created_at")
   lastUsedAt DateTime? @map("last_used_at")
 

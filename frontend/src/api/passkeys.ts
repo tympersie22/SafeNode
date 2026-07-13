@@ -1,14 +1,14 @@
 import { API_BASE } from '../config/api'
 import { getCurrentDeviceId } from '../services/deviceService'
 import type { AuthResponse } from '../services/authService'
-import type { PasskeyRecord } from '../types/passkeys'
+import type { PasskeyRecord, PasskeyVaultUnlockRecord } from '../types/passkeys'
 
 const getAuthHeader = (): string => {
   const token = localStorage.getItem('safenode_token')
   return token ? `Bearer ${token}` : ''
 }
 
-const base64UrlToBuffer = (value: string): ArrayBuffer => {
+export const base64UrlToBuffer = (value: string): ArrayBuffer => {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=')
   const decoded = window.atob(padded)
   const bytes = new Uint8Array(decoded.length)
@@ -18,7 +18,7 @@ const base64UrlToBuffer = (value: string): ArrayBuffer => {
   return bytes.buffer
 }
 
-const bufferToBase64Url = (buffer: ArrayBuffer): string => {
+export const bufferToBase64Url = (buffer: ArrayBuffer): string => {
   const bytes = new Uint8Array(buffer)
   let binary = ''
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -35,12 +35,27 @@ function getCommonHeaders(includeJson = false): HeadersInit {
   }
 }
 
+function createPrfProbeExtension(): AuthenticationExtensionsClientInputs {
+  const probe = new Uint8Array(32)
+  window.crypto.getRandomValues(probe)
+  return {
+    prf: {
+      eval: {
+        first: probe,
+      },
+    },
+  }
+}
+
 async function parseError(res: Response, fallback: string): Promise<never> {
   const error = await res.json().catch(() => ({ message: fallback }))
   throw new Error(error.message || error.error || fallback)
 }
 
-function buildCreationOptions(optionsJson: any): PublicKeyCredentialCreationOptions {
+function buildCreationOptions(
+  optionsJson: any,
+  extensions?: AuthenticationExtensionsClientInputs
+): PublicKeyCredentialCreationOptions {
   return {
     challenge: base64UrlToBuffer(optionsJson.challenge),
     rp: optionsJson.rp,
@@ -52,10 +67,14 @@ function buildCreationOptions(optionsJson: any): PublicKeyCredentialCreationOpti
     timeout: optionsJson.timeout,
     attestation: optionsJson.attestation,
     authenticatorSelection: optionsJson.authenticatorSelection,
+    extensions,
   }
 }
 
-function buildRequestOptions(optionsJson: any): PublicKeyCredentialRequestOptions {
+function buildRequestOptions(
+  optionsJson: any,
+  extensions?: AuthenticationExtensionsClientInputs
+): PublicKeyCredentialRequestOptions {
   const allowCredentials = Array.isArray(optionsJson.allowCredentials)
     ? optionsJson.allowCredentials.map((cred: any) => ({
         type: cred.type,
@@ -70,6 +89,7 @@ function buildRequestOptions(optionsJson: any): PublicKeyCredentialRequestOption
     rpId: optionsJson.rpId,
     allowCredentials,
     userVerification: optionsJson.userVerification,
+    extensions,
   }
 }
 
@@ -83,15 +103,19 @@ async function collectRegistrationPayload(publicKey: PublicKeyCredentialCreation
   const transports = (attestationResponse as any).getTransports?.() ?? []
 
   return {
-    credential: {
-      id: credential.id,
-      rawId: bufferToBase64Url(credential.rawId),
-      type: credential.type,
-      transports,
-    },
-    attestation: {
-      clientDataJSON: bufferToBase64Url(attestationResponse.clientDataJSON),
-      attestationObject: bufferToBase64Url(attestationResponse.attestationObject),
+    credential,
+    clientExtensionResults: credential.getClientExtensionResults?.() || {},
+    payload: {
+      credential: {
+        id: credential.id,
+        rawId: bufferToBase64Url(credential.rawId),
+        type: credential.type,
+        transports,
+      },
+      attestation: {
+        clientDataJSON: bufferToBase64Url(attestationResponse.clientDataJSON),
+        attestationObject: bufferToBase64Url(attestationResponse.attestationObject),
+      },
     },
   }
 }
@@ -104,18 +128,32 @@ async function collectAuthenticationPayload(publicKey: PublicKeyCredentialReques
 
   const authResponse = assertion.response as AuthenticatorAssertionResponse
   return {
-    credential: {
-      id: assertion.id,
-      rawId: bufferToBase64Url(assertion.rawId),
-      type: assertion.type,
-    },
-    assertion: {
-      clientDataJSON: bufferToBase64Url(authResponse.clientDataJSON),
-      authenticatorData: bufferToBase64Url(authResponse.authenticatorData),
-      signature: bufferToBase64Url(authResponse.signature),
-      userHandle: authResponse.userHandle ? bufferToBase64Url(authResponse.userHandle) : null,
+    assertion,
+    clientExtensionResults: assertion.getClientExtensionResults?.() || {},
+    payload: {
+      credential: {
+        id: assertion.id,
+        rawId: bufferToBase64Url(assertion.rawId),
+        type: assertion.type,
+      },
+      assertion: {
+        clientDataJSON: bufferToBase64Url(authResponse.clientDataJSON),
+        authenticatorData: bufferToBase64Url(authResponse.authenticatorData),
+        signature: bufferToBase64Url(authResponse.signature),
+        userHandle: authResponse.userHandle ? bufferToBase64Url(authResponse.userHandle) : null,
+      },
     },
   }
+}
+
+export interface RegisterPasskeyResult {
+  passkey: PasskeyRecord
+  prfEnabled: boolean
+}
+
+export interface VerifiedPasskeyAssertionResult {
+  credentialId: string
+  clientExtensionResults: AuthenticationExtensionsClientOutputs
 }
 
 export const listPasskeys = async (): Promise<PasskeyRecord[]> => {
@@ -143,7 +181,12 @@ export const deletePasskey = async (id: string): Promise<void> => {
   }
 }
 
-export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRecord> => {
+export const registerPasskey = async (
+  friendlyName?: string,
+  options: {
+    extensions?: AuthenticationExtensionsClientInputs
+  } = {}
+): Promise<RegisterPasskeyResult> => {
   const optionsResponse = await fetch(`${API_BASE}/api/passkeys/register/options`, {
     method: 'POST',
     headers: {
@@ -155,7 +198,9 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
     await parseError(optionsResponse, 'Failed to begin passkey registration')
   }
   const optionsJson = await optionsResponse.json()
-  const payload = await collectRegistrationPayload(buildCreationOptions(optionsJson))
+  const registration = await collectRegistrationPayload(
+    buildCreationOptions(optionsJson, options.extensions || createPrfProbeExtension())
+  )
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/register/verify`, {
     method: 'POST',
@@ -164,7 +209,7 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
       ...getCommonHeaders(true),
     },
     body: JSON.stringify({
-      ...payload,
+      ...registration.payload,
       friendlyName,
     }),
   })
@@ -174,24 +219,77 @@ export const registerPasskey = async (friendlyName?: string): Promise<PasskeyRec
   }
 
   const data = await verifyRes.json()
-  return data.passkey as PasskeyRecord
+  return {
+    passkey: data.passkey as PasskeyRecord,
+    prfEnabled: Boolean((registration.clientExtensionResults as AuthenticationExtensionsClientOutputs).prf?.enabled),
+  }
 }
 
-export const authenticateWithPasskey = async (): Promise<void> => {
+export const authenticateWithPasskey = async (
+  options: {
+    credentialIds?: string[]
+    extensions?: AuthenticationExtensionsClientInputs
+  } = {}
+): Promise<VerifiedPasskeyAssertionResult> => {
   const optionsResponse = await fetch(`${API_BASE}/api/passkeys/authenticate/options`, {
     method: 'POST',
     headers: {
       Authorization: getAuthHeader(),
-      ...getCommonHeaders(),
+      ...getCommonHeaders(true),
     },
+    body: JSON.stringify({
+      credentialIds: options.credentialIds,
+    }),
   })
   if (!optionsResponse.ok) {
     await parseError(optionsResponse, 'Failed to request authentication options')
   }
   const optionsJson = await optionsResponse.json()
-  const payload = await collectAuthenticationPayload(buildRequestOptions(optionsJson))
+  const authentication = await collectAuthenticationPayload(buildRequestOptions(optionsJson, options.extensions))
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/authenticate/verify`, {
+    method: 'POST',
+    headers: {
+      Authorization: getAuthHeader(),
+      ...getCommonHeaders(true),
+    },
+    body: JSON.stringify(authentication.payload),
+  })
+
+  if (!verifyRes.ok) {
+    await parseError(verifyRes, 'Failed to verify passkey authentication')
+  }
+
+  return {
+    credentialId: authentication.assertion.id,
+    clientExtensionResults: authentication.clientExtensionResults as AuthenticationExtensionsClientOutputs,
+  }
+}
+
+export const listPasskeyVaultUnlocks = async (): Promise<PasskeyVaultUnlockRecord[]> => {
+  const res = await fetch(`${API_BASE}/api/passkeys/vault-unlock`, {
+    headers: {
+      Authorization: getAuthHeader(),
+    },
+  })
+
+  if (!res.ok) {
+    throw new Error('Failed to load passkey vault unlock records')
+  }
+
+  const data = await res.json()
+  return data.passkeys as PasskeyVaultUnlockRecord[]
+}
+
+export const savePasskeyVaultUnlock = async (
+  credentialId: string,
+  payload: {
+    prfSalt: string
+    prfWrappedVaultKey: string
+    prfWrappedVaultKeyIV: string
+  }
+): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/passkeys/${encodeURIComponent(credentialId)}/vault-unlock`, {
     method: 'POST',
     headers: {
       Authorization: getAuthHeader(),
@@ -200,8 +298,8 @@ export const authenticateWithPasskey = async (): Promise<void> => {
     body: JSON.stringify(payload),
   })
 
-  if (!verifyRes.ok) {
-    await parseError(verifyRes, 'Failed to verify passkey authentication')
+  if (!res.ok) {
+    await parseError(res, 'Failed to save passkey vault unlock')
   }
 }
 
@@ -221,7 +319,9 @@ export async function signUpWithPasskey(input: {
   }
 
   const optionsJson = await optionsResponse.json()
-  const payload = await collectRegistrationPayload(buildCreationOptions(optionsJson.options))
+  const registration = await collectRegistrationPayload(
+    buildCreationOptions(optionsJson.options, createPrfProbeExtension())
+  )
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/signup/verify`, {
     method: 'POST',
@@ -229,7 +329,7 @@ export async function signUpWithPasskey(input: {
     credentials: 'include',
     body: JSON.stringify({
       flowId: optionsJson.flowId,
-      ...payload,
+      ...registration.payload,
     }),
   })
 
@@ -253,7 +353,7 @@ export async function signInWithPasskey(email: string): Promise<AuthResponse> {
   }
 
   const optionsJson = await optionsResponse.json()
-  const payload = await collectAuthenticationPayload(buildRequestOptions(optionsJson.options))
+  const authentication = await collectAuthenticationPayload(buildRequestOptions(optionsJson.options))
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/login/verify`, {
     method: 'POST',
@@ -261,7 +361,7 @@ export async function signInWithPasskey(email: string): Promise<AuthResponse> {
     credentials: 'include',
     body: JSON.stringify({
       flowId: optionsJson.flowId,
-      ...payload,
+      ...authentication.payload,
     }),
   })
 

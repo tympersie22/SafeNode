@@ -4,7 +4,16 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { generateSalt, deriveKey, encrypt, decrypt } from '../src/crypto/crypto'
+import {
+  decrypt,
+  deriveKey,
+  encrypt,
+  exportVaultKey,
+  generateSalt,
+  generateVaultKey,
+  unwrapVaultKeyWithPasskeyPrf,
+  wrapVaultKeyWithPasskeyPrf
+} from '../src/crypto/crypto'
 
 // Mock hash-wasm
 vi.mock('hash-wasm', () => ({
@@ -204,6 +213,27 @@ describe('Crypto Utilities', () => {
           value: originalCrypto
         })
       }
+    })
+  })
+
+  describe('passkey PRF vault wrapping', () => {
+    it('wraps and unwraps a vault key using PRF-derived HKDF material', async () => {
+      const vaultKey = await generateVaultKey()
+      const prfOutput = await generateSalt(32)
+      const prfSalt = await generateSalt(32)
+
+      const wrapped = await wrapVaultKeyWithPasskeyPrf(vaultKey, prfOutput, prfSalt)
+      const unwrapped = await unwrapVaultKeyWithPasskeyPrf({
+        encrypted: wrapped.encrypted,
+        iv: wrapped.iv,
+        prfOutput,
+        salt: prfSalt
+      })
+
+      const original = new Uint8Array(await exportVaultKey(vaultKey))
+      const roundTrip = new Uint8Array(await exportVaultKey(unwrapped))
+
+      expect(roundTrip).toEqual(original)
     })
   })
 })

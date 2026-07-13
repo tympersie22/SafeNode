@@ -22,6 +22,13 @@ export interface RawKeyEncryptionResult {
   iv: ArrayBuffer;
 }
 
+export interface PasskeyWrappedKeyParams {
+  encrypted: ArrayBuffer;
+  iv: ArrayBuffer;
+  prfOutput: ArrayBuffer;
+  salt: ArrayBuffer;
+}
+
 /**
  * Generate a cryptographically secure random salt
  */
@@ -104,9 +111,43 @@ export async function importVaultKey(rawKey: ArrayBuffer): Promise<CryptoKey> {
   // client-side; the server never receives it, so zero-knowledge is preserved.
   return window.crypto.subtle.importKey(
     'raw',
-    rawKey,
+    new Uint8Array(rawKey),
     { name: 'AES-GCM' },
     true,
+    ['encrypt', 'decrypt']
+  )
+}
+
+export async function deriveAesKeyFromPrf(
+  prfOutput: ArrayBuffer,
+  salt: ArrayBuffer,
+  info: string = 'safenode/passkey-vault-kek'
+): Promise<CryptoKey> {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error('WebCrypto API not supported');
+  }
+
+  const baseKey = await window.crypto.subtle.importKey(
+    'raw',
+    new Uint8Array(prfOutput),
+    'HKDF',
+    false,
+    ['deriveKey']
+  )
+
+  return window.crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(salt),
+      info: new TextEncoder().encode(info),
+    },
+    baseKey,
+    {
+      name: 'AES-GCM',
+      length: 256,
+    },
+    false,
     ['encrypt', 'decrypt']
   )
 }
@@ -197,7 +238,7 @@ export async function decryptWithKey(
       iv: new Uint8Array(params.iv)
     },
     key,
-    params.encrypted
+    new Uint8Array(params.encrypted)
   )
 
   return new TextDecoder().decode(decrypted)
@@ -251,6 +292,42 @@ export async function unwrapVaultKeyWithPassword(
   password: string
 ): Promise<CryptoKey> {
   const rawKey = await decryptBytesWithPassword(params, password)
+  return importVaultKey(rawKey)
+}
+
+export async function wrapVaultKeyWithPasskeyPrf(
+  key: CryptoKey,
+  prfOutput: ArrayBuffer,
+  salt: ArrayBuffer
+): Promise<RawKeyEncryptionResult> {
+  const kek = await deriveAesKeyFromPrf(prfOutput, salt)
+  const rawKey = await exportVaultKey(key)
+  const iv = await generateSalt(12)
+  const encrypted = await window.crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(iv),
+    },
+    kek,
+    rawKey
+  )
+
+  return { encrypted, iv }
+}
+
+export async function unwrapVaultKeyWithPasskeyPrf(
+  params: PasskeyWrappedKeyParams
+): Promise<CryptoKey> {
+  const kek = await deriveAesKeyFromPrf(params.prfOutput, params.salt)
+  const rawKey = await window.crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(params.iv),
+    },
+    kek,
+    new Uint8Array(params.encrypted)
+  )
+
   return importVaultKey(rawKey)
 }
 

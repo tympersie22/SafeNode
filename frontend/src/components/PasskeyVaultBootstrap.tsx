@@ -6,6 +6,7 @@ import { Shield } from '../icons/Shield'
 import { generateSecurePassword, base64ToArrayBuffer } from '../crypto/crypto'
 import { getVaultSalt, initializeVault, unlockVault } from '../services/vaultService'
 import { showToast } from './ui/Toast'
+import { enrollFirstAvailablePasskeyVaultUnlock } from '../services/passkeyVault'
 
 interface PasskeyVaultBootstrapProps {
   email?: string
@@ -44,6 +45,14 @@ export const PasskeyVaultBootstrap: React.FC<PasskeyVaultBootstrapProps> = ({
       const salt = base64ToArrayBuffer(saltBase64)
       const unlockedVault = await unlockVault(generatedSecret)
 
+      if (unlockedVault._rawVaultKey) {
+        try {
+          await enrollFirstAvailablePasskeyVaultUnlock(unlockedVault._rawVaultKey)
+        } catch (enrollmentError: any) {
+          console.warn('[PasskeyVaultBootstrap] Failed to enroll initial passkey vault unlock:', enrollmentError)
+        }
+      }
+
       setRecoveryKit(initResult.recoveryKit || null)
       setVaultReady(unlockedVault)
       setDeviceSecret(generatedSecret)
@@ -73,7 +82,7 @@ export const PasskeyVaultBootstrap: React.FC<PasskeyVaultBootstrapProps> = ({
           </h2>
           <p className="mt-3 text-gray-600 dark:text-gray-400">
             {recoveryKit
-              ? 'Your first trusted device is now provisioned. Save the recovery kit before entering the workspace.'
+              ? 'Your first passkey-backed vault unlock path is ready. Save the recovery kit before entering the workspace.'
               : `We’ll create a wrapped identity vault for ${email || 'this account'} and keep the temporary vault unlock secret in memory only for this session.`}
           </p>
         </div>

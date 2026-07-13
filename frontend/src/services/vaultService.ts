@@ -120,7 +120,23 @@ export interface SaveVaultOptions {
   rawVaultKey?: string
 }
 
-function toVaultAccessProfile(data: any): VaultAccessProfile {
+export interface LatestVaultPayload {
+  exists?: boolean
+  upToDate?: boolean
+  encryptedVault?: string
+  iv?: string
+  salt?: string
+  version?: number
+  accessMode?: VaultAccessMode
+  wrappedVaultKey?: string
+  wrappedVaultKeyIV?: string
+  recoveryWrappedVaultKey?: string
+  recoveryWrappedVaultKeyIV?: string
+  recoverySalt?: string
+  recoveryKitConfigured?: boolean
+}
+
+export function toVaultAccessProfile(data: any): VaultAccessProfile {
   if (data?.accessMode === 'wrapped_key' && data?.wrappedVaultKey && data?.wrappedVaultKeyIV) {
     return {
       accessMode: 'wrapped_key',
@@ -137,6 +153,28 @@ function toVaultAccessProfile(data: any): VaultAccessProfile {
     accessMode: 'passphrase',
     recoveryKitConfigured: Boolean(data?.recoveryKitConfigured)
   }
+}
+
+export async function fetchLatestVaultPayload(): Promise<LatestVaultPayload> {
+  const token = localStorage.getItem('safenode_token')
+
+  if (!token) {
+    throw new Error('Not authenticated')
+  }
+
+  const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to fetch vault')
+  }
+
+  return response.json()
 }
 
 async function encryptVaultForProfile(
@@ -299,26 +337,7 @@ export async function initializeVault(
  * Unlock vault with master password
  */
 export async function unlockVault(masterPassword: string): Promise<Vault> {
-  const token = localStorage.getItem('safenode_token')
-  
-  if (!token) {
-    throw new Error('Not authenticated')
-  }
-
-  // Get encrypted vault from server
-  const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      ...getCurrentDeviceHeaders()
-    }
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to fetch vault')
-  }
-
-  const data = await response.json()
+  const data = await fetchLatestVaultPayload()
   const accessProfile = toVaultAccessProfile(data)
 
   // Check if vault exists

@@ -291,6 +291,35 @@ export async function createAuthenticationOptions(userId: string): Promise<any> 
   return options
 }
 
+export async function createAuthenticationOptionsForCredentialIds(
+  userId: string,
+  credentialIds: string[]
+): Promise<any> {
+  const prisma = getPrismaClient()
+  const credentials = await prisma.webAuthnCredential.findMany({
+    where: {
+      userId,
+      credentialId: {
+        in: credentialIds,
+      },
+    },
+    select: {
+      credentialId: true,
+      transports: true,
+    },
+  })
+
+  if (credentials.length === 0) {
+    throw new Error('No registered passkeys are available for this account.')
+  }
+
+  const options = await createAuthenticationOptionsForCredentials(credentials)
+
+  await storeChallenge(userId, options.challenge, 'authentication')
+
+  return options
+}
+
 export async function verifyAuthentication(
   userId: string,
   authenticationResponse: any,

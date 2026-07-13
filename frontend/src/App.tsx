@@ -1420,7 +1420,11 @@ const App: React.FC = () => {
       }} />
       {isPasskeysOpen && (
         <React.Suspense fallback={null}>
-          <PasskeysModal isOpen={isPasskeysOpen} onClose={() => setIsPasskeysOpen(false)} />
+          <PasskeysModal
+            isOpen={isPasskeysOpen}
+            onClose={() => setIsPasskeysOpen(false)}
+            rawVaultKey={rawVaultKey}
+          />
         </React.Suspense>
       )}
       <WatchtowerModal
