@@ -75,29 +75,10 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
     setError(null);
 
     try {
-      // Use a stable local identifier for device-side ML features.
-      // This avoids any hardcoded demo identity leaking into production behavior.
-      const userId = localStorage.getItem('safenode_biometric_user') || 'local-user';
-      
-      // Authenticate with ML enhancements enabled
-      const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
-        enableML: true, // Enable ML-based security features
-        userId: userId,
-        collectBehavioral: true // Collect behavioral biometrics
-      });
+      const result = await biometricAuthService.authenticate('Unlock SafeNode vault');
       
       if (!result.success) {
         throw new Error(result.error || 'Biometric authentication failed');
-      }
-
-      // Log ML analysis results if available
-      if (result.mlResult) {
-        devLog('ML Analysis:', {
-          confidence: result.mlResult.confidence,
-          livenessScore: result.mlResult.livenessScore,
-          spoofingRisk: result.mlResult.spoofingRisk,
-          isAuthentic: result.mlResult.isAuthentic
-        });
       }
 
       throw new Error('Biometric sign-in does not unlock the vault on web. Please use your vault passphrase.');

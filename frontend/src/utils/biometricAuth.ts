@@ -5,16 +5,7 @@
  * - Desktop: Tauri platform-specific APIs
  * - Mobile: Already implemented via expo-local-authentication
  * 
- * Enhanced with ML-based features:
- * - Liveness detection
- * - Anti-spoofing
- * - Behavioral biometrics
- * - Continuous authentication
- * - Fraud detection
  */
-
-import type { BiometricMLResult } from './biometricML';
-import { biometricMLService } from './biometricML';
 import { API_BASE } from '../config/api';
 
 export interface BiometricAuthResult {
@@ -108,13 +99,8 @@ class BiometricAuthService {
    * Authenticate using biometrics with ML enhancements
    */
   async authenticate(
-    prompt: string = 'Authenticate to unlock SafeNode',
-    options?: {
-      enableML?: boolean;
-      userId?: string;
-      collectBehavioral?: boolean;
-    }
-  ): Promise<BiometricAuthResult & { mlResult?: BiometricMLResult }> {
+    prompt: string = 'Authenticate to unlock SafeNode'
+  ): Promise<BiometricAuthResult> {
     let baseResult: BiometricAuthResult;
 
     if (this.isTauri && this.tauriApi) {
@@ -142,71 +128,7 @@ class BiometricAuthService {
       };
     }
 
-    // If ML is enabled and authentication succeeded, run ML analysis
-    if (options?.enableML && baseResult.success && options.userId) {
-      try {
-        // Collect behavioral data if requested
-        const behavioralData = options.collectBehavioral
-          ? await this.collectBehavioralData()
-          : undefined;
-
-        // Run ML analysis
-        const mlResult = await biometricMLService.analyzeBiometric(
-          options.userId,
-          baseResult.credential || {},
-          {
-            platform: this.isTauri ? 'desktop' : 'web',
-            sensorType: 'biometric',
-            behavioralData,
-            device: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-            location: undefined // Would be collected from IP geolocation in production
-          }
-        );
-
-        // If ML analysis indicates fraud or spoofing, reject authentication
-        if (!mlResult.isAuthentic) {
-          return {
-            ...baseResult,
-            success: false,
-            error: 'ML analysis detected potential security risk. ' + mlResult.recommendations.join(' '),
-            mlResult
-          };
-        }
-
-        return {
-          ...baseResult,
-          mlResult
-        };
-      } catch (error: any) {
-        console.warn('ML analysis failed, proceeding with base authentication:', error);
-        // Continue with base result if ML fails
-      }
-    }
-
     return baseResult;
-  }
-
-  /**
-   * Collect behavioral biometric data
-   */
-  private async collectBehavioralData(): Promise<any> {
-    if (typeof window === 'undefined') return {};
-    
-    // Collect typing patterns, mouse movements, etc.
-    // This is a simplified version - in production, you'd collect more data
-    return {
-      deviceFingerprint: {
-        screenSize: `${window.screen.width}x${window.screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: navigator.language,
-        plugins: Array.from(navigator.plugins).map(p => p.name)
-      },
-      accessPattern: {
-        timestamp: Date.now(),
-        hour: new Date().getHours(),
-        day: new Date().getDay()
-      }
-    };
   }
 
   /**
