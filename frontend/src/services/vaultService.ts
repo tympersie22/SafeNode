@@ -120,6 +120,11 @@ export interface SaveVaultOptions {
   rawVaultKey?: string
 }
 
+export function stripTransientVaultFields<T extends Record<string, any>>(vault: T): T {
+  const persistableEntries = Object.entries(vault).filter(([key]) => !key.startsWith('_'))
+  return Object.fromEntries(persistableEntries) as T
+}
+
 export interface LatestVaultPayload {
   exists?: boolean
   upToDate?: boolean
@@ -187,7 +192,7 @@ async function encryptVaultForProfile(
   encryptedVault: string
   iv: string
 }> {
-  const vaultJson = JSON.stringify(vault)
+  const vaultJson = JSON.stringify(stripTransientVaultFields(vault))
 
   if (accessProfile?.accessMode === 'wrapped_key') {
     if (!rawVaultKey) {

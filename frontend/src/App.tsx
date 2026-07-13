@@ -50,7 +50,7 @@ import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
 import VaultDashboard from './components/dashboard/VaultDashboard';
 import { DashboardLayout } from './layout/DashboardLayout';
 import type { SidebarItem } from './ui/SaasSidebar';
-import type { VaultAccessProfile } from './services/vaultService';
+import { stripTransientVaultFields, type VaultAccessProfile } from './services/vaultService';
 import { clearVaultSessionSecret, setVaultSessionSecret } from './services/vaultSession';
 
 interface VaultData {
@@ -714,7 +714,7 @@ const App: React.FC = () => {
         throw new Error('No vault salt available. Please unlock your vault again.');
       }
 
-      const vaultJson = JSON.stringify(vaultData);
+      const vaultJson = JSON.stringify(stripTransientVaultFields(vaultData));
       const activeAccessProfile =
         vaultAccessProfile?.accessMode === 'wrapped_key'
           ? vaultAccessProfile

@@ -498,7 +498,7 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
       })
 
       if (updated.count === 0) {
-        return reply.code(404).send({ error: 'not_found', message: 'Passkey not found' })
+        return reply.code(404).send({ error: 'passkey_not_found', message: 'Passkey not found' })
       }
 
       return { success: true }

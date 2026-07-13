@@ -8,6 +8,7 @@ import { auditLogStorage } from '../storage/auditLogs';
 import { biometricAuthService, type BiometricCapabilities } from '../utils/biometricAuth';
 import { API_BASE } from '../config/api';
 import { getCurrentDeviceHeaders } from '../services/deviceService';
+import { stripTransientVaultFields } from '../services/vaultService';
 import Logo from './Logo';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -149,7 +150,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
       vault = { entries: [] };
       
       // Still encrypt and store it for future use
-      const vaultJson = JSON.stringify(vault);
+      const vaultJson = JSON.stringify(stripTransientVaultFields(vault));
       const encryptedResult = await encrypt(vaultJson, passwordToUse, saltBuffer);
 
       storedVault = vaultStorage.createVault(
