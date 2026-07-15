@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Download, Check } from 'lucide-react';
+import { ArrowRight, Check, Download, Globe2, MonitorDown, Puzzle, ShieldCheck, Smartphone } from 'lucide-react';
 import Footer from '../../components/marketing/Footer';
 import MarketingHeader from '../../components/marketing/MarketingHeader';
 import { RELEASE_VERSION } from '../../config/release';
@@ -142,8 +142,7 @@ export const DownloadsNewPage: React.FC = () => {
     const isMobile = userOS === 'ios' || userOS === 'android';
     if (isMobile) {
       const mobileMatch = DOWNLOADS.mobile.find((d) => d.os === userOS);
-      if (mobileMatch?.url) return mobileMatch;
-      return DOWNLOADS.desktop[0];
+      if (mobileMatch) return mobileMatch;
     }
 
     const desktopMatch = DOWNLOADS.desktop.find((d) => d.os === userOS);
@@ -152,208 +151,141 @@ export const DownloadsNewPage: React.FC = () => {
   };
 
   const primaryDownload = getPrimaryDownload();
+  const primaryAvailable = Boolean(primaryDownload.url);
 
   return (
     <div className="sn-page min-h-screen">
-      {/* Navigation */}
       <MarketingHeader />
 
-      {/* Hero + Primary Download */}
-      <section className="py-20 text-center">
-        <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-            Download SafeNode
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
-            Install Safenode on desktop or Android, or use it instantly on the web.
-          </p>
-
-          {/* Primary Download Button */}
-          <motion.a
-            href={primaryDownload.url}
-            className="btn btn-primary btn-lg gap-4"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <div className="w-8 h-8 text-white">
-              {primaryDownload.logo && <primaryDownload.logo />}
-            </div>
-            <span>Download for {primaryDownload.name}</span>
-            <Download className="w-5 h-5" />
-          </motion.a>
-
-          {(primaryDownload as any).size && (
-            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              Version {(primaryDownload as any).version} • {(primaryDownload as any).size}
+      <section className="relative overflow-hidden border-b border-[var(--sn-line)]">
+        <div className="sn-hero-grid" aria-hidden="true" />
+        <div className="sn-marketing-container relative grid min-h-[650px] items-center gap-14 py-20 lg:grid-cols-[1fr_0.82fr] lg:py-28">
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="sn-eyebrow flex items-center gap-3"><Smartphone className="h-4 w-4" /> Mobile comes first</p>
+            <h1 className="sn-display mt-7 max-w-4xl">Your secure identity should travel with you.</h1>
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-[var(--sn-muted)]">
+              Put passkeys, recovery access, and encrypted records on the device you already carry. Start on Android today; iOS is in preparation.
             </p>
-          )}
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              {primaryAvailable ? (
+                <a href={primaryDownload.url} className="sn-solid-button min-h-12 px-6">
+                  <Download className="h-4 w-4" /> Download for {primaryDownload.name}
+                </a>
+              ) : (
+                <span className="sn-outline-button min-h-12 cursor-not-allowed px-6 text-[var(--sn-muted)]">
+                  {primaryDownload.name} coming soon
+                </span>
+              )}
+              <Link to="/auth" className="sn-outline-button min-h-12 px-6">Use the web app</Link>
+            </div>
+            <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--sn-muted)]">
+              Detected platform: {userOS || 'unknown'} / Release {primaryDownload.version}
+            </p>
+          </motion.div>
+
+          <div className="relative mx-auto w-full max-w-[430px] bg-[var(--sn-ink)] p-5 text-white sm:p-8">
+            <div className="flex items-center justify-between border-b border-white/15 pb-5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">SafeNode mobile</span>
+              <span className="flex items-center gap-2 text-xs text-[var(--sn-accent-soft)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--sn-accent-soft)]" /> Protected</span>
+            </div>
+            <div className="py-9">
+              <div className="flex h-16 w-16 items-center justify-center border border-white/15 bg-white/[0.04]">
+                <ShieldCheck className="h-7 w-7 text-[var(--sn-accent-soft)]" />
+              </div>
+              <h2 className="mt-7 font-serif text-4xl font-medium tracking-[-0.04em]">Identity vault</h2>
+              <p className="mt-3 max-w-xs leading-7 text-white/50">Passkey access and recovery posture, available without lowering the cryptographic boundary.</p>
+            </div>
+            <div className="grid grid-cols-3 border-t border-white/15 pt-5 text-center">
+              {['Passkey', 'Recovery', 'Secrets'].map((label) => <span key={label} className="border-l border-white/15 text-xs text-white/45 first:border-l-0">{label}</span>)}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Platform Sections */}
-      <section className="pb-20">
-        <div className="max-w-6xl mx-auto px-4 space-y-16">
-          {/* Desktop */}
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Desktop</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {DOWNLOADS.desktop.map((platform) => {
-                const LogoComponent = platform.logo;
-                const isAvailable = Boolean(platform.url);
-                return (
-                  <motion.div
-                    key={platform.name}
-                    className="card card-hover block p-6"
-                    whileHover={isAvailable ? { y: -4 } : {}}
-                  >
-                    <div className="w-12 h-12 text-gray-700 dark:text-secondary-300 mb-4">
-                      <LogoComponent />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{platform.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                      Version {platform.version} • {platform.size}
-                    </p>
-                    {isAvailable ? (
-                      <a href={platform.url} className="flex items-center gap-2 text-gray-900 dark:text-secondary-300 font-medium">
-                        <Download className="w-4 h-4" />
-                        <span>Download</span>
-                      </a>
+      <section className="sn-section border-b border-[var(--sn-line)]" id="mobile-downloads">
+        <div className="sn-marketing-container">
+          <div className="grid gap-8 border-b border-[var(--sn-line)] pb-12 lg:grid-cols-[0.7fr_1.3fr]">
+            <p className="sn-eyebrow">Mobile apps</p>
+            <h2 className="sn-display max-w-4xl">Begin on the device that already holds your passkeys.</h2>
+          </div>
+          <div className="grid lg:grid-cols-2">
+            {DOWNLOADS.mobile.map((platform) => {
+              const LogoComponent = platform.logo;
+              const available = Boolean(platform.url);
+              return (
+                <article key={platform.name} className="border-b border-[var(--sn-line)] px-0 py-10 lg:border-r lg:px-10 lg:first:pl-0 lg:last:border-r-0">
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex h-12 w-12 items-center justify-center border border-[var(--sn-line)] text-[var(--sn-ink)] dark:text-white"><span className="h-6 w-6"><LogoComponent /></span></div>
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.16em] ${available ? 'text-[var(--sn-accent)]' : 'text-[var(--sn-muted)]'}`}>{available ? 'Available' : 'In preparation'}</span>
+                  </div>
+                  <h3 className="mt-8 font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">SafeNode for {platform.name}</h3>
+                  <p className="mt-4 max-w-lg leading-7 text-[var(--sn-muted)]">
+                    {platform.name === 'Android'
+                      ? 'Install the APK directly to access passkeys, recovery controls, and your encrypted vault on Android.'
+                      : 'The iOS release is not available yet. We will publish a verified App Store build when it is ready.'}
+                  </p>
+                  <div className="mt-8">
+                    {available ? (
+                      <a href={platform.url} className="sn-solid-button"><Download className="h-4 w-4" /> Download Android APK</a>
                     ) : (
-                      <div className="flex items-center gap-2 text-gray-400 font-medium">
-                        <span>Build pending</span>
-                      </div>
+                      <span className="inline-flex min-h-11 items-center border border-[var(--sn-line)] px-4 text-sm font-semibold text-[var(--sn-muted)]">Not available yet</span>
                     )}
-                  </motion.div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="sn-section border-b border-[var(--sn-line)]">
+        <div className="sn-marketing-container grid gap-16 lg:grid-cols-2">
+          <div>
+            <div className="flex items-center gap-3"><MonitorDown className="h-5 w-5 text-[var(--sn-accent)]" /><h2 className="text-2xl font-semibold text-[var(--sn-ink)] dark:text-white">Desktop apps</h2></div>
+            <div className="mt-7 border-t border-[var(--sn-line)]">
+              {DOWNLOADS.desktop.map((platform) => {
+                const LogoComponent = platform.logo;
+                return (
+                  <a key={platform.name} href={platform.url} className="grid grid-cols-[40px_1fr_auto] items-center gap-4 border-b border-[var(--sn-line)] py-5 text-[var(--sn-ink)] transition-colors hover:text-[var(--sn-accent)] dark:text-white">
+                    <span className="h-5 w-5"><LogoComponent /></span>
+                    <span><span className="block text-sm font-semibold">{platform.name}</span><span className="mt-1 block text-xs text-[var(--sn-muted)]">{platform.size} / {platform.version}</span></span>
+                    <Download className="h-4 w-4" />
+                  </a>
                 );
               })}
             </div>
           </div>
 
-          {/* Mobile */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Mobile</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {DOWNLOADS.mobile.map((platform) => {
-                const LogoComponent = platform.logo;
-                const isAvailable = Boolean(platform.url);
-                const cardClass = "card block p-6";
-                const content = (
-                  <>
-                    <div className="w-12 h-12 text-gray-700 dark:text-secondary-300 mb-4">
-                      <LogoComponent />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{platform.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                      {isAvailable ? `${platform.badge} • ${platform.version}` : platform.badge}
-                    </p>
-                    {isAvailable ? (
-                      <div className="flex items-center gap-2 text-gray-900 dark:text-secondary-300 font-medium">
-                        <Download className="w-4 h-4" />
-                        <span>Download</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-400 font-medium">
-                        <span>Not available yet</span>
-                      </div>
-                    )}
-                  </>
-                );
-
-                if (!isAvailable) {
-                  return (
-                    <div
-                      key={platform.name}
-                      className={`${cardClass} opacity-80`}
-                    >
-                      {content}
-                    </div>
-                  );
-                }
-
-                return (
-                  <motion.a
-                    key={platform.name}
-                    href={platform.url}
-                    className={`${cardClass} hover:shadow-lg`}
-                    whileHover={{ y: -4 }}
-                  >
-                    {content}
-                  </motion.a>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Browser Extension */}
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Browser Extension</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex items-center gap-3"><Puzzle className="h-5 w-5 text-[var(--sn-accent)]" /><h2 className="text-2xl font-semibold text-[var(--sn-ink)] dark:text-white">Browser extensions</h2></div>
+            <div className="mt-7 border-t border-[var(--sn-line)]">
               {DOWNLOADS.browser.map((platform) => {
                 const LogoComponent = platform.logo;
                 return (
-                  <motion.a
-                    key={platform.name}
-                    href={platform.url}
-                    className="card card-hover block p-6"
-                    whileHover={{ y: -4 }}
-                  >
-                    <div className="w-12 h-12 text-gray-700 dark:text-secondary-300 mb-4">
-                      <LogoComponent />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{platform.name} Extension</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                      {platform.version} • Auto-fill on supported browsers
-                    </p>
-                    <div className="flex items-center gap-2 text-gray-900 dark:text-secondary-300 font-medium">
-                      <Download className="w-4 h-4" />
-                      <span>{platform.cta || 'Download'}</span>
-                    </div>
-                  </motion.a>
+                  <a key={platform.name} href={platform.url} className="grid grid-cols-[40px_1fr_auto] items-center gap-4 border-b border-[var(--sn-line)] py-5 text-[var(--sn-ink)] transition-colors hover:text-[var(--sn-accent)] dark:text-white">
+                    <span className="h-5 w-5"><LogoComponent /></span>
+                    <span><span className="block text-sm font-semibold">{platform.name}</span><span className="mt-1 block text-xs text-[var(--sn-muted)]">Manual ZIP install / {platform.version}</span></span>
+                    <Download className="h-4 w-4" />
+                  </a>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Web App */}
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Web App</h2>
-            <div className="bg-gradient-to-br from-secondary-50 to-white dark:from-secondary-900/30 dark:to-[#0F1A17] rounded-xl border border-secondary-100 dark:border-[#1E2E29] p-8">
-              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Web App</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Open Safenode instantly from any modern browser.
-              </p>
-              <Link
-                to="/auth"
-                className="btn btn-primary btn-lg"
-              >
-                <Check className="w-5 h-5" />
-                <span>Open Web App</span>
-              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Security Claims */}
-      <section className="py-20 bg-white/70 dark:bg-[#0F1A17]/55">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-12">
-            Built for secure daily use
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm text-gray-600 dark:text-gray-300">
-            <div>
-              <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
-              <p>Encrypted vault sync</p>
-            </div>
-            <div>
-              <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
-              <p>Device-aware access controls</p>
-            </div>
-            <div>
-              <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
-              <p>Passkeys and 2FA support</p>
+      <section className="bg-[var(--sn-ink)] py-20 text-white">
+        <div className="sn-marketing-container grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="sn-eyebrow text-[var(--sn-accent-soft)]">No installation required</p>
+            <h2 className="sn-display mt-6 max-w-4xl text-white">Open SafeNode in a modern browser.</h2>
+            <div className="mt-7 flex flex-wrap gap-6 text-sm text-white/50">
+              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-[var(--sn-accent-soft)]" /> Encrypted vault sync</span>
+              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-[var(--sn-accent-soft)]" /> Device-aware access</span>
+              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-[var(--sn-accent-soft)]" /> Passkey-first sign-in</span>
             </div>
           </div>
+          <Link to="/auth" className="sn-light-button"><Globe2 className="h-4 w-4" /> Open web app <ArrowRight className="h-4 w-4" /></Link>
         </div>
       </section>
 
