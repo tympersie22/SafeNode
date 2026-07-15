@@ -59,6 +59,10 @@ const detectOS = (): 'android' | 'ios' | 'windows' | 'macos' | 'linux' | null =>
   return null;
 };
 
+const androidDownloadEnabled = import.meta.env.VITE_ANDROID_DOWNLOAD_ENABLED === 'true';
+const androidDownloadUrl = import.meta.env.VITE_ANDROID_DOWNLOAD_URL
+  || 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Android.apk';
+
 const DOWNLOADS = {
   desktop: [
     {
@@ -99,9 +103,9 @@ const DOWNLOADS = {
       name: 'Android',
       os: 'android',
       logo: BrandLogos.Android,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Android.apk',
-      badge: 'APK download',
-      version: RELEASE_VERSION,
+      url: androidDownloadEnabled ? androidDownloadUrl : '',
+      badge: androidDownloadEnabled ? 'Verified APK' : 'Verification in progress',
+      version: androidDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
   ],
   browser: [
@@ -221,14 +225,18 @@ export const DownloadsNewPage: React.FC = () => {
                   <h3 className="mt-8 font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">SafeNode for {platform.name}</h3>
                   <p className="mt-4 max-w-lg leading-7 text-[var(--sn-muted)]">
                     {platform.name === 'Android'
-                      ? 'Install the APK directly to access passkeys, recovery controls, and your encrypted vault on Android.'
+                      ? androidDownloadEnabled
+                        ? 'Install the verified APK to access passkeys, recovery controls, and your encrypted vault on Android.'
+                        : 'The Android build is undergoing signing and passkey verification before downloads reopen.'
                       : 'The iOS release is not available yet. We will publish a verified App Store build when it is ready.'}
                   </p>
                   <div className="mt-8">
                     {available ? (
-                      <a href={platform.url} className="sn-solid-button"><Download className="h-4 w-4" /> Download Android APK</a>
+                      <a href={platform.url} className="sn-solid-button"><Download className="h-4 w-4" /> Download verified APK</a>
                     ) : (
-                      <span className="inline-flex min-h-11 items-center border border-[var(--sn-line)] px-4 text-sm font-semibold text-[var(--sn-muted)]">Not available yet</span>
+                      <span className="inline-flex min-h-11 items-center border border-[var(--sn-line)] px-4 text-sm font-semibold text-[var(--sn-muted)]">
+                        {platform.name === 'Android' ? 'Verification in progress' : 'Not available yet'}
+                      </span>
                     )}
                   </div>
                 </article>

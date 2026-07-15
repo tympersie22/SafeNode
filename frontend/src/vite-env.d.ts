@@ -2,6 +2,9 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string
+  readonly VITE_MOBILE_API_URL?: string
+  readonly VITE_ANDROID_DOWNLOAD_ENABLED?: string
+  readonly VITE_ANDROID_DOWNLOAD_URL?: string
   readonly VITE_BILLING_PROVIDER?: 'paddle' | 'stripe'
   readonly VITE_PADDLE_PRICE_INDIVIDUAL_MONTHLY?: string
   readonly VITE_PADDLE_PRICE_INDIVIDUAL_ANNUAL?: string
