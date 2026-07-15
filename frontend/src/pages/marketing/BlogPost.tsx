@@ -1,18 +1,17 @@
 import React from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Calendar, ChevronLeft } from 'lucide-react'
-import Logo from '../../components/Logo'
+import { Link, useParams } from 'react-router-dom'
+import { Calendar } from 'lucide-react'
+import MarketingHeader from '../../components/marketing/MarketingHeader'
 import Footer from '../../components/marketing/Footer'
 import { getBlogPostBySlug } from './blogData'
 
 const BlogPostPage: React.FC = () => {
-  const navigate = useNavigate()
   const { slug = '' } = useParams<{ slug: string }>()
   const post = getBlogPostBySlug(slug)
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-900">
+      <div className="sn-page min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20">
           <p className="text-sm font-semibold uppercase tracking-wide text-secondary-600 dark:text-secondary-400">Blog</p>
           <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">Post not found</h1>
@@ -26,26 +25,8 @@ const BlogPostPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900">
-      <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <Logo variant="nav" />
-              <Link to="/" className="text-xl font-bold bg-gradient-to-r from-slate-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">
-                SafeNode
-              </Link>
-            </div>
-            <button
-              onClick={() => navigate('/blog')}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              All posts
-            </button>
-          </div>
-        </div>
-      </nav>
+    <div className="sn-page min-h-screen">
+      <MarketingHeader />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary-600 dark:text-secondary-400">{post.category}</p>

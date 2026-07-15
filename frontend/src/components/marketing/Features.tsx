@@ -1,106 +1,75 @@
-/**
- * Features Section - Modernized
- * Concise, scannable feature grid
- */
+import React from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { ArrowUpRight, Fingerprint, LifeBuoy, Users } from 'lucide-react'
 
-import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { Shield, Lock, Key, Cloud, Smartphone, Users, Zap, Eye } from 'lucide-react';
-
-const FEATURES = [
+const CAPABILITIES = [
   {
-    icon: Key,
-    title: 'Passkey-First Sign-In',
-    description: 'Sign in with passkeys and trusted devices instead of reusable passwords.',
+    marker: 'IDENTITY',
+    icon: Fingerprint,
+    title: 'Passkeys become the front door, not an optional extra.',
+    description: 'Replace reusable sign-in credentials with device-backed identity proof and maintain a clear inventory of trusted access.',
+    details: ['Passkey-first account access', 'Trusted-device visibility', 'Session and posture controls']
   },
   {
-    icon: Lock,
-    title: 'Zero-Knowledge',
-    description: 'Your encrypted vault remains unreadable to us, even while identity and recovery flows evolve.',
+    marker: 'CONTINUITY',
+    icon: LifeBuoy,
+    title: 'Recovery is designed before an emergency happens.',
+    description: 'Keep encrypted recovery material and explicit continuity paths ready without handing plaintext secrets to the service.',
+    details: ['Recovery kit fallback', 'Successor access controls', 'No silent key escrow']
   },
   {
-    icon: Shield,
-    title: 'Recovery-Ready Security',
-    description: 'Recovery material, successor access, and device controls are designed into the platform from the start.',
-  },
-  {
-    icon: Cloud,
-    title: 'Trusted Device Sync',
-    description: 'Keep your identity state, encrypted records, and device posture aligned across sessions and hardware.',
-  },
-  {
-    icon: Smartphone,
-    title: 'Biometric Unlock',
-    description: 'Use Face ID, Touch ID, or platform biometrics to unlock trusted devices quickly and safely.',
-  },
-  {
+    marker: 'OPERATIONS',
     icon: Users,
-    title: 'Team Secret Workspaces',
-    description: 'Give teams dedicated shared vaults for operational credentials, recovery material, and critical access.',
-  },
-  {
-    icon: Zap,
-    title: 'Security Posture',
-    description: 'Track breach exposure, weak credentials, risky sessions, and device state from one control surface.',
-  },
-  {
-    icon: Eye,
-    title: 'Open-Core Assurance',
-    description: 'The cryptographic core stays reviewable while operational controls, audit, and recovery flows stay hardened.',
-  },
-];
+    title: 'Team secrets live inside governed workspaces.',
+    description: 'Separate personal records from operational access, with team membership and vault boundaries that remain understandable.',
+    details: ['Dedicated team vaults', 'Role-aware access', 'Auditable security events']
+  }
+] as const
 
-const Features: React.FC = () => {
-  const prefersReducedMotion = useReducedMotion();
+export const Features: React.FC = () => {
+  const reducedMotion = useReducedMotion()
 
   return (
-    <section id="features" className="py-20 px-4 bg-white/70 dark:bg-transparent">
-      <div className="max-w-7xl mx-auto">
-        {/* Section Header */}
-        <motion.div
-          className="text-center mb-16"
-          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-            One Platform For Modern Access
-          </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Passkey-first identity, zero-knowledge vaults, recovery controls, and team secrets in one operating layer.
-          </p>
-        </motion.div>
+    <section id="features" className="sn-section border-b border-[var(--sn-line)]">
+      <div className="sn-marketing-container">
+        <div className="grid gap-8 border-b border-[var(--sn-line)] pb-14 lg:grid-cols-[0.75fr_1.25fr]">
+          <p className="sn-eyebrow">What SafeNode protects</p>
+          <h2 className="sn-display max-w-3xl">One security system across identity, continuity, and shared access.</h2>
+        </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {FEATURES.map((feature, index) => (
-            <motion.div
-              key={feature.title}
-              className="card card-hover group relative p-6"
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+        <div>
+          {CAPABILITIES.map((capability, index) => (
+            <motion.article
+              key={capability.marker}
+              className="grid gap-8 border-b border-[var(--sn-line)] py-12 last:border-b-0 lg:grid-cols-[0.45fr_1.1fr_0.85fr] lg:items-start"
+              initial={reducedMotion ? false : { opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              viewport={{ once: true, amount: 0.35 }}
+              transition={{ delay: index * 0.06 }}
             >
-              {/* Icon */}
-              <div className="w-12 h-12 bg-secondary-50 dark:bg-secondary-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gradient-safenode transition-all duration-200">
-                <feature.icon className="w-6 h-6 text-secondary-700 dark:text-secondary-300 group-hover:text-white transition-colors duration-200" />
+              <div className="flex items-center gap-4">
+                <capability.icon className="h-5 w-5 text-[var(--sn-accent)]" />
+                <span className="font-mono text-[11px] tracking-[0.22em] text-[var(--sn-muted)]">{capability.marker}</span>
               </div>
-
-              {/* Content */}
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                {feature.title}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                {feature.description}
-              </p>
-            </motion.div>
+              <div>
+                <h3 className="max-w-2xl text-2xl font-semibold leading-tight tracking-[-0.035em] text-[var(--sn-ink)] sm:text-3xl dark:text-white">
+                  {capability.title}
+                </h3>
+                <p className="mt-4 max-w-2xl leading-7 text-[var(--sn-muted)]">{capability.description}</p>
+              </div>
+              <ul className="border-t border-[var(--sn-line)]">
+                {capability.details.map((detail) => (
+                  <li key={detail} className="flex items-center justify-between border-b border-[var(--sn-line)] py-3 text-sm text-[var(--sn-ink)] dark:text-white/80">
+                    {detail} <ArrowUpRight className="h-3.5 w-3.5 text-[var(--sn-accent)]" />
+                  </li>
+                ))}
+              </ul>
+            </motion.article>
           ))}
         </div>
       </div>
     </section>
-  );
-};
+  )
+}
 
-export default Features;
+export default Features

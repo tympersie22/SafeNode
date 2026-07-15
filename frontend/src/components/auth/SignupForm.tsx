@@ -53,7 +53,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg"
+      className="sn-auth-card"
       role="main"
       aria-labelledby="signup-heading"
     >
@@ -68,11 +68,11 @@ const SignupForm: React.FC<SignupFormProps> = ({
         </div>
         <h2 
           id="signup-heading"
-            className="text-3xl font-bold text-gray-900 mb-2"
+            className="font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] mb-2"
         >
           Create your account
         </h2>
-        <p className="text-gray-600">
+        <p className="text-[var(--sn-muted)]">
           Create your identity workspace with a passkey and keep passwords out of the front door
         </p>
       </div>
@@ -123,8 +123,8 @@ const SignupForm: React.FC<SignupFormProps> = ({
           autoComplete="email"
         />
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">What happens next</p>
+        <div className="border-l-2 border-[var(--sn-accent)] bg-[var(--sn-accent-wash)] p-4 text-sm text-[var(--sn-muted)]">
+          <p className="font-semibold text-[var(--sn-ink)]">What happens next</p>
           <ul className="mt-3 space-y-2 text-sm leading-6">
             <li>1. We create your SafeNode identity with a passkey.</li>
             <li>2. Your device bootstraps a wrapped vault key locally.</li>

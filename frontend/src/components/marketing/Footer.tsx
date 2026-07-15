@@ -1,80 +1,74 @@
-/**
- * Footer Component
- * Marketing page footer with links and info
- */
-
 import React from 'react'
-import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import Logo from '../Logo'
 
-export const Footer: React.FC = () => {
-  const currentYear = new Date().getFullYear()
+const FOOTER_GROUPS = [
+  {
+    title: 'Product',
+    links: [
+      ['Capabilities', '/#features'],
+      ['Pricing', '/pricing'],
+      ['Downloads', '/downloads'],
+      ['Security model', '/security']
+    ]
+  },
+  {
+    title: 'Resources',
+    links: [
+      ['Getting started', '/docs/getting-started'],
+      ['Team vaults', '/docs/teams'],
+      ['Journal', '/blog'],
+      ['Contact', '/contact']
+    ]
+  },
+  {
+    title: 'Company',
+    links: [
+      ['Careers', '/careers'],
+      ['Privacy', '/privacy'],
+      ['Terms', '/terms'],
+      ['Refunds', '/refunds']
+    ]
+  }
+] as const
 
-  return (
-    <footer className="bg-slate-900 dark:bg-black text-slate-400 py-16 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-          {/* Brand */}
-          <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-3 mb-4">
-              <Logo variant="nav" />
-              <Link to="/" className="cursor-pointer hover:opacity-80 transition-opacity">
-                <h3 className="text-xl font-bold text-white">SafeNode</h3>
-              </Link>
-            </div>
-            <p className="text-slate-400 mb-4 max-w-md leading-relaxed">
-              The passkey-first identity, recovery, and team secret platform built on a zero-knowledge vault core.
-              Secure, private, and designed for operational continuity.
-            </p>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>Open-Core Security</span>
-              <span className="text-slate-600">•</span>
-              <span>Verifiable Crypto Core</span>
-            </div>
-          </div>
-
-          {/* Product */}
-          <div>
-            <h4 className="text-white font-semibold mb-4">Product</h4>
-            <ul className="space-y-2">
-              <li><a href="/#features" className="hover:text-white transition-colors text-sm">Features</a></li>
-              <li><Link to="/pricing" className="hover:text-white transition-colors text-sm">Pricing</Link></li>
-              <li><Link to="/security" className="hover:text-white transition-colors text-sm">Security</Link></li>
-              <li><Link to="/downloads" className="hover:text-white transition-colors text-sm">Download</Link></li>
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 className="text-white font-semibold mb-4">Company</h4>
-            <ul className="space-y-2">
-              <li><Link to="/security" className="hover:text-white transition-colors text-sm">About Security</Link></li>
-              <li><Link to="/blog" className="hover:text-white transition-colors text-sm">Blog</Link></li>
-              <li><Link to="/careers" className="hover:text-white transition-colors text-sm">Careers</Link></li>
-              <li><Link to="/contact" className="hover:text-white transition-colors text-sm">Contact</Link></li>
-            </ul>
+export const Footer: React.FC = () => (
+  <footer className="bg-[var(--sn-ink)] px-5 pb-10 text-white sm:px-8 lg:px-12">
+    <div className="mx-auto max-w-[1440px] border-t border-white/15 pt-12">
+      <div className="grid gap-12 pb-16 lg:grid-cols-[1.2fr_1.8fr]">
+        <div>
+          <Link to="/" className="inline-flex items-center gap-3" aria-label="SafeNode home">
+            <Logo variant="nav" />
+            <span className="text-xl font-semibold tracking-[-0.03em]">SafeNode</span>
+          </Link>
+          <p className="mt-5 max-w-sm leading-7 text-white/50">
+            Passkey-first identity, zero-knowledge secrets, and deliberate recovery for people and teams.
+          </p>
+          <div className="mt-7 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sn-accent-soft)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--sn-accent-soft)]" /> System operational
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-slate-500">
-            &copy; {currentYear} SafeNode. All rights reserved.
-          </p>
-          <div className="flex items-center gap-6 text-sm">
-            <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
-            <Link to="/refunds" className="hover:text-white transition-colors">Refunds</Link>
-            <Link to="/security" className="hover:text-white transition-colors">Security</Link>
-          </div>
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+          {FOOTER_GROUPS.map((group) => (
+            <div key={group.title}>
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">{group.title}</h2>
+              <ul className="mt-5 space-y-3">
+                {group.links.map(([label, href]) => (
+                  <li key={label}><Link to={href} className="text-sm text-white/65 transition-colors hover:text-white">{label}</Link></li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
-    </footer>
-  )
-}
+
+      <div className="flex flex-col gap-4 border-t border-white/15 pt-6 text-xs text-white/35 sm:flex-row sm:items-center sm:justify-between">
+        <p>© {new Date().getFullYear()} SafeNode. Zero-knowledge by design.</p>
+        <p className="font-mono uppercase tracking-[0.16em]">Identity / Recovery / Team secrets</p>
+      </div>
+    </div>
+  </footer>
+)
 
 export default Footer

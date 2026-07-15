@@ -58,7 +58,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg"
+      className="sn-auth-card"
       role="main"
       aria-labelledby="login-heading"
     >
@@ -71,11 +71,11 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
         <h2 
           id="login-heading"
-          className="text-3xl font-bold text-gray-900 mb-2"
+          className="font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] mb-2"
         >
           Welcome back
         </h2>
-        <p className="text-gray-600">
+        <p className="text-[var(--sn-muted)]">
           Sign in with a passkey first. Use legacy password access only when you need to migrate an older account.
         </p>
       </div>
@@ -142,8 +142,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
           {isLoading ? 'Signing In...' : 'Continue with Passkey'}
         </Button>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">Legacy access</p>
+        <div className="border-l-2 border-[var(--sn-accent)] bg-[var(--sn-accent-wash)] p-4 text-sm text-[var(--sn-muted)]">
+          <p className="font-semibold text-[var(--sn-ink)]">Legacy access</p>
           <p className="mt-1 leading-6">
             Older accounts can still use email and password while we migrate them into the passkey-first model.
           </p>
@@ -157,7 +157,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
 
         {showLegacyPassword && (
-          <div className="space-y-4 rounded-2xl border border-slate-200 p-4">
+          <div className="space-y-4 border border-[var(--sn-line)] p-4">
             <div>
               <PasswordInput
                 id="login-password"

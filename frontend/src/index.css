@@ -646,126 +646,288 @@
   }
 }
 
-/* SafeNode brand surface tokens */
+/* Unified SafeNode visual system */
 :root {
-  --sn-teal-50: #ECFDFB;
-  --sn-teal-100: #C8F9F3;
-  --sn-teal-400: #3EC6A8;
-  --sn-teal-500: #26A387;
-  --sn-teal-600: #1B7C66;
-  --sn-teal-700: #125947;
-  --sn-line: #E4EDEA;
-  --sn-canvas: #F4F8F6;
-  --sn-surface: #FFFFFF;
-  --sn-ring: 0 0 0 3px rgba(38, 163, 135, 0.22);
-  --sn-shadow-sm: 0 1px 2px rgba(11, 27, 38, 0.06), 0 1px 3px rgba(38, 163, 135, 0.05);
-  --sn-shadow: 0 2px 8px rgba(11, 27, 38, 0.06), 0 8px 24px rgba(38, 163, 135, 0.08);
+  --sn-ink: #14201b;
+  --sn-ink-soft: #23332c;
+  --sn-canvas: #f3f1e9;
+  --sn-surface: #faf9f4;
+  --sn-surface-strong: #ffffff;
+  --sn-line: #d7d7cc;
+  --sn-muted: #626b65;
+  --sn-accent: #2f765f;
+  --sn-accent-soft: #8fd4b9;
+  --sn-accent-wash: #e4eee8;
+  --sn-ring: 0 0 0 3px rgba(47, 118, 95, 0.22);
+  --sn-shadow-sm: 0 1px 2px rgba(20, 32, 27, 0.06);
+  --sn-shadow: 0 18px 55px rgba(20, 32, 27, 0.10);
 }
 
 html.dark {
-  --sn-line: #1E2E29;
-  --sn-canvas: #0A1210;
-  --sn-surface: #0F1A17;
+  --sn-ink: #eef3ef;
+  --sn-ink-soft: #dce6df;
+  --sn-canvas: #0e1612;
+  --sn-surface: #141e19;
+  --sn-surface-strong: #19251f;
+  --sn-line: #2c3932;
+  --sn-muted: #9eaaa3;
+  --sn-accent: #78bda2;
+  --sn-accent-soft: #9cdec3;
+  --sn-accent-wash: #1b3027;
+}
+
+html,
+body {
+  background: var(--sn-canvas);
 }
 
 body,
 .dark body {
+  color: var(--sn-ink);
+  background: var(--sn-canvas);
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+}
+
+.sn-page {
+  color: var(--sn-ink);
+  background: var(--sn-canvas);
+}
+
+.sn-marketing-container {
+  width: min(100% - 2.5rem, 1440px);
+  margin-inline: auto;
+}
+
+.sn-marketing-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid color-mix(in srgb, var(--sn-line) 80%, transparent);
+  background: color-mix(in srgb, var(--sn-canvas) 90%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.sn-nav-link,
+.sn-text-button {
+  color: var(--sn-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: color 160ms ease;
+}
+
+.sn-nav-link:hover,
+.sn-text-button:hover,
+.sn-text-link:hover {
+  color: var(--sn-ink);
+}
+
+.sn-solid-button,
+.sn-outline-button,
+.sn-light-button,
+.sn-dark-outline-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 4px;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.sn-solid-button {
+  border: 1px solid var(--sn-ink);
+  background: var(--sn-ink);
+  color: var(--sn-canvas);
+}
+
+.sn-solid-button:hover {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: white;
+}
+
+.sn-outline-button {
+  border: 1px solid var(--sn-line);
+  background: transparent;
+  color: var(--sn-ink);
+}
+
+.sn-outline-button:hover {
+  border-color: var(--sn-ink);
+}
+
+.sn-light-button {
+  background: var(--sn-canvas);
+  color: #14201b;
+  border: 1px solid var(--sn-canvas);
+}
+
+.sn-dark-outline-button {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.sn-dark-outline-button:hover {
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.sn-text-link {
+  color: var(--sn-accent);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.sn-section {
+  padding: clamp(5rem, 9vw, 8.5rem) 0;
+}
+
+.sn-eyebrow {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--sn-accent);
+}
+
+.sn-display,
+.sn-hero-title {
+  font-family: Iowan Old Style, Baskerville, 'Times New Roman', serif;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  color: var(--sn-ink);
+}
+
+.sn-display {
+  font-size: clamp(2.5rem, 5vw, 5.25rem);
+  line-height: 0.98;
+}
+
+.sn-hero-title {
+  font-size: clamp(3.4rem, 6.9vw, 7.4rem);
+  line-height: 0.91;
+}
+
+.sn-hero-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.48;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--sn-line) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--sn-line) 55%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to right, black, transparent 88%);
+}
+
+.sn-system-panel {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
   background:
-    radial-gradient(1100px 520px at 88% -8%, rgba(62, 198, 168, 0.10), transparent 60%),
-    radial-gradient(900px 480px at -6% 8%, rgba(38, 163, 135, 0.08), transparent 55%),
-    var(--sn-canvas);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.04), transparent 45%),
+    #14201b;
+  box-shadow: 0 40px 100px rgba(20, 32, 27, 0.22);
+}
+
+.sn-auth-card {
+  border-top: 1px solid var(--sn-line);
+  border-bottom: 1px solid var(--sn-line);
+  padding: clamp(1.75rem, 5vw, 2.75rem) 0;
+  background: transparent;
 }
 
 .btn {
-  border-radius: 12px;
-  font-weight: 600;
-  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  border-radius: 5px;
+  font-weight: 700;
+  transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
 .btn-primary,
 .dark .btn-primary {
-  background: linear-gradient(135deg, var(--sn-teal-500), var(--sn-teal-400));
-  color: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(11, 27, 38, 0.10), 0 8px 20px rgba(38, 163, 135, 0.28);
+  background: var(--sn-ink);
+  color: var(--sn-canvas);
+  box-shadow: none;
 }
 
 .btn-primary:hover,
 .dark .btn-primary:hover {
-  background: linear-gradient(135deg, var(--sn-teal-500), var(--sn-teal-400));
-  filter: brightness(1.04);
-  box-shadow: 0 12px 28px rgba(38, 163, 135, 0.36);
+  background: var(--sn-accent);
+  color: white;
+  box-shadow: none;
 }
 
 .btn-secondary,
 .dark .btn-secondary {
-  background: var(--sn-teal-50);
-  color: var(--sn-teal-700);
-  border: 1px solid var(--sn-teal-100);
-}
-
-.dark .btn-secondary {
-  background: rgba(38, 163, 135, 0.12);
-  color: var(--sn-teal-400);
-  border-color: rgba(62, 198, 168, 0.22);
+  background: var(--sn-accent-wash);
+  color: var(--sn-ink);
+  border: 1px solid var(--sn-line);
 }
 
 .btn-outline,
 .dark .btn-outline {
   border: 1px solid var(--sn-line);
-  box-shadow: var(--sn-shadow-sm);
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  box-shadow: none;
 }
 
 .btn-outline:hover,
 .dark .btn-outline:hover {
-  border-color: var(--sn-teal-400);
-  color: var(--sn-teal-700);
+  border-color: var(--sn-ink);
+  color: var(--sn-ink);
 }
 
-.dark .btn-outline:hover,
+.btn-ghost:hover,
 .dark .btn-ghost:hover {
-  color: var(--sn-teal-400);
+  background: var(--sn-accent-wash);
+  color: var(--sn-ink);
 }
 
-.btn-ghost:hover {
-  background: rgba(38, 163, 135, 0.08);
-  color: var(--sn-teal-700);
-}
-
-.card {
-  border-radius: 14px;
+.card,
+.dark .card {
+  border-radius: 6px;
   border: 1px solid var(--sn-line);
-  box-shadow: var(--sn-shadow-sm);
-  transition: box-shadow 0.25s ease, border-color 0.2s ease;
+  background: var(--sn-surface);
+  box-shadow: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .card:hover,
 .card-hover:hover {
-  box-shadow: var(--sn-shadow);
-  border-color: rgba(38, 163, 135, 0.28);
-}
-
-.dark .card {
-  background: var(--sn-surface);
+  border-color: color-mix(in srgb, var(--sn-accent) 55%, var(--sn-line));
+  box-shadow: none;
+  transform: none;
 }
 
 input:not([type='checkbox']):not([type='radio']),
 textarea,
 select {
-  border-radius: 11px;
+  border-radius: 4px !important;
 }
 
 input:focus,
 textarea:focus,
-select:focus {
-  outline: none;
-  border-color: var(--sn-teal-400);
-  box-shadow: var(--sn-ring);
-}
-
+select:focus,
 a:focus-visible,
 button:focus-visible,
 [role='button']:focus-visible {
   outline: none;
+  border-color: var(--sn-accent);
   box-shadow: var(--sn-ring);
-  border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .sn-marketing-container {
+    width: min(100% - 2rem, 1440px);
+  }
+
+  .sn-hero-title {
+    font-size: clamp(3rem, 15vw, 4.6rem);
+  }
 }

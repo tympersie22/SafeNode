@@ -84,18 +84,18 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
             if (isMobile) onMobileClose?.()
           }}
           className={`
-            w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-all duration-200 border
+            w-full flex items-center gap-3 px-3 py-3 text-sm font-medium transition-all duration-200 border-l-2 border-y-0 border-r-0
             ${isMobile ? 'min-h-[44px]' : ''}
             ${isActive
-              ? 'bg-[#eff8ef] dark:bg-emerald-950/40 text-slate-900 dark:text-slate-100 border-emerald-200 dark:border-emerald-900 shadow-[0_12px_35px_rgba(25,85,48,0.08)]'
-              : 'text-slate-600 dark:text-slate-300 border-transparent hover:bg-white dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
+              ? 'bg-[var(--sn-accent-wash)] text-[var(--sn-ink)] border-[var(--sn-accent)]'
+              : 'text-[var(--sn-muted)] border-transparent hover:bg-[var(--sn-surface)] hover:text-[var(--sn-ink)]'
             }
           `}
           whileHover={isMobile ? {} : { x: 3 }}
           whileTap={{ scale: 0.98 }}
         >
           {item.icon && (
-            <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${isActive ? 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900 dark:bg-slate-900 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300'} ${!isMobile && collapsed ? 'mx-auto' : ''}`}>
+            <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center border ${isActive ? 'border-[var(--sn-accent)] bg-[var(--sn-surface)] text-[var(--sn-accent)]' : 'border-[var(--sn-line)] text-[var(--sn-muted)]'} ${!isMobile && collapsed ? 'mx-auto' : ''}`}>
               {item.icon}
             </span>
           )}
@@ -134,22 +134,22 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
       <aside
         className={`
           hidden md:block
-          bg-[#f3f4f0] dark:bg-slate-950
-          border-r border-slate-200/80 dark:border-slate-800
+          bg-[var(--sn-canvas)]
+          border-r border-[var(--sn-line)]
           h-full
-          ${collapsed ? 'w-20' : 'w-[336px]'}
+          ${collapsed ? 'w-20' : 'w-[300px]'}
           transition-all duration-300
           ${className}
         `}
       >
         <div className="flex h-full flex-col p-4">
           {brand && (
-            <div className={`mb-5 rounded-[28px] border border-white/80 bg-white/90 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900/90 ${collapsed ? 'items-center justify-center' : ''}`}>
+            <div className={`mb-5 border-b border-[var(--sn-line)] p-4 ${collapsed ? 'items-center justify-center' : ''}`}>
               {collapsed ? (
                 <div className="mx-auto flex h-12 w-12 items-center justify-center">{brand.logo}</div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eff8ef] dark:bg-emerald-950/40">
+                  <div className="flex h-11 w-11 items-center justify-center bg-[var(--sn-ink)] text-[var(--sn-canvas)]">
                     {brand.logo}
                   </div>
                   <div className="min-w-0">
@@ -167,7 +167,7 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
               )}
             </div>
           )}
-          <nav className="flex-1 space-y-4 overflow-y-auto rounded-[28px] border border-white/70 bg-[#f8f8f5] p-3 dark:border-slate-800 dark:bg-slate-900/80">
+          <nav className="flex-1 space-y-4 overflow-y-auto border-t border-[var(--sn-line)] p-3">
           {renderNavItems(false)}
           </nav>
           {footer && !collapsed && (
@@ -255,8 +255,8 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
         className={`
           md:hidden
           fixed inset-y-0 left-0 z-50
-          bg-[#f3f4f0] dark:bg-slate-950
-          border-r border-slate-200 dark:border-slate-800
+          bg-[var(--sn-canvas)]
+          border-r border-[var(--sn-line)]
           w-[300px] shadow-xl
           ${className}
         `}

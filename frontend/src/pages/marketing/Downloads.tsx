@@ -8,8 +8,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Download, Check } from 'lucide-react';
-import Logo from '../../components/Logo';
 import Footer from '../../components/marketing/Footer';
+import MarketingHeader from '../../components/marketing/MarketingHeader';
 import { RELEASE_VERSION } from '../../config/release';
 
 // Official Brand Logos (using Simple Icons CDN or inline SVG)
@@ -154,22 +154,9 @@ export const DownloadsNewPage: React.FC = () => {
   const primaryDownload = getPrimaryDownload();
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
+    <div className="sn-page min-h-screen">
       {/* Navigation */}
-      <nav className="border-b border-gray-200 dark:border-[#1E2E29] bg-white/80 dark:bg-[#0F1A17]/85 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">SafeNode</span>
-          </Link>
-          <Link
-            to="/auth"
-            className="btn btn-primary btn-sm"
-          >
-            Get Started
-          </Link>
-        </div>
-      </nav>
+      <MarketingHeader />
 
       {/* Hero + Primary Download */}
       <section className="py-20 text-center">

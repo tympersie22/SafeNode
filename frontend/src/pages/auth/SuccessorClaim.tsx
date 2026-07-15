@@ -72,7 +72,7 @@ const SuccessorClaimPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/40 px-4 py-10 text-white">
+    <div className="min-h-screen bg-[var(--sn-ink)] px-4 py-10 text-white">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Account Successor</h1>
