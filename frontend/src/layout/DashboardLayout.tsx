@@ -88,7 +88,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex h-full min-h-0 flex-col overflow-visible border-l border-[var(--sn-line)] bg-[var(--sn-surface)]">
+        <div className="sn-dashboard-shell flex h-full min-h-0 flex-col overflow-visible border-l border-[var(--sn-line)]">
         {/* Topbar */}
         {(topbarTitle || topbarSubtitle || topbarLeftContent || topbarRightContent || topbarSearch) && (
           <SaasTopbar

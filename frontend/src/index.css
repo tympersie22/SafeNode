@@ -693,6 +693,11 @@ body,
   background: var(--sn-canvas);
 }
 
+.sn-dashboard-shell {
+  color: var(--sn-ink);
+  background-color: var(--sn-canvas);
+}
+
 .sn-marketing-container {
   width: min(100% - 2.5rem, 1440px);
   margin-inline: auto;
