@@ -56,6 +56,15 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+**/.fuse_hidden*
+
+# Stale duplicate copies created by Finder/file-sync conflict resolution
+.github/workflows/* [0-9].yml
+backend/package-lock [0-9].json
+frontend/package-lock [0-9].json
+frontend/src/**/* [0-9].tsx
+frontend/src/**/*.old.tsx
+src-tauri/icons/* [0-9].png
 
 # Vite/Tailwind
 frontend/.vite/
