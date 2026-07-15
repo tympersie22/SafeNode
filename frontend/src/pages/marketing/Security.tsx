@@ -115,7 +115,7 @@ const SecurityPage: React.FC = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               For enterprise onboarding, compliance questionnaires, or architecture reviews, contact the team directly.
             </p>
-            <Link to="/contact" className="inline-flex items-center px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-sm font-semibold">
+            <Link to="/contact" className="btn btn-primary btn-sm">
               Contact Security Team
             </Link>
           </div>

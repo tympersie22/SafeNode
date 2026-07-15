@@ -145,7 +145,7 @@ const ContactPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold disabled:opacity-60"
+                className="btn btn-primary btn-md disabled:opacity-60"
               >
                 {isSubmitting ? (
                   <>

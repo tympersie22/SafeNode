@@ -18,10 +18,10 @@ const Home: React.FC<HomeProps> = ({ onEnterApp }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900">
+    <div className="min-h-screen bg-transparent">
       {/* Navigation */}
       <nav
-        className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50"
+        className="bg-white/80 dark:bg-[#0F1A17]/85 backdrop-blur-md border-b border-slate-200 dark:border-[#1E2E29] sticky top-0 z-50"
         role="navigation"
         aria-label="Main navigation"
       >
@@ -137,7 +137,7 @@ const Home: React.FC<HomeProps> = ({ onEnterApp }) => {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden"
+              className="md:hidden border-t border-slate-200 dark:border-[#1E2E29] bg-white dark:bg-[#0F1A17] overflow-hidden"
             >
               <div className="px-4 py-4 space-y-1">
                 <a

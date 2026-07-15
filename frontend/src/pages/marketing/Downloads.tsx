@@ -154,17 +154,17 @@ export const DownloadsNewPage: React.FC = () => {
   const primaryDownload = getPrimaryDownload();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
       {/* Navigation */}
-      <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <nav className="border-b border-gray-200 dark:border-[#1E2E29] bg-white/80 dark:bg-[#0F1A17]/85 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900">SafeNode</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">SafeNode</span>
           </Link>
           <Link
             to="/auth"
-            className="px-4 py-2 bg-gray-950 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition"
+            className="btn btn-primary btn-sm"
           >
             Get Started
           </Link>
@@ -174,17 +174,17 @@ export const DownloadsNewPage: React.FC = () => {
       {/* Hero + Primary Download */}
       <section className="py-20 text-center">
         <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-5xl font-extrabold text-gray-900 mb-4">
+          <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
             Download SafeNode
           </h1>
-          <p className="text-xl text-gray-600 mb-12">
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
             Install Safenode on desktop or Android, or use it instantly on the web.
           </p>
 
           {/* Primary Download Button */}
           <motion.a
             href={primaryDownload.url}
-            className="inline-flex items-center gap-4 px-8 py-4 bg-gray-950 hover:bg-gray-800 text-white text-lg font-semibold rounded-xl transition shadow-xl"
+            className="btn btn-primary btn-lg gap-4"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -196,7 +196,7 @@ export const DownloadsNewPage: React.FC = () => {
           </motion.a>
 
           {(primaryDownload as any).size && (
-            <p className="mt-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               Version {(primaryDownload as any).version} • {(primaryDownload as any).size}
             </p>
           )}
@@ -208,7 +208,7 @@ export const DownloadsNewPage: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 space-y-16">
           {/* Desktop */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Desktop</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Desktop</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {DOWNLOADS.desktop.map((platform) => {
                 const LogoComponent = platform.logo;
@@ -216,18 +216,18 @@ export const DownloadsNewPage: React.FC = () => {
                 return (
                   <motion.div
                     key={platform.name}
-                    className="block bg-white rounded-xl border border-gray-200 p-6 transition hover:shadow-lg"
+                    className="card card-hover block p-6"
                     whileHover={isAvailable ? { y: -4 } : {}}
                   >
-                    <div className="w-12 h-12 text-gray-700 mb-4">
+                    <div className="w-12 h-12 text-gray-700 dark:text-secondary-300 mb-4">
                       <LogoComponent />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name}</h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{platform.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                       Version {platform.version} • {platform.size}
                     </p>
                     {isAvailable ? (
-                      <a href={platform.url} className="flex items-center gap-2 text-gray-900 font-medium">
+                      <a href={platform.url} className="flex items-center gap-2 text-gray-900 dark:text-secondary-300 font-medium">
                         <Download className="w-4 h-4" />
                         <span>Download</span>
                       </a>
@@ -244,23 +244,23 @@ export const DownloadsNewPage: React.FC = () => {
 
           {/* Mobile */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Mobile</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Mobile</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {DOWNLOADS.mobile.map((platform) => {
                 const LogoComponent = platform.logo;
                 const isAvailable = Boolean(platform.url);
-                const cardClass = "block bg-white rounded-xl border border-gray-200 p-6 transition";
+                const cardClass = "card block p-6";
                 const content = (
                   <>
-                    <div className="w-12 h-12 text-gray-700 mb-4">
+                    <div className="w-12 h-12 text-gray-700 dark:text-secondary-300 mb-4">
                       <LogoComponent />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name}</h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{platform.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                       {isAvailable ? `${platform.badge} • ${platform.version}` : platform.badge}
                     </p>
                     {isAvailable ? (
-                      <div className="flex items-center gap-2 text-gray-900 font-medium">
+                      <div className="flex items-center gap-2 text-gray-900 dark:text-secondary-300 font-medium">
                         <Download className="w-4 h-4" />
                         <span>Download</span>
                       </div>
@@ -299,7 +299,7 @@ export const DownloadsNewPage: React.FC = () => {
 
           {/* Browser Extension */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Browser Extension</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Browser Extension</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {DOWNLOADS.browser.map((platform) => {
                 const LogoComponent = platform.logo;
@@ -307,17 +307,17 @@ export const DownloadsNewPage: React.FC = () => {
                   <motion.a
                     key={platform.name}
                     href={platform.url}
-                    className="block bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition"
+                    className="card card-hover block p-6"
                     whileHover={{ y: -4 }}
                   >
-                    <div className="w-12 h-12 text-gray-700 mb-4">
+                    <div className="w-12 h-12 text-gray-700 dark:text-secondary-300 mb-4">
                       <LogoComponent />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{platform.name} Extension</h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{platform.name} Extension</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                       {platform.version} • Auto-fill on supported browsers
                     </p>
-                    <div className="flex items-center gap-2 text-gray-900 font-medium">
+                    <div className="flex items-center gap-2 text-gray-900 dark:text-secondary-300 font-medium">
                       <Download className="w-4 h-4" />
                       <span>{platform.cta || 'Download'}</span>
                     </div>
@@ -329,15 +329,15 @@ export const DownloadsNewPage: React.FC = () => {
 
           {/* Web App */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Web App</h2>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-8">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Web App</h3>
-              <p className="text-gray-600 mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Web App</h2>
+            <div className="bg-gradient-to-br from-secondary-50 to-white dark:from-secondary-900/30 dark:to-[#0F1A17] rounded-xl border border-secondary-100 dark:border-[#1E2E29] p-8">
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Web App</h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
                 Open Safenode instantly from any modern browser.
               </p>
               <Link
                 to="/auth"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gray-950 hover:bg-gray-800 text-white font-semibold rounded-lg transition"
+                className="btn btn-primary btn-lg"
               >
                 <Check className="w-5 h-5" />
                 <span>Open Web App</span>
@@ -348,12 +348,12 @@ export const DownloadsNewPage: React.FC = () => {
       </section>
 
       {/* Security Claims */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white/70 dark:bg-[#0F1A17]/55">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-12">
             Built for secure daily use
           </h2>
-          <div className="grid grid-cols-3 gap-8 text-sm text-gray-600">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm text-gray-600 dark:text-gray-300">
             <div>
               <Check className="w-6 h-6 text-green-500 mx-auto mb-2" />
               <p>Encrypted vault sync</p>

@@ -54,7 +54,7 @@ const Features: React.FC = () => {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section id="features" className="py-20 px-4 bg-white">
+    <section id="features" className="py-20 px-4 bg-white/70 dark:bg-transparent">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <motion.div
@@ -64,10 +64,10 @@ const Features: React.FC = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
             One Platform For Modern Access
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Passkey-first identity, zero-knowledge vaults, recovery controls, and team secrets in one operating layer.
           </p>
         </motion.div>
@@ -77,22 +77,22 @@ const Features: React.FC = () => {
           {FEATURES.map((feature, index) => (
             <motion.div
               key={feature.title}
-              className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-gray-400 transition-all"
+              className="card card-hover group relative p-6"
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {/* Icon */}
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gray-950 transition-all duration-200">
-                <feature.icon className="w-6 h-6 text-gray-700 group-hover:text-white transition-colors duration-200" />
+              <div className="w-12 h-12 bg-secondary-50 dark:bg-secondary-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gradient-safenode transition-all duration-200">
+                <feature.icon className="w-6 h-6 text-secondary-700 dark:text-secondary-300 group-hover:text-white transition-colors duration-200" />
               </div>
 
               {/* Content */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 {feature.title}
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 {feature.description}
               </p>
             </motion.div>

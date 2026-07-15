@@ -14,7 +14,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onEnterApp }) => {
   const prefersReducedMotion = useReducedMotion()
 
   return (
-    <section className="relative py-24 lg:py-32 bg-gray-950 overflow-hidden">
+    <section className="relative py-24 lg:py-32 bg-secondary-900 overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff06_1px,transparent_1px),linear-gradient(to_bottom,#ffffff06_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -43,7 +43,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onEnterApp }) => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <motion.button
               onClick={() => onEnterApp('signup')}
-              className="group relative px-8 py-4 bg-white hover:bg-gray-100 text-gray-950 text-lg font-semibold rounded-xl transition-all duration-200 shadow-xl shadow-white/10 hover:shadow-2xl hover:shadow-white/20"
+              className="btn btn-primary btn-lg group relative"
               whileHover={prefersReducedMotion ? {} : { scale: 1.03, y: -2 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
               aria-label="Get Started Free - Create free account"

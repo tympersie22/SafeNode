@@ -73,19 +73,19 @@ export const PricingNewPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
       {/* Navigation */}
-      <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <nav className="border-b border-gray-200 dark:border-[#1E2E29] bg-white/80 dark:bg-[#0F1A17]/85 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900">SafeNode</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">SafeNode</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+            <Link to="/" className="text-gray-600 dark:text-gray-300 hover:text-secondary-700 dark:hover:text-secondary-300 text-sm font-medium">
               Home
             </Link>
-            <Link to="/auth" className="px-4 py-2 bg-gray-950 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition">
+            <Link to="/auth" className="btn btn-primary btn-sm">
               Get Started
             </Link>
           </div>
@@ -95,21 +95,21 @@ export const PricingNewPage: React.FC = () => {
       {/* Hero */}
       <section className="py-20 text-center">
         <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-5xl font-extrabold text-gray-900 mb-4">
+          <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
             Simple Pricing For Identity And Secret Control
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
             Start free. Upgrade when you need more devices, recovery controls, and team workspaces.
           </p>
 
           {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 p-1 bg-gray-100 rounded-full">
+          <div className="inline-flex items-center gap-3 p-1 bg-gray-100 dark:bg-[#13211D] rounded-full">
             <button
               onClick={() => setBillingCycle('monthly')}
               className={`px-6 py-2 rounded-full font-medium transition ${
                 billingCycle === 'monthly'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600'
+                  ? 'bg-white dark:bg-[#0F1A17] text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300'
               }`}
             >
               Monthly
@@ -118,8 +118,8 @@ export const PricingNewPage: React.FC = () => {
               onClick={() => setBillingCycle('annual')}
               className={`px-6 py-2 rounded-full font-medium transition ${
                 billingCycle === 'annual'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600'
+                  ? 'bg-white dark:bg-[#0F1A17] text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300'
               }`}
             >
               Annual
@@ -141,30 +141,30 @@ export const PricingNewPage: React.FC = () => {
             return (
               <motion.div
                 key={plan.id}
-                className={`relative bg-white rounded-2xl border-2 p-8 ${
+                className={`card relative p-8 ${
                   plan.highlight
-                    ? 'border-gray-950 shadow-xl scale-105'
-                    : 'border-gray-200'
+                    ? 'border-secondary-400 shadow-safenode-lg scale-105'
+                    : ''
                 }`}
                 whileHover={{ y: -4 }}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-950 text-white text-sm font-semibold rounded-full">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-safenode text-white text-sm font-semibold rounded-full shadow-safenode-md">
                     {plan.tagline}
                   </div>
                 )}
 
                 <div className="mb-6">
-                  <Icon className={`w-10 h-10 mb-4 ${plan.highlight ? 'text-gray-950' : 'text-gray-600'}`} />
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  {!plan.highlight && <p className="text-sm text-gray-600">{plan.tagline}</p>}
+                  <Icon className={`w-10 h-10 mb-4 ${plan.highlight ? 'text-secondary-600 dark:text-secondary-300' : 'text-gray-600 dark:text-gray-300'}`} />
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{plan.name}</h3>
+                  {!plan.highlight && <p className="text-sm text-gray-600 dark:text-gray-300">{plan.tagline}</p>}
                 </div>
 
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-extrabold text-gray-900">{getPrice(plan)}</span>
+                    <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{getPrice(plan)}</span>
                     {plan.price !== 0 && (
-                      <span className="text-gray-600">/mo</span>
+                      <span className="text-gray-600 dark:text-gray-300">/mo</span>
                     )}
                   </div>
                   {savings && (
@@ -174,7 +174,7 @@ export const PricingNewPage: React.FC = () => {
 
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
                       <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                       <span>{feature}</span>
                     </li>
@@ -184,10 +184,10 @@ export const PricingNewPage: React.FC = () => {
                 <button
                   onClick={() => handleSubscribe(plan.id, checkoutTarget)}
                   disabled={isLoading}
-                  className={`w-full py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
+                  className={`btn w-full ${
                     plan.highlight
-                      ? 'bg-gray-950 hover:bg-gray-800 text-white shadow-lg shadow-gray-950/10'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                      ? 'btn-primary'
+                      : 'btn-secondary'
                   }`}
                 >
                   {isLoading && <Spinner size="sm" color={plan.highlight ? 'white' : 'primary'} />}
@@ -200,41 +200,41 @@ export const PricingNewPage: React.FC = () => {
       </section>
 
       {/* FAQ */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white/70 dark:bg-[#0F1A17]/55">
         <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-12 text-center">
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Can I switch plans anytime?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes. Upgrade or downgrade anytime. Changes apply immediately.
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Is there a free trial?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes. All paid plans include a 14-day free trial. No credit card required.
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 What payment methods do you accept?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 We accept all major credit cards via Stripe. Secure and encrypted.
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Can I cancel anytime?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes. Cancel anytime. No questions asked. Your data stays yours.
               </p>
             </div>
@@ -243,7 +243,7 @@ export const PricingNewPage: React.FC = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gray-950">
+      <section className="py-20 bg-secondary-900">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl font-extrabold text-white mb-4">
             Ready to get started?
@@ -253,7 +253,7 @@ export const PricingNewPage: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/auth?mode=signup')}
-            className="px-8 py-4 bg-white hover:bg-gray-100 text-gray-950 text-lg font-semibold rounded-xl transition shadow-xl shadow-white/10"
+            className="btn btn-primary btn-lg"
           >
             Start Free Today
           </button>
