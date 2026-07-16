@@ -54,7 +54,7 @@ export const ForgotPasswordPage: React.FC = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900">SafeNode</span>
+            <span className="text-xl font-bold text-gray-900">Safenode</span>
           </Link>
 
           {submitted ? (

@@ -83,7 +83,7 @@ export async function upsertAccountSuccessor(
 
   const existingUser = await findUserByEmail(successorEmail)
   if (existingUser && existingUser.id !== ownerUserId) {
-    throw new Error('Successor email is already in use by another SafeNode account')
+    throw new Error('Successor email is already in use by another Safenode account')
   }
 
   const waitingPeriodDays = Math.min(30, Math.max(7, input.waitingPeriodDays || DEFAULT_WAITING_DAYS))
@@ -195,7 +195,7 @@ export async function requestAccountSuccessorClaim(input: {
 
   const existingUser = await findUserByEmail(successorEmail)
   if (existingUser && existingUser.id !== owner.id) {
-    throw new Error('Successor email is already attached to another SafeNode account')
+    throw new Error('Successor email is already attached to another Safenode account')
   }
 
   const claimToken = randomBytes(24).toString('hex')
@@ -362,7 +362,7 @@ export async function completeAccountSuccessorClaim(input: {
 
   const existingUser = await findUserByEmail(record.successorEmail)
   if (existingUser && existingUser.id !== record.ownerUserId) {
-    throw new Error('Successor email is already attached to another SafeNode account')
+    throw new Error('Successor email is already attached to another Safenode account')
   }
 
   const hashedPassword = await hashPassword(input.password)

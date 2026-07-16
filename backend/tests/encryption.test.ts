@@ -16,7 +16,7 @@ import {
 
 describe('Encryption Utilities', () => {
   const testKey = Buffer.from('test-key-32-bytes-long-exactly!!').toString('base64')
-  const testData = 'Hello, SafeNode! This is test data.'
+  const testData = 'Hello, Safenode! This is test data.'
   const testBuffer = Buffer.from(testData, 'utf8')
 
   describe('encryptBuffer / decryptBuffer', () => {

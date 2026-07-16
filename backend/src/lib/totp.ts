@@ -27,7 +27,7 @@ export interface TOTPVerifyResult {
 /**
  * Generate a new TOTP secret for a user
  */
-export async function generateTOTPSecret(userId: string, email: string, issuer: string = 'SafeNode'): Promise<TOTPSecret> {
+export async function generateTOTPSecret(userId: string, email: string, issuer: string = 'Safenode'): Promise<TOTPSecret> {
   const secret = authenticator.generateSecret()
   const otpAuthUrl = authenticator.keyuri(email, issuer, secret)
   

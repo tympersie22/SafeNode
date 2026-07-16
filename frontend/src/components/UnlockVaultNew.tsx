@@ -491,7 +491,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     ? 'This vault was upgraded from the legacy passphrase-only model. Save the recovery kit below before you continue into the workspace.'
                     : passkeyReady
                     ? 'This device can derive a vault-wrapping key from your passkey without storing the vault secret locally. If the passkey path is unavailable, use your vault passphrase or recovery kit.'
-                    : 'Passkeys sign you in to SafeNode. Your vault secret still stays local to this browser session, so use your vault passphrase or recovery kit when access material has not been enrolled for passkey unlock.'}
+                    : 'Passkeys sign you in to Safenode. Your vault secret still stays local to this browser session, so use your vault passphrase or recovery kit when access material has not been enrolled for passkey unlock.'}
                 </p>
               </div>
             </div>

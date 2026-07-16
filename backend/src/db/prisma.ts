@@ -1,6 +1,6 @@
 /**
  * Prisma Database Client
- * Centralized Prisma client instance for SafeNode
+ * Centralized Prisma client instance for Safenode
  */
 
 import { PrismaClient } from '@prisma/client'

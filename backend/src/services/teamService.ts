@@ -241,7 +241,7 @@ export async function inviteTeamMember(
   })
 
   if (!user) {
-    throw new Error('User not found. They must have a SafeNode account first.')
+    throw new Error('User not found. They must have a Safenode account first.')
   }
 
   // Check if already a member

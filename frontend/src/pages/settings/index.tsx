@@ -56,7 +56,7 @@ export const SettingsPage: React.FC = () => {
               <HardDrive className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm font-semibold text-[var(--sn-ink)] dark:text-white">SafeNode controls</p>
+              <p className="text-sm font-semibold text-[var(--sn-ink)] dark:text-white">Safenode controls</p>
               <p className="text-xs text-[var(--sn-muted)]">Identity, recovery, and vault policy</p>
             </div>
           </div>

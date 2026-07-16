@@ -261,7 +261,7 @@ export const RecoveryCenterSettings: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recovery checklist</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Each control below maps to a real screen in SafeNode. Finish the missing items and this account becomes much harder to lose.
+              Each control below maps to a real screen in Safenode. Finish the missing items and this account becomes much harder to lose.
             </p>
           </div>
         </div>
@@ -294,7 +294,7 @@ export const RecoveryCenterSettings: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">What to fix next</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              SafeNode should help you recover without ever pretending the backend can decrypt your vault for you.
+              Safenode should help you recover without ever pretending the backend can decrypt your vault for you.
             </p>
           </div>
           <SaasButton variant="outline" size="sm" onClick={() => navigate('/settings?tab=data')}>
@@ -322,7 +322,7 @@ export const RecoveryCenterSettings: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Modern vault recovery model</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                Move legacy vaults to a wrapped-key model, or refresh recovery coverage for already-migrated vaults. SafeNode will relock the vault after the upgrade so the next unlock uses the new access profile.
+                Move legacy vaults to a wrapped-key model, or refresh recovery coverage for already-migrated vaults. Safenode will relock the vault after the upgrade so the next unlock uses the new access profile.
               </p>
             </div>
             <SaasButton

@@ -71,7 +71,7 @@ export const BillingSuccessPage: React.FC = () => {
           transition={{ delay: 0.5 }}
           className="text-lg text-gray-600 mb-2"
         >
-          Welcome to SafeNode <span className="font-semibold text-gray-900">{planName}</span>.
+          Welcome to Safenode <span className="font-semibold text-gray-900">{planName}</span>.
         </motion.p>
 
         <motion.p

@@ -1,5 +1,5 @@
 /**
- * SafeNode UI Component Library
+ * Safenode UI Component Library
  * Centralized exports for all UI components
  */
 

@@ -85,7 +85,7 @@ describe('Vault Storage', () => {
       mockOpenRequest.simulateSuccess(mockDB)
       await initPromise
       
-      expect(global.indexedDB.open).toHaveBeenCalledWith('SafeNodeVault', 1)
+      expect(global.indexedDB.open).toHaveBeenCalledWith('SafenodeVault', 1)
     })
 
     it('should create object store on upgrade', async () => {

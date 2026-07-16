@@ -127,7 +127,7 @@
   }
 }
 
-/* SafeNode Component System */
+/* Safenode Component System */
 @layer components {
   /* Premium Glass Effects */
   .glass {
@@ -646,7 +646,7 @@
   }
 }
 
-/* Unified SafeNode visual system */
+/* Unified Safenode visual system */
 :root {
   --sn-ink: #14201b;
   --sn-ink-soft: #23332c;

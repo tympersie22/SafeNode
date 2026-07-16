@@ -1,5 +1,5 @@
 /**
- * SafeNode Vault Sync
+ * Safenode Vault Sync
  * Handles synchronization between local storage and server
  */
 

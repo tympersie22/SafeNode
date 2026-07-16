@@ -1,4 +1,4 @@
-# Railway Config-as-Code for SafeNode Backend
+# Railway Config-as-Code for Safenode Backend
 # This file automatically configures Railway deployment settings
 # Railway will use this directory as the root when it finds this config file
 

@@ -14,7 +14,7 @@ let isInitialized = false
 async function getApp() {
   if (!isInitialized) {
     try {
-      console.log('🚀 Initializing SafeNode backend...')
+      console.log('🚀 Initializing Safenode backend...')
       console.log('📦 Environment:', process.env.NODE_ENV || 'development')
       console.log('💾 Database adapter:', process.env.DB_ADAPTER || 'file')
       

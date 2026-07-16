@@ -1038,7 +1038,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const totpSecret = await generateTOTPSecret(
         userData.id,
         userData.email,
-        'SafeNode'
+        'Safenode'
       )
 
       // Generate backup codes

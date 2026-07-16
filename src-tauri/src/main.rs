@@ -162,7 +162,7 @@ async fn show_main_window(window: Window, state: State<'_, AppState>) -> Result<
 fn create_system_tray_menu(is_unlocked: bool) -> tauri::SystemTrayMenu {
     use tauri::{CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem};
     
-    let show = CustomMenuItem::new("show".to_string(), "Show SafeNode");
+    let show = CustomMenuItem::new("show".to_string(), "Show Safenode");
     let lock = CustomMenuItem::new("lock".to_string(), "Lock Vault");
     let separator = SystemTrayMenuItem::Separator;
     let auto_lock_1min = CustomMenuItem::new("auto_lock_1".to_string(), "Auto-lock: 1 min");

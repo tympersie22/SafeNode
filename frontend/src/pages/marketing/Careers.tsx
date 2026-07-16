@@ -33,7 +33,7 @@ const roles: Role[] = [
     team: 'Ecosystem',
     location: 'Remote (Global)',
     type: 'Full-time',
-    summary: 'Create docs, examples, and integration guidance for teams adopting SafeNode securely.'
+    summary: 'Create docs, examples, and integration guidance for teams adopting Safenode securely.'
   }
 ]
 
@@ -84,7 +84,7 @@ const CareersPage: React.FC = () => {
                 </div>
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{role.title}</h3>
                 <p className="text-slate-600 dark:text-slate-400 mt-2">{role.summary}</p>
-                <a href="mailto:careers@safe-node.app?subject=Application%20-%20SafeNode" className="inline-flex mt-4 items-center gap-1 text-sm font-semibold text-secondary-700 dark:text-secondary-300">
+                <a href="mailto:careers@safe-node.app?subject=Application%20-%20Safenode" className="inline-flex mt-4 items-center gap-1 text-sm font-semibold text-secondary-700 dark:text-secondary-300">
                   Apply via email <ArrowRight className="w-4 h-4" />
                 </a>
               </article>

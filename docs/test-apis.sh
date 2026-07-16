@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SafeNode API Testing Script
+# Safenode API Testing Script
 # Tests all authentication and vault endpoints
 
 set -e
@@ -103,7 +103,7 @@ if ! command -v jq &> /dev/null; then
 fi
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}SafeNode API Test Suite${NC}"
+echo -e "${BLUE}Safenode API Test Suite${NC}"
 echo -e "${BLUE}========================================${NC}\n"
 
 # Test 1: Register

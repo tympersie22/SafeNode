@@ -1,6 +1,6 @@
 # Monitoring Alerts Setup
 
-This guide configures production monitoring for SafeNode backend uptime and error alerting.
+This guide configures production monitoring for Safenode backend uptime and error alerting.
 
 ## 1) Uptime Monitoring (Automated in GitHub Actions)
 

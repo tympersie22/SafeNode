@@ -61,7 +61,7 @@ const detectOS = (): 'android' | 'ios' | 'windows' | 'macos' | 'linux' | null =>
 
 const androidDownloadEnabled = import.meta.env.VITE_ANDROID_DOWNLOAD_ENABLED === 'true';
 const androidDownloadUrl = import.meta.env.VITE_ANDROID_DOWNLOAD_URL
-  || 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Android.apk';
+  || 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Android.apk';
 
 const DOWNLOADS = {
   desktop: [
@@ -69,7 +69,7 @@ const DOWNLOADS = {
       name: 'macOS',
       os: 'macos',
       logo: BrandLogos.Apple,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-macOS.dmg',
+      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-macOS.dmg',
       size: 'Apple Silicon DMG',
       version: RELEASE_VERSION,
     },
@@ -77,7 +77,7 @@ const DOWNLOADS = {
       name: 'Windows',
       os: 'windows',
       logo: BrandLogos.Windows,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/SafeNode-Windows.exe',
+      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Windows.exe',
       size: 'NSIS installer',
       version: RELEASE_VERSION,
     },
@@ -85,7 +85,7 @@ const DOWNLOADS = {
       name: 'Linux',
       os: 'linux',
       logo: BrandLogos.Linux,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest',
+      url: 'https://github.com/tympersie22/Safenode/releases/latest',
       size: 'Release assets',
       version: RELEASE_VERSION,
     },
@@ -112,21 +112,21 @@ const DOWNLOADS = {
     {
       name: 'Chrome',
       logo: BrandLogos.Chrome,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/safenode-extension-chrome.zip',
+      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/safenode-extension-chrome.zip',
       cta: 'Download ZIP',
       version: RELEASE_VERSION,
     },
     {
       name: 'Firefox',
       logo: BrandLogos.Firefox,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/safenode-extension-firefox.zip',
+      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/safenode-extension-firefox.zip',
       cta: 'Download ZIP',
       version: RELEASE_VERSION,
     },
     {
       name: 'Safari',
       logo: BrandLogos.Apple,
-      url: 'https://github.com/tympersie22/SafeNode/releases/latest/download/safenode-extension-safari.zip',
+      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/safenode-extension-safari.zip',
       cta: 'Download ZIP',
       version: RELEASE_VERSION,
     },
@@ -189,7 +189,7 @@ export const DownloadsNewPage: React.FC = () => {
 
           <div className="relative mx-auto w-full max-w-[430px] bg-[var(--sn-ink)] p-5 text-white sm:p-8">
             <div className="flex items-center justify-between border-b border-white/15 pb-5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">SafeNode mobile</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Safenode mobile</span>
               <span className="flex items-center gap-2 text-xs text-[var(--sn-accent-soft)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--sn-accent-soft)]" /> Protected</span>
             </div>
             <div className="py-9">
@@ -222,7 +222,7 @@ export const DownloadsNewPage: React.FC = () => {
                     <div className="flex h-12 w-12 items-center justify-center border border-[var(--sn-line)] text-[var(--sn-ink)] dark:text-white"><span className="h-6 w-6"><LogoComponent /></span></div>
                     <span className={`font-mono text-[10px] uppercase tracking-[0.16em] ${available ? 'text-[var(--sn-accent)]' : 'text-[var(--sn-muted)]'}`}>{available ? 'Available' : 'In preparation'}</span>
                   </div>
-                  <h3 className="mt-8 font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">SafeNode for {platform.name}</h3>
+                  <h3 className="mt-8 font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">Safenode for {platform.name}</h3>
                   <p className="mt-4 max-w-lg leading-7 text-[var(--sn-muted)]">
                     {platform.name === 'Android'
                       ? androidDownloadEnabled
@@ -286,7 +286,7 @@ export const DownloadsNewPage: React.FC = () => {
         <div className="sn-marketing-container grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="sn-eyebrow text-[var(--sn-accent-soft)]">No installation required</p>
-            <h2 className="sn-display mt-6 max-w-4xl text-white">Open SafeNode in a modern browser.</h2>
+            <h2 className="sn-display mt-6 max-w-4xl text-white">Open Safenode in a modern browser.</h2>
             <div className="mt-7 flex flex-wrap gap-6 text-sm text-white/50">
               <span className="flex items-center gap-2"><Check className="h-4 w-4 text-[var(--sn-accent-soft)]" /> Encrypted vault sync</span>
               <span className="flex items-center gap-2"><Check className="h-4 w-4 text-[var(--sn-accent-soft)]" /> Device-aware access</span>

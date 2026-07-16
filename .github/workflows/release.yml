@@ -171,7 +171,7 @@ jobs:
 
           safari_manifest = Path("release-assets/safari/manifest.json")
           sm = json.loads(safari_manifest.read_text())
-          sm["name"] = "SafeNode Password Manager (Safari)"
+          sm["name"] = "Safenode Password Manager (Safari)"
           sm.pop("web_accessible_resources", None)
           safari_manifest.write_text(json.dumps(sm, indent=2) + "\n")
           PY
@@ -222,15 +222,15 @@ jobs:
             exit 1
           fi
 
-          cp "${MAC_FILE}" release-assets/SafeNode-macOS.dmg
-          cp "${WIN_FILE}" release-assets/SafeNode-Windows.exe
+          cp "${MAC_FILE}" release-assets/Safenode-macOS.dmg
+          cp "${WIN_FILE}" release-assets/Safenode-Windows.exe
           if [ -z "${ANDROID_FILE}" ]; then
             echo "Missing Android artifact"
             exit 1
           fi
-          cp "${ANDROID_FILE}" release-assets/SafeNode-Android.apk
+          cp "${ANDROID_FILE}" release-assets/Safenode-Android.apk
           if [ -n "${LINUX_FILE}" ]; then
-            cp "${LINUX_FILE}" release-assets/SafeNode-Linux.AppImage
+            cp "${LINUX_FILE}" release-assets/Safenode-Linux.AppImage
           fi
 
           cp artifacts/extensions/safenode-extension-chrome.zip release-assets/safenode-extension-chrome.zip

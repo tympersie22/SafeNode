@@ -171,7 +171,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     
     // Handle network errors
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-        throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+        throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     // Re-throw other errors
     throw error
@@ -266,7 +266,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     
     // Handle network errors
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-        throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+        throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     
     // Re-throw other errors
@@ -309,7 +309,7 @@ export async function signUpWithPasskey(input: PasskeySignupInput): Promise<Auth
   } catch (error: any) {
     console.error('[authService] Passkey sign-up exception:', error)
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+      throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     throw error
   }
@@ -324,7 +324,7 @@ export async function signInWithPasskey(email: string): Promise<AuthResponse> {
   } catch (error: any) {
     console.error('[authService] Passkey sign-in exception:', error)
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+      throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     throw error
   }

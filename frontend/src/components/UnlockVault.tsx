@@ -76,7 +76,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
     setError(null);
 
     try {
-      const result = await biometricAuthService.authenticate('Unlock SafeNode vault');
+      const result = await biometricAuthService.authenticate('Unlock Safenode vault');
       
       if (!result.success) {
         throw new Error(result.error || 'Biometric authentication failed');
@@ -592,7 +592,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
 
         {/* Footer */}
         <div className="text-center mt-8 text-slate-500 dark:text-slate-400 text-sm">
-          <p>SafeNode v0.1.0 • Secure Password Management</p>
+          <p>Safenode v0.1.0 • Secure Password Management</p>
         </div>
       </motion.div>
     </div>

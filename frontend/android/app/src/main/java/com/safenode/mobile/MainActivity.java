@@ -10,7 +10,7 @@ import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
-    private static final String TAG = "SafeNodeWebAuthn";
+    private static final String TAG = "SafenodeWebAuthn";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

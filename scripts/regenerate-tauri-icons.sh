@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ICON_SOURCE="$ROOT_DIR/frontend/public/SafeNodelogo.png"
+ICON_SOURCE="$ROOT_DIR/frontend/public/Safenodelogo.png"
 ICON_DIR="$ROOT_DIR/src-tauri/icons"
 
 if [[ ! -f "$ICON_SOURCE" ]]; then

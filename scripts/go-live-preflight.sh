@@ -67,7 +67,7 @@ check_backend_tests() {
   (cd "$ROOT_DIR/backend" && npm run test -- --runInBand)
 }
 
-blue "SafeNode Go-Live Preflight"
+blue "Safenode Go-Live Preflight"
 echo "Repository: $ROOT_DIR"
 echo
 

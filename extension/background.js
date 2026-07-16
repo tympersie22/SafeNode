@@ -1,5 +1,5 @@
 /**
- * SafeNode Extension - Background Script
+ * Safenode Extension - Background Script
  * Handles vault communication and storage management
  */
 
@@ -10,7 +10,7 @@ const SYNC_INTERVAL = 30000; // 30 seconds
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('SafeNode extension installed');
+  console.log('Safenode extension installed');
   
   // Set default storage values
   chrome.storage.local.set({
@@ -96,7 +96,7 @@ async function handleUnlockVault(password, sendResponse) {
     // Never accept a hardcoded demo password in extension runtime code.
     sendResponse({
       success: false,
-      error: 'Extension vault unlock is not implemented in this build. Use the main SafeNode app flow.'
+      error: 'Extension vault unlock is not implemented in this build. Use the main Safenode app flow.'
     });
   } catch (error) {
     sendResponse({ success: false, error: error.message });

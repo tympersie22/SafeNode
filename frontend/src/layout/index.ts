@@ -1,5 +1,5 @@
 /**
- * SafeNode Layout Components
+ * Safenode Layout Components
  */
 
 export { DashboardLayout, type DashboardLayoutProps } from './DashboardLayout'

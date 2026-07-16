@@ -26,7 +26,7 @@ export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
             Your digital identity needs more than a password manager.
           </h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-[var(--sn-muted)] sm:text-xl">
-            SafeNode brings passkeys, zero-knowledge secrets, recovery, and trusted devices into one dependable control plane.
+            Safenode brings passkeys, zero-knowledge secrets, recovery, and trusted devices into one dependable control plane.
           </p>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">

@@ -1,4 +1,4 @@
--- SafeNode schema patch
+-- Safenode schema patch
 -- Adds WebAuthn credential/challenge tables and webhook idempotency table
 
 CREATE TABLE IF NOT EXISTS webauthn_credentials (

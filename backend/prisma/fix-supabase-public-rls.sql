@@ -1,4 +1,4 @@
--- SafeNode Supabase Security Advisor hardening
+-- Safenode Supabase Security Advisor hardening
 -- Enables RLS on all app-owned public tables and denies PostgREST anon/authenticated
 -- access. The backend uses a direct PostgreSQL connection, so app traffic does not
 -- depend on Supabase PostgREST access to these tables.

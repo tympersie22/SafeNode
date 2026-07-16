@@ -513,7 +513,7 @@ export const TeamVaultWorkspace: React.FC<TeamVaultWorkspaceProps> = ({
         sidebarItems={sidebarItems}
         activeSidebarItem="team-vault"
         sidebarBrand={{
-          title: 'SafeNode',
+          title: 'Safenode',
           subtitle: 'Encrypted operations center',
           badge: 'Zero-knowledge'
         }}

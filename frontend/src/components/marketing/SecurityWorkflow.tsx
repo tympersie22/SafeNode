@@ -13,7 +13,7 @@ const STEPS = [
     number: '02',
     icon: KeyRound,
     title: 'Unlock locally',
-    description: 'The vault key is unwrapped on your device. SafeNode stores encrypted material, never the plaintext key.'
+    description: 'The vault key is unwrapped on your device. Safenode stores encrypted material, never the plaintext key.'
   },
   {
     number: '03',

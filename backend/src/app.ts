@@ -354,7 +354,7 @@ export async function createApp() {
 
     // Root health check route
     server.get('/', async (request, reply) => {
-          return { status: 'ok', message: 'SafeNode API is running' }
+          return { status: 'ok', message: 'Safenode API is running' }
     })
 
   return server

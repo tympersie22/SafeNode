@@ -77,7 +77,7 @@ const SuccessorClaimPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Account Successor</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
-            SafeNode uses a delayed-transfer model. The owner can designate a successor, a claim starts a waiting period, and the owner can cancel it before any account transfer is allowed.
+            Safenode uses a delayed-transfer model. The owner can designate a successor, a claim starts a waiting period, and the owner can cancel it before any account transfer is allowed.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ const SuccessorClaimPage: React.FC = () => {
               <UserRoundPlus className="h-5 w-5 text-cyan-400" />
               <div>
                 <h2 className="text-xl font-semibold">Start a succession claim</h2>
-                <p className="text-sm text-slate-400">Use the owner email and the successor email that was registered in SafeNode.</p>
+                <p className="text-sm text-slate-400">Use the owner email and the successor email that was registered in Safenode.</p>
               </div>
             </div>
 

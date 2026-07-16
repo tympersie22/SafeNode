@@ -92,7 +92,7 @@ export const PasskeyVaultBootstrap: React.FC<PasskeyVaultBootstrapProps> = ({
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
               <p className="font-semibold text-slate-900">How this works</p>
               <ul className="mt-3 space-y-2 leading-6">
-                <li>1. SafeNode creates a random vault key for this account.</li>
+                <li>1. Safenode creates a random vault key for this account.</li>
                 <li>2. This browser holds the temporary unlock secret in memory only for the current session.</li>
                 <li>3. You receive a recovery kit for future unlocks on new or restarted devices.</li>
               </ul>

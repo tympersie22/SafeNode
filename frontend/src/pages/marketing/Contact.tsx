@@ -27,7 +27,7 @@ const ContactPage: React.FC = () => {
     setIsSubmitting(true)
     try {
       await new Promise((resolve) => setTimeout(resolve, 1200))
-      showToast.success('Message queued. The SafeNode team will reply shortly.')
+      showToast.success('Message queued. The Safenode team will reply shortly.')
       setFormData({ name: '', email: '', team: '', subject: '', message: '' })
     } catch {
       showToast.error('Unable to send message right now. Please email support directly.')
@@ -43,7 +43,7 @@ const ContactPage: React.FC = () => {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl">
           <p className="text-xs tracking-[0.18em] uppercase text-secondary-600 dark:text-secondary-400 font-semibold mb-3">Contact</p>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Talk to the SafeNode Team</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Talk to the Safenode Team</h1>
           <p className="text-slate-600 dark:text-slate-400 text-lg">
             Reach product, support, and security engineering from one place. For urgent incidents, use the security contact channel.
           </p>

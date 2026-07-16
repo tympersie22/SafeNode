@@ -1,6 +1,6 @@
 /**
  * Color System - Logo-based palette
- * Designed to work with the SafeNode logo and support light/dark modes
+ * Designed to work with the Safenode logo and support light/dark modes
  */
 
 export const colors = {

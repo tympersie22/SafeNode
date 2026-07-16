@@ -14,11 +14,11 @@ export async function registerSwagger(server: FastifyInstance): Promise<void> {
     openapi: {
       openapi: '3.0.0',
       info: {
-        title: 'SafeNode API',
+        title: 'Safenode API',
         description: `
-# SafeNode API Documentation
+# Safenode API Documentation
 
-SafeNode is a zero-knowledge password manager with full SaaS infrastructure.
+Safenode is a zero-knowledge password manager with full SaaS infrastructure.
 
 ## Features
 - Zero-knowledge encryption (AES-256-GCM + Argon2id)
@@ -53,7 +53,7 @@ Rate limits vary by subscription tier:
         `,
         version: '1.0.0',
         contact: {
-          name: 'SafeNode Support',
+          name: 'Safenode Support',
           email: 'support@safe-node.app',
           url: 'https://safe-node.app/support'
         },

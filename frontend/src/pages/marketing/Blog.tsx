@@ -14,10 +14,10 @@ const BlogPage: React.FC = () => {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-          <p className="text-xs tracking-[0.18em] uppercase text-secondary-600 dark:text-secondary-400 font-semibold mb-3">SafeNode Journal</p>
+          <p className="text-xs tracking-[0.18em] uppercase text-secondary-600 dark:text-secondary-400 font-semibold mb-3">Safenode Journal</p>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Security Engineering, Product Notes, and Incidents</h1>
           <p className="text-slate-600 dark:text-slate-400 max-w-3xl">
-            Updates from the SafeNode team on encryption architecture, reliability improvements, release operations, and security practices.
+            Updates from the Safenode team on encryption architecture, reliability improvements, release operations, and security practices.
           </p>
         </motion.div>
 

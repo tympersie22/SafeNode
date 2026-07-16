@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# SafeNode Desktop Build Script
-echo "🚀 Building SafeNode Desktop App..."
+# Safenode Desktop Build Script
+echo "🚀 Building Safenode Desktop App..."
 
 # Check if Rust is installed
 if ! command -v cargo &> /dev/null; then
@@ -36,7 +36,7 @@ echo "📁 Find your app in: src-tauri/target/release/bundle/"
 # Check if build was successful
 if [ $? -eq 0 ]; then
     echo ""
-    echo "🎉 SafeNode Desktop is ready!"
+    echo "🎉 Safenode Desktop is ready!"
     echo ""
     echo "📋 Next steps:"
     echo "   1. Run: npm run dev (to test in development)"

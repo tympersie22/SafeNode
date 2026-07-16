@@ -61,7 +61,7 @@ jobs:
       - name: Send webhook alert
         if: failure() && secrets.ALERT_WEBHOOK_URL != ''
         run: |
-          MSG="SafeNode uptime alert: backend health check failed.\nURL: ${BACKEND_HEALTH_URL}\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\nHTTP: ${{ steps.check.outputs.http_code }}"
+          MSG="Safenode uptime alert: backend health check failed.\nURL: ${BACKEND_HEALTH_URL}\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\nHTTP: ${{ steps.check.outputs.http_code }}"
           curl -sS -X POST "${{ secrets.ALERT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "{\"text\":\"${MSG//$'\n'/\\n}\"}" >/dev/null

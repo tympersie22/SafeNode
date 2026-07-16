@@ -110,7 +110,7 @@ async function consumeChallenges(userId: string, type: AuthType): Promise<void> 
 export async function createRegistrationOptionsForIdentity(userId: string, userEmail: string): Promise<any> {
   return generateRegistrationOptions({
     rpID: getRpId(),
-    rpName: 'SafeNode',
+    rpName: 'Safenode',
     userName: userEmail,
     userID: new TextEncoder().encode(userId),
     attestationType: 'none',

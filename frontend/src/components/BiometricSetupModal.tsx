@@ -110,8 +110,8 @@ const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({
               </h3>
               <p className="text-sm text-slate-600">
                 {capabilities.type === 'face'
-                  ? 'Use your face to unlock SafeNode quickly and securely.'
-                  : 'Use your fingerprint to unlock SafeNode quickly and securely.'}
+                  ? 'Use your face to unlock Safenode quickly and securely.'
+                  : 'Use your fingerprint to unlock Safenode quickly and securely.'}
               </p>
             </div>
 

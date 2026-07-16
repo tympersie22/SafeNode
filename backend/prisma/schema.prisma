@@ -1,4 +1,4 @@
-// SafeNode Prisma Schema
+// Safenode Prisma Schema
 // Production-ready database schema for all core entities
 
 generator client {

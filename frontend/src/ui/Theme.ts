@@ -1,5 +1,5 @@
 /**
- * SafeNode Theme System
+ * Safenode Theme System
  * Centralized theme configuration
  */
 

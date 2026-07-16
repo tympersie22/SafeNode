@@ -1,5 +1,5 @@
 /**
- * SafeNode Desktop Integration
+ * Safenode Desktop Integration
  * Handles communication between frontend and Tauri backend
  */
 

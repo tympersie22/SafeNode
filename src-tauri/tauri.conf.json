@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "SafeNode",
+    "productName": "Safenode",
     "version": "0.1.0"
   },
   "tauri": {
@@ -63,7 +63,7 @@
       "copyright": "",
       "category": "Productivity",
       "shortDescription": "Secure password manager with offline-first design",
-      "longDescription": "SafeNode is a secure, offline-first password manager that keeps your passwords encrypted locally while providing seamless sync across devices.",
+      "longDescription": "Safenode is a secure, offline-first password manager that keeps your passwords encrypted locally while providing seamless sync across devices.",
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.13",
@@ -85,7 +85,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "SafeNode",
+        "title": "Safenode",
         "width": 1200,
         "height": 800,
         "minWidth": 800,

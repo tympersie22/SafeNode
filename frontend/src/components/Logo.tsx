@@ -54,8 +54,8 @@ const Logo: React.FC<LogoProps> = ({
   if (!shouldAnimate) {
     return (
       <img 
-        src="/SafeNodelogo.png"
-        alt="SafeNode Logo"
+        src="/Safenodelogo.png"
+        alt="Safenode Logo"
         className={baseClasses}
         aria-hidden="true"
       />
@@ -67,8 +67,8 @@ const Logo: React.FC<LogoProps> = ({
     case 'header':
       return (
         <motion.img
-          src="/SafeNodelogo.png"
-          alt="SafeNode Logo"
+          src="/Safenodelogo.png"
+          alt="Safenode Logo"
           className={baseClasses}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -88,8 +88,8 @@ const Logo: React.FC<LogoProps> = ({
     case 'hero':
       return (
         <motion.img
-          src="/SafeNodelogo.png"
-          alt="SafeNode Logo"
+          src="/Safenodelogo.png"
+          alt="Safenode Logo"
           className={baseClasses}
           initial={{ opacity: 0, y: 20, scale: 0.8 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -105,8 +105,8 @@ const Logo: React.FC<LogoProps> = ({
     case 'footer':
       return (
         <motion.img
-          src="/SafeNodelogo.png"
-          alt="SafeNode Logo"
+          src="/Safenodelogo.png"
+          alt="Safenode Logo"
           className={baseClasses}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -118,8 +118,8 @@ const Logo: React.FC<LogoProps> = ({
     case 'unlock':
       return (
         <motion.img
-          src="/SafeNodelogo.png"
-          alt="SafeNode Logo"
+          src="/Safenodelogo.png"
+          alt="Safenode Logo"
           className={baseClasses}
           initial={{ rotate: -8, opacity: 0, scale: 0.9 }}
           animate={{ rotate: 0, opacity: 1, scale: 1 }}
@@ -136,8 +136,8 @@ const Logo: React.FC<LogoProps> = ({
     case 'nav':
       return (
         <motion.img
-          src="/SafeNodelogo.png"
-          alt="SafeNode Logo"
+          src="/Safenodelogo.png"
+          alt="Safenode Logo"
           className={baseClasses}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,8 +149,8 @@ const Logo: React.FC<LogoProps> = ({
     default:
       return (
         <motion.img
-          src="/SafeNodelogo.png"
-          alt="SafeNode Logo"
+          src="/Safenodelogo.png"
+          alt="Safenode Logo"
           className={baseClasses}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}

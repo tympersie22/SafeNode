@@ -143,7 +143,7 @@ const ShareEntryModal: React.FC<ShareEntryModalProps> = ({ isOpen, onClose, entr
 
         <div className="p-6 space-y-4">
           <p id="share-entry-description" className="text-sm text-slate-600">
-            Encrypt this credential for another SafeNode user using their public sharing key and your chosen role.
+            Encrypt this credential for another Safenode user using their public sharing key and your chosen role.
           </p>
           <div>
             <div className="text-sm font-medium text-slate-700 mb-2">Recipient Public Key (JWK JSON)</div>

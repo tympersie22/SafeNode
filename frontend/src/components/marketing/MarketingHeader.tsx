@@ -28,9 +28,9 @@ export const MarketingHeader: React.FC<MarketingHeaderProps> = ({ onOpenVault })
   return (
     <header className="sn-marketing-header">
       <div className="sn-marketing-container flex h-[72px] items-center justify-between gap-6">
-        <Link to="/" className="flex items-center gap-3" aria-label="SafeNode home">
+        <Link to="/" className="flex items-center gap-3" aria-label="Safenode home">
           <Logo variant="nav" />
-          <span className="text-[18px] font-semibold tracking-[-0.03em] text-[var(--sn-ink)] dark:text-white">SafeNode</span>
+          <span className="text-[18px] font-semibold tracking-[-0.03em] text-[var(--sn-ink)] dark:text-white">Safenode</span>
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation links">

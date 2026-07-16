@@ -6,13 +6,13 @@ export const TermsOfServicePage: React.FC = () => {
     <LegalPageShell
       eyebrow="Terms"
       title="Terms of Service"
-      summary="These terms govern access to SafeNode’s applications, infrastructure, and subscription plans. They describe account responsibilities, billing behavior, and the boundaries of the service."
+      summary="These terms govern access to Safenode’s applications, infrastructure, and subscription plans. They describe account responsibilities, billing behavior, and the boundaries of the service."
       lastUpdated="March 2026"
     >
       <section>
         <h2>1. Acceptance</h2>
         <p>
-          By creating an account, accessing the website, or using the SafeNode applications, you agree to these Terms
+          By creating an account, accessing the website, or using the Safenode applications, you agree to these Terms
           of Service. If you do not accept these terms, do not use the service.
         </p>
       </section>
@@ -20,7 +20,7 @@ export const TermsOfServicePage: React.FC = () => {
       <section>
         <h2>2. Service description</h2>
         <p>
-          SafeNode is a subscription SaaS password manager and encrypted vault service for individuals, families, and
+          Safenode is a subscription SaaS password manager and encrypted vault service for individuals, families, and
           teams. The service includes account management, encrypted vault storage, device management, passkey support,
           security alerts, and billing workflows.
         </p>
@@ -32,7 +32,7 @@ export const TermsOfServicePage: React.FC = () => {
           <li>You are responsible for your credentials, devices, and all activity under your account.</li>
           <li>You must provide accurate registration and billing information.</li>
           <li>You must protect your master password and recovery material.</li>
-          <li>You must notify SafeNode promptly if you suspect unauthorized access.</li>
+          <li>You must notify Safenode promptly if you suspect unauthorized access.</li>
         </ul>
       </section>
 
@@ -49,22 +49,22 @@ export const TermsOfServicePage: React.FC = () => {
       <section>
         <h2>5. Subscriptions and billing</h2>
         <p>
-          SafeNode offers both free and paid subscription tiers. Paid subscriptions are processed through Paddle as the
+          Safenode offers both free and paid subscription tiers. Paid subscriptions are processed through Paddle as the
           merchant of record. Billing terms, taxes, and invoices may be handled through Paddle-hosted flows.
         </p>
         <ul>
           <li>Subscriptions renew according to the selected monthly or annual cycle unless canceled.</li>
           <li>Plan changes, cancellations, and renewals may take effect at the next applicable billing boundary.</li>
           <li>Feature access and resource limits depend on the current subscription tier.</li>
-          <li>Refund handling is described in the SafeNode Refund Policy.</li>
+          <li>Refund handling is described in the Safenode Refund Policy.</li>
         </ul>
       </section>
 
       <section>
         <h2>6. Data ownership</h2>
         <p>
-          You retain ownership of the data you store in SafeNode. SafeNode does not claim ownership of your vault
-          contents. Because the service uses a zero-knowledge design for vault data, SafeNode cannot generally decrypt
+          You retain ownership of the data you store in Safenode. Safenode does not claim ownership of your vault
+          contents. Because the service uses a zero-knowledge design for vault data, Safenode cannot generally decrypt
           or recover user vault contents.
         </p>
       </section>
@@ -72,7 +72,7 @@ export const TermsOfServicePage: React.FC = () => {
       <section>
         <h2>7. Availability</h2>
         <p>
-          SafeNode aims for reliable availability but does not guarantee uninterrupted service. Maintenance, third-party
+          Safenode aims for reliable availability but does not guarantee uninterrupted service. Maintenance, third-party
           provider outages, abuse mitigation, or other operational events may affect availability.
         </p>
       </section>
@@ -81,7 +81,7 @@ export const TermsOfServicePage: React.FC = () => {
         <h2>8. Disclaimers and limitation of liability</h2>
         <p>
           The service is provided on an “as is” and “as available” basis to the maximum extent permitted by law.
-          SafeNode is not liable for indirect, incidental, consequential, special, or punitive damages, including loss
+          Safenode is not liable for indirect, incidental, consequential, special, or punitive damages, including loss
           of profits, business interruption, or loss of access to encrypted data resulting from credential loss.
         </p>
       </section>
@@ -89,7 +89,7 @@ export const TermsOfServicePage: React.FC = () => {
       <section>
         <h2>9. Suspension and termination</h2>
         <p>
-          SafeNode may suspend or terminate accounts that violate these terms, create operational risk, or are required
+          Safenode may suspend or terminate accounts that violate these terms, create operational risk, or are required
           to be disabled for compliance reasons. You may stop using the service and request deletion of your account at
           any time.
         </p>

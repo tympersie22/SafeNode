@@ -1,9 +1,9 @@
 /**
- * SafeNode Extension - Popup Script
+ * Safenode Extension - Popup Script
  * Handles popup UI interactions and vault communication
  */
 
-class SafeNodePopup {
+class SafenodePopup {
   constructor() {
     this.isUnlocked = false;
     this.vaultData = null;
@@ -390,4 +390,4 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Initialize popup
-const popup = new SafeNodePopup();
+const popup = new SafenodePopup();

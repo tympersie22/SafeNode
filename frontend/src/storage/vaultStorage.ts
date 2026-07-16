@@ -1,5 +1,5 @@
 /**
- * SafeNode Vault Storage
+ * Safenode Vault Storage
  * IndexedDB wrapper for offline-first encrypted vault storage
  */
 
@@ -28,7 +28,7 @@ export interface VaultMetadata {
   recoveryKitConfigured?: boolean;
 }
 
-const DB_NAME = 'SafeNodeVault';
+const DB_NAME = 'SafenodeVault';
 const DB_VERSION = 1;
 const STORE_NAME = 'vaults';
 

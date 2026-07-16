@@ -99,7 +99,7 @@ class BiometricAuthService {
    * Authenticate using biometrics with ML enhancements
    */
   async authenticate(
-    prompt: string = 'Authenticate to unlock SafeNode'
+    prompt: string = 'Authenticate to unlock Safenode'
   ): Promise<BiometricAuthResult> {
     let baseResult: BiometricAuthResult;
 
@@ -258,7 +258,7 @@ class BiometricAuthService {
       const publicKey: PublicKeyCredentialCreationOptions = {
         challenge: this.base64UrlToBuffer(options.challenge),
         rp: {
-          name: options.rp.name || 'SafeNode',
+          name: options.rp.name || 'Safenode',
           id: options.rp.id || window.location.hostname
         },
         user: {

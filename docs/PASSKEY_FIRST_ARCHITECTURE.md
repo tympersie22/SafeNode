@@ -1,8 +1,8 @@
-# SafeNode Passkey-First Architecture
+# Safenode Passkey-First Architecture
 
 ## Product Thesis
 
-SafeNode should evolve from a password manager into a passkey-first identity, recovery, and team secret platform.
+Safenode should evolve from a password manager into a passkey-first identity, recovery, and team secret platform.
 
 The product boundary becomes:
 
@@ -11,7 +11,7 @@ The product boundary becomes:
 - recover access safely without weakening encryption
 - govern personal and team secrets with auditable controls
 
-This lets SafeNode own the full lifecycle of digital access:
+This lets Safenode own the full lifecycle of digital access:
 
 - sign-in
 - unlock
@@ -32,9 +32,9 @@ This lets SafeNode own the full lifecycle of digital access:
 
 ## Current State
 
-Today SafeNode is effectively:
+Today Safenode is effectively:
 
-- SafeNode-managed authentication
+- Safenode-managed authentication
 - optional passkey and biometric support
 - vault access still centered on a user passphrase / master-password model
 - separate emerging team-vault and successor features
@@ -143,7 +143,7 @@ The account transfer layer should manage identity continuity without pretending 
 
 ### New Product Framing
 
-SafeNode should present itself as:
+Safenode should present itself as:
 
 - passkey-first identity security
 - recovery-ready zero-knowledge vaults

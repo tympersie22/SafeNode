@@ -25,7 +25,7 @@ export const BillingPage: React.FC = () => {
             Billing & Subscriptions
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Learn about SafeNode subscription plans, billing, and payment management.
+            Learn about Safenode subscription plans, billing, and payment management.
           </p>
 
           <section className="mb-12">

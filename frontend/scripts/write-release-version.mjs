@@ -79,7 +79,7 @@ function readExistingReleaseVersion() {
 
 async function main() {
   const pkg = JSON.parse(readFileSync(PACKAGE_JSON_PATH, 'utf8'))
-  const repo = process.env.GITHUB_REPOSITORY || 'tympersie22/SafeNode'
+  const repo = process.env.GITHUB_REPOSITORY || 'tympersie22/Safenode'
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || ''
   const forcedVersion = normalizeTag(process.env.VITE_RELEASE_VERSION)
 

@@ -126,7 +126,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
         <div className="border-l-2 border-[var(--sn-accent)] bg-[var(--sn-accent-wash)] p-4 text-sm text-[var(--sn-muted)]">
           <p className="font-semibold text-[var(--sn-ink)]">What happens next</p>
           <ul className="mt-3 space-y-2 text-sm leading-6">
-            <li>1. We create your SafeNode identity with a passkey.</li>
+            <li>1. We create your Safenode identity with a passkey.</li>
             <li>2. Your device bootstraps a wrapped vault key locally.</li>
             <li>3. You receive a recovery kit before entering the workspace.</li>
           </ul>
@@ -139,7 +139,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
           className="w-full"
           loading={isLoading}
           disabled={!isFormValid || isLoading}
-          aria-label={isLoading ? "Creating account, please wait" : "Create your SafeNode account with a passkey"}
+          aria-label={isLoading ? "Creating account, please wait" : "Create your Safenode account with a passkey"}
         >
           {isLoading ? 'Creating Passkey Account...' : 'Create Account with Passkey'}
         </Button>

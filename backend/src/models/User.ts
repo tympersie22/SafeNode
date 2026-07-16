@@ -1,6 +1,6 @@
 /**
  * User Model
- * Defines the user data structure for SafeNode authentication
+ * Defines the user data structure for Safenode authentication
  */
 
 export interface User {

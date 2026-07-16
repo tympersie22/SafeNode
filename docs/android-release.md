@@ -1,7 +1,7 @@
 # Android Release Security
 
-SafeNode's Android package is `com.safenode.mobile`. Release APKs must be signed
-with the stable SafeNode release certificate and must never be published from a
+Safenode's Android package is `com.safenode.mobile`. Release APKs must be signed
+with the stable Safenode release certificate and must never be published from a
 debug signing configuration.
 
 ## Required GitHub configuration
@@ -24,7 +24,7 @@ origin as both `VITE_API_URL` and `VITE_MOBILE_API_URL`; CI rejects an absent,
 non-HTTPS, or trailing-slash value so the app never falls back to a local Vite proxy.
 
 The keystore itself is not stored in Git. Keep an encrypted offline backup. Losing
-it prevents SafeNode from shipping in-place updates under the same Android package.
+it prevents Safenode from shipping in-place updates under the same Android package.
 
 ## Release gate
 

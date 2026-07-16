@@ -228,7 +228,7 @@ export const PricingNewPage: React.FC = () => {
             Ready to get started?
           </h2>
           <p className="mt-5 max-w-2xl text-lg text-white/55">
-            Join teams and individuals protecting access, recovery, and critical secrets with SafeNode.
+            Join teams and individuals protecting access, recovery, and critical secrets with Safenode.
           </p>
           </div>
           <button

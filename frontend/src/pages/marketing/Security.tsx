@@ -15,12 +15,12 @@ const controls = [
   {
     icon: KeyRound,
     title: 'Passkey-first and hardened vault access',
-    detail: 'SafeNode is moving toward passkey-first authentication while preserving a zero-knowledge vault boundary and hardened local key derivation.'
+    detail: 'Safenode is moving toward passkey-first authentication while preserving a zero-knowledge vault boundary and hardened local key derivation.'
   },
   {
     icon: Eye,
     title: 'Zero-knowledge model',
-    detail: 'SafeNode does not hold the material required to decrypt customer vault contents.'
+    detail: 'Safenode does not hold the material required to decrypt customer vault contents.'
   },
   {
     icon: Server,
@@ -59,7 +59,7 @@ const SecurityPage: React.FC = () => {
           <p className="text-xs tracking-[0.18em] uppercase text-secondary-600 dark:text-secondary-400 font-semibold mb-3">Security Architecture</p>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Security Controls Built Into Identity, Recovery, and Secret Access</h1>
           <p className="text-slate-600 dark:text-slate-400 text-lg">
-            SafeNode is built with a default assumption that compromise attempts are normal. Encryption, passkey-aware auth, recovery posture, and operational checks are treated as core product behavior.
+            Safenode is built with a default assumption that compromise attempts are normal. Encryption, passkey-aware auth, recovery posture, and operational checks are treated as core product behavior.
           </p>
         </motion.section>
 

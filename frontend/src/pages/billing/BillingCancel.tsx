@@ -53,7 +53,7 @@ export const BillingCancelPage: React.FC = () => {
           transition={{ delay: 0.6 }}
           className="text-sm text-gray-500 mb-8"
         >
-          You can try again anytime, or continue using SafeNode Free.
+          You can try again anytime, or continue using Safenode Free.
         </motion.p>
 
         <motion.div

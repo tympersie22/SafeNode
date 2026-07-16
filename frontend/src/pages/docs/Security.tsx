@@ -25,13 +25,13 @@ export const SecurityPage: React.FC = () => {
             Security & Privacy
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Learn how SafeNode protects identity, recovery, devices, and secrets with a zero-knowledge vault core.
+            Learn how Safenode protects identity, recovery, devices, and secrets with a zero-knowledge vault core.
           </p>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Zero-Knowledge Architecture</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              SafeNode uses <strong>zero-knowledge encryption</strong>, meaning the server does not hold the material required to decrypt your vault contents. Account authentication and vault decryption are treated as separate security problems.
+              Safenode uses <strong>zero-knowledge encryption</strong>, meaning the server does not hold the material required to decrypt your vault contents. Account authentication and vault decryption are treated as separate security problems.
             </p>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
               <li>Data is encrypted on your device before syncing</li>

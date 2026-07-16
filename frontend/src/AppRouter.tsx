@@ -1,6 +1,6 @@
 /**
  * App Router
- * Main routing configuration for SafeNode
+ * Main routing configuration for Safenode
  */
 
 import React, { Suspense, lazy } from 'react'

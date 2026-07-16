@@ -1,6 +1,6 @@
-# SafeNode Go-Live Runbook
+# Safenode Go-Live Runbook
 
-This runbook is the final production checklist for SafeNode (web, backend API, and mobile dependency health).
+This runbook is the final production checklist for Safenode (web, backend API, and mobile dependency health).
 
 ## 1) Release Readiness Gate (must pass)
 
@@ -58,7 +58,7 @@ Backend (Vercel + Supabase Postgres alternative):
 Frontend (Vercel):
 - `VITE_API_URL=https://<your-backend-domain>`
 - Optional Sentry/browser telemetry keys
-- Note: SafeNode frontend uses Vite env vars (`VITE_*`), not `NEXT_PUBLIC_*`.
+- Note: Safenode frontend uses Vite env vars (`VITE_*`), not `NEXT_PUBLIC_*`.
 
 Do not use:
 - Legacy domains (`*.vercel.app` or `safenode.app`)
@@ -66,7 +66,7 @@ Do not use:
 
 Google OAuth branding checklist:
 - Set OAuth consent app name to `Safenode` in Google Cloud Console.
-- Upload `SafeNodelogo.png` as the OAuth app logo.
+- Upload `Safenodelogo.png` as the OAuth app logo.
 - Add `safe-node.app` as an authorized domain.
 - Ensure redirect URI is `https://safe-node.app/api/sso/callback/google`.
 

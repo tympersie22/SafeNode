@@ -123,7 +123,7 @@ describe('Crypto Utilities', () => {
 
   describe('encrypt / decrypt', () => {
     it('should encrypt and decrypt data correctly', async () => {
-      const data = 'Hello, SafeNode!'
+      const data = 'Hello, Safenode!'
       const password = 'test-password'
       
       const encrypted = await encrypt(data, password)

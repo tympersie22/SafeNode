@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🧪 SafeNode Comprehensive Test Suite"
+echo "🧪 Safenode Comprehensive Test Suite"
 echo "===================================="
 echo ""
 

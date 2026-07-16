@@ -22,10 +22,10 @@ export const TeamsPage: React.FC = () => {
           className="prose prose-slate dark:prose-invert max-w-none"
         >
           <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-4">
-            Team Collaboration with SafeNode
+            Team Collaboration with Safenode
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Learn how to collaborate securely with your team using SafeNode shared vaults and team secret workspaces.
+            Learn how to collaborate securely with your team using Safenode shared vaults and team secret workspaces.
           </p>
 
           <section className="mb-12">

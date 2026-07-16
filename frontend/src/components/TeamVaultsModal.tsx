@@ -573,7 +573,7 @@ const TeamVaultsModal: React.FC<TeamVaultsModalProps> = ({ isOpen, onClose, curr
                             <form onSubmit={handleInviteMember} className="mt-6 space-y-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4">
                               <div>
                                 <h5 className="font-semibold text-slate-900">Invite member</h5>
-                                <p className="text-sm text-slate-500">Invite an existing SafeNode user into this shared workspace.</p>
+                                <p className="text-sm text-slate-500">Invite an existing Safenode user into this shared workspace.</p>
                               </div>
 
                               <div className="grid gap-3 md:grid-cols-2">

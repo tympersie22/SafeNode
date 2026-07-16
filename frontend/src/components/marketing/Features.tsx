@@ -33,7 +33,7 @@ export const Features: React.FC = () => {
     <section id="features" className="sn-section border-b border-[var(--sn-line)]">
       <div className="sn-marketing-container">
         <div className="grid gap-8 border-b border-[var(--sn-line)] pb-14 lg:grid-cols-[0.75fr_1.25fr]">
-          <p className="sn-eyebrow">What SafeNode protects</p>
+          <p className="sn-eyebrow">What Safenode protects</p>
           <h2 className="sn-display max-w-3xl">One security system across identity, continuity, and shared access.</h2>
         </div>
 

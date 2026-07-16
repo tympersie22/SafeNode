@@ -24,17 +24,17 @@ export const GettingStartedPage: React.FC = () => {
           className="prose prose-slate dark:prose-invert max-w-none"
         >
           <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-4">
-            Getting Started with SafeNode
+            Getting Started with Safenode
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Welcome to SafeNode. This guide will help you get started with your passkey-first identity vault, recovery posture, and secure records.
+            Welcome to Safenode. This guide will help you get started with your passkey-first identity vault, recovery posture, and secure records.
           </p>
 
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Account Setup</h2>
             <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Creating Your Account</h3>
             <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Visit SafeNode at your deployment URL</li>
+              <li>Visit Safenode at your deployment URL</li>
               <li>Click "Sign Up" on the home page</li>
               <li>Create your account and register a passkey when prompted</li>
               <li>Verify your email (check your inbox for a verification link)</li>
@@ -46,7 +46,7 @@ export const GettingStartedPage: React.FC = () => {
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Vault Passphrase and Recovery</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              SafeNode is moving toward a passkey-first model for account authentication, but your encrypted vault still needs user-controlled access material. Today that means a vault passphrase. Over time this will evolve toward wrapped vault-key recovery.
+              Safenode is moving toward a passkey-first model for account authentication, but your encrypted vault still needs user-controlled access material. Today that means a vault passphrase. Over time this will evolve toward wrapped vault-key recovery.
             </p>
             <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Creating a Strong Vault Passphrase</h3>
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
@@ -83,10 +83,10 @@ export const GettingStartedPage: React.FC = () => {
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Syncing Across Devices</h2>
             <p className="text-slate-700 dark:text-slate-300 mb-4">
-              SafeNode automatically syncs your encrypted vault across all your devices. Your identity state, trusted devices, and secure records stay aligned while the underlying vault remains zero-knowledge.
+              Safenode automatically syncs your encrypted vault across all your devices. Your identity state, trusted devices, and secure records stay aligned while the underlying vault remains zero-knowledge.
             </p>
             <ul className="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300">
-              <li>Install SafeNode on all your devices</li>
+              <li>Install Safenode on all your devices</li>
               <li>Sign in with the same account and trusted factors</li>
               <li>Your identity vault will sync automatically</li>
               <li>Changes sync in real-time when online</li>

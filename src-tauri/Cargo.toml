@@ -1,8 +1,8 @@
 [package]
 name = "safenode-desktop"
 version = "0.1.0"
-description = "SafeNode Desktop - Secure Password Manager"
-authors = ["SafeNode Team"]
+description = "Safenode Desktop - Secure Password Manager"
+authors = ["Safenode Team"]
 license = "MIT"
 repository = "https://github.com/safenode/safenode"
 edition = "2021"

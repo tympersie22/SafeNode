@@ -91,7 +91,7 @@ export default function App() {
           renderLoading={() => (
             <View style={styles.overlay}>
               <ActivityIndicator size="large" color="#31d0aa" />
-              <Text style={styles.overlayTitle}>Launching SafeNode</Text>
+              <Text style={styles.overlayTitle}>Launching Safenode</Text>
               <Text style={styles.overlayBody}>Establishing a secure session.</Text>
             </View>
           )}
@@ -102,9 +102,9 @@ export default function App() {
           <View style={styles.overlay}>
             {hasLoadError ? (
               <>
-                <Text style={styles.overlayTitle}>Unable to open SafeNode</Text>
+                <Text style={styles.overlayTitle}>Unable to open Safenode</Text>
                 <Text style={styles.overlayBody}>
-                  Check your network connection or open SafeNode in the browser while we finish the native shell.
+                  Check your network connection or open Safenode in the browser while we finish the native shell.
                 </Text>
                 <View style={styles.actions}>
                   <Pressable style={styles.primaryButton} onPress={handleReload}>
@@ -118,7 +118,7 @@ export default function App() {
             ) : (
               <>
                 <ActivityIndicator size="large" color="#31d0aa" />
-                <Text style={styles.overlayTitle}>Launching SafeNode</Text>
+                <Text style={styles.overlayTitle}>Launching Safenode</Text>
                 <Text style={styles.overlayBody}>Establishing a secure session.</Text>
               </>
             )}

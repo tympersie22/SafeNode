@@ -231,7 +231,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       <aside className="relative hidden overflow-hidden bg-[var(--sn-ink)] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
         <div className="sn-hero-grid opacity-20" aria-hidden="true" />
         <button onClick={onBackToHome} className="relative inline-flex w-fit items-center gap-3 text-sm font-semibold text-white/65 transition-colors hover:text-white">
-          <span aria-hidden="true">←</span> SafeNode home
+          <span aria-hidden="true">←</span> Safenode home
         </button>
         <div className="relative max-w-xl">
           <p className="sn-eyebrow text-[var(--sn-accent-soft)]">Identity boundary</p>

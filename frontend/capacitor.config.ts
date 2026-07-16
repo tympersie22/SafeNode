@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.safenode.mobile',
-  appName: 'SafeNode',
+  appName: 'Safenode',
   webDir: 'dist',
   server: {
     // Match the WebAuthn relying-party domain while serving bundled assets locally.

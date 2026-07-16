@@ -1100,7 +1100,7 @@ const App: React.FC = () => {
     }
   ]
 
-  const userName = user?.displayName || user?.email?.split('@')[0] || 'SafeNode Operator'
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'Safenode Operator'
   const userPlan = user?.subscriptionTier === 'pro' ? 'personal' : user?.subscriptionTier === 'enterprise' ? 'teams' : 'free'
   const sessionCountdownLabel =
     remainingSessionTime !== null && remainingSessionTime > 0 ? formatSessionTime(remainingSessionTime) : 'Secure session active'
@@ -1136,7 +1136,7 @@ const App: React.FC = () => {
       activeSidebarItem="vault"
       sidebarBrand={{
         logo: <Logo variant="header" />,
-        title: 'SafeNode',
+        title: 'Safenode',
         subtitle: 'Identity, recovery, and team secrets',
         badge: 'Passkey-first'
       }}
@@ -1468,7 +1468,7 @@ const App: React.FC = () => {
             isOpen={isBiometricSetupOpen}
             onClose={() => setIsBiometricSetupOpen(false)}
             userId={user?.id || user?.email || 'local-user'}
-            userName={user?.displayName || user?.email || 'SafeNode User'}
+            userName={user?.displayName || user?.email || 'Safenode User'}
             onSuccess={() => {
               // Biometric setup successful
             }}

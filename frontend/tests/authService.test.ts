@@ -145,7 +145,7 @@ describe('Authentication Service', () => {
       await expect(register({
         email: 'test@example.com',
         password: 'Password123!'
-      })).rejects.toThrow('Unable to connect to the SafeNode backend')
+      })).rejects.toThrow('Unable to connect to the Safenode backend')
     })
 
   })

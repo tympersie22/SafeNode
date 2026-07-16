@@ -58,7 +58,7 @@ const DeviceLimitPanel: React.FC<DeviceLimitPanelProps> = ({
       <p className="text-base font-semibold text-amber-900">Device limit reached</p>
       <p className="mt-1 leading-6">
         Your {planName || 'current'} plan allows {limit} device{limit === 1 ? '' : 's'} and you&apos;re at{' '}
-        {current}/{limit}. This device isn&apos;t registered yet — remove a device below to use SafeNode here
+        {current}/{limit}. This device isn&apos;t registered yet — remove a device below to use Safenode here
         {recommendedPlanName ? `, or upgrade to ${recommendedPlanName} for more devices.` : '.'}
       </p>
 

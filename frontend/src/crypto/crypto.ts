@@ -1,5 +1,5 @@
 /**
- * SafeNode Crypto Utilities
+ * Safenode Crypto Utilities
  * WebCrypto-based encryption primitives with PBKDF2 fallback for demo
  * 
  * Note: Replace PBKDF2 with Argon2 for production use

@@ -1,7 +1,7 @@
 {
   "name": "safenode",
   "version": "0.1.0",
-  "description": "SafeNode - Secure Password Manager",
+  "description": "Safenode - Secure Password Manager",
   "private": true,
   "scripts": {
     "test:apis": "node test-apis.js",
@@ -15,7 +15,7 @@
     "security",
     "encryption"
   ],
-  "author": "SafeNode Team",
+  "author": "Safenode Team",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5"

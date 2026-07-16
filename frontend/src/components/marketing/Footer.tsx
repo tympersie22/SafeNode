@@ -37,9 +37,9 @@ export const Footer: React.FC = () => (
     <div className="mx-auto max-w-[1440px] border-t border-white/15 pt-12">
       <div className="grid gap-12 pb-16 lg:grid-cols-[1.2fr_1.8fr]">
         <div>
-          <Link to="/" className="inline-flex items-center gap-3" aria-label="SafeNode home">
+          <Link to="/" className="inline-flex items-center gap-3" aria-label="Safenode home">
             <Logo variant="nav" />
-            <span className="text-xl font-semibold tracking-[-0.03em]">SafeNode</span>
+            <span className="text-xl font-semibold tracking-[-0.03em]">Safenode</span>
           </Link>
           <p className="mt-5 max-w-sm leading-7 text-white/50">
             Passkey-first identity, zero-knowledge secrets, and deliberate recovery for people and teams.
@@ -64,7 +64,7 @@ export const Footer: React.FC = () => (
       </div>
 
       <div className="flex flex-col gap-4 border-t border-white/15 pt-6 text-xs text-white/35 sm:flex-row sm:items-center sm:justify-between">
-        <p>© {new Date().getFullYear()} SafeNode. Zero-knowledge by design.</p>
+        <p>© {new Date().getFullYear()} Safenode. Zero-knowledge by design.</p>
         <p className="font-mono uppercase tracking-[0.16em]">Identity / Recovery / Team secrets</p>
       </div>
     </div>
