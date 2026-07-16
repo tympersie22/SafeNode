@@ -3,6 +3,7 @@
  * Handles device registration and management
  */
 import { API_BASE } from '../config/api'
+import { isTauri } from '../desktop/integration'
 
 export interface Device {
   id: string
@@ -88,8 +89,7 @@ export function detectPlatform(): 'web' | 'desktop' | 'mobile' {
     return 'mobile'
   }
   
-  // Check if running in Tauri (desktop)
-  if (window.__TAURI__) {
+  if (isTauri()) {
     return 'desktop'
   }
   

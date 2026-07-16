@@ -8,6 +8,9 @@
     "test:apis:bash": "./test-apis.sh",
     "test:apis:help": "echo 'Usage: npm run test:apis (Node.js) or npm run test:apis:bash (Bash)'",
     "ssl:generate": "./scripts/generate-ssl-certs.sh",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "tauri:icons": "./scripts/regenerate-tauri-icons.sh"
   },
   "keywords": [
@@ -21,6 +24,7 @@
     "cors": "^2.8.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
     "@types/cors": "^2.8.19"
   }
 }

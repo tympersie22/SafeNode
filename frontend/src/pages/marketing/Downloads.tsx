@@ -62,6 +62,7 @@ const detectOS = (): 'android' | 'ios' | 'windows' | 'macos' | 'linux' | null =>
 const androidDownloadEnabled = import.meta.env.VITE_ANDROID_DOWNLOAD_ENABLED === 'true';
 const androidDownloadUrl = import.meta.env.VITE_ANDROID_DOWNLOAD_URL
   || 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Android.apk';
+const desktopDownloadEnabled = import.meta.env.VITE_DESKTOP_DOWNLOAD_ENABLED === 'true';
 
 const DOWNLOADS = {
   desktop: [
@@ -69,25 +70,25 @@ const DOWNLOADS = {
       name: 'macOS',
       os: 'macos',
       logo: BrandLogos.Apple,
-      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-macOS.dmg',
+      url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-macOS.dmg' : '',
       size: 'Apple Silicon DMG',
-      version: RELEASE_VERSION,
+      version: desktopDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
     {
       name: 'Windows',
       os: 'windows',
       logo: BrandLogos.Windows,
-      url: 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Windows.exe',
+      url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Windows.exe' : '',
       size: 'NSIS installer',
-      version: RELEASE_VERSION,
+      version: desktopDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
     {
       name: 'Linux',
       os: 'linux',
       logo: BrandLogos.Linux,
-      url: 'https://github.com/tympersie22/Safenode/releases/latest',
+      url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest' : '',
       size: 'Release assets',
-      version: RELEASE_VERSION,
+      version: desktopDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
   ],
   mobile: [
@@ -253,12 +254,18 @@ export const DownloadsNewPage: React.FC = () => {
             <div className="mt-7 border-t border-[var(--sn-line)]">
               {DOWNLOADS.desktop.map((platform) => {
                 const LogoComponent = platform.logo;
-                return (
-                  <a key={platform.name} href={platform.url} className="grid grid-cols-[40px_1fr_auto] items-center gap-4 border-b border-[var(--sn-line)] py-5 text-[var(--sn-ink)] transition-colors hover:text-[var(--sn-accent)] dark:text-white">
+                const available = Boolean(platform.url);
+                const content = (
+                  <>
                     <span className="h-5 w-5"><LogoComponent /></span>
                     <span><span className="block text-sm font-semibold">{platform.name}</span><span className="mt-1 block text-xs text-[var(--sn-muted)]">{platform.size} / {platform.version}</span></span>
-                    <Download className="h-4 w-4" />
-                  </a>
+                    {available ? <Download className="h-4 w-4" /> : <span className="text-xs font-semibold text-[var(--sn-muted)]">In preparation</span>}
+                  </>
+                );
+                return available ? (
+                  <a key={platform.name} href={platform.url} className="grid grid-cols-[40px_1fr_auto] items-center gap-4 border-b border-[var(--sn-line)] py-5 text-[var(--sn-ink)] transition-colors hover:text-[var(--sn-accent)] dark:text-white">{content}</a>
+                ) : (
+                  <div key={platform.name} className="grid grid-cols-[40px_1fr_auto] items-center gap-4 border-b border-[var(--sn-line)] py-5 text-[var(--sn-ink)] dark:text-white">{content}</div>
                 );
               })}
             </div>

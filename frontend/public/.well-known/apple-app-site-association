@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "Z8D3PDB7MR.com.safenode.mobile"
+        ],
+        "components": [
+          {
+            "/": "/*",
+            "comment": "Open Safenode links in the iOS app"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "Z8D3PDB7MR.com.safenode.mobile"
+    ]
+  }
+}

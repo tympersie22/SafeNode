@@ -29,7 +29,7 @@ export interface Config {
   rateLimitMax: number
   
   // CORS
-  corsOrigin: string | RegExp[]
+  corsOrigin: string | Array<string | RegExp>
 
   // Stripe
   stripeSecretKey: string | null
@@ -113,11 +113,17 @@ function getConfig(): Config {
           const knownOrigins = [
             'https://safe-node.app',
             'https://www.safe-node.app',
+            'capacitor://safe-node.app',
           ]
           const allOrigins = [...new Set([...knownOrigins, ...explicitOrigins])]
           return allOrigins as unknown as string | RegExp[]
         })()
-      : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/]
+      : [
+          /^http:\/\/localhost:\d+$/,
+          /^http:\/\/127\.0\.0\.1:\d+$/,
+          /^https:\/\/safe-node\.app$/,
+          /^capacitor:\/\/safe-node\.app$/,
+        ]
   }
 }
 

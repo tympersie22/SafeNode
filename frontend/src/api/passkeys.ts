@@ -1,7 +1,22 @@
 import { API_BASE } from '../config/api'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { getCurrentDeviceId } from '../services/deviceService'
 import type { AuthResponse } from '../services/authService'
 import type { PasskeyRecord, PasskeyVaultUnlockRecord } from '../types/passkeys'
+
+interface NativePasskeyResult {
+  payload: Record<string, unknown>
+  credentialId?: string
+  clientExtensionResults?: AuthenticationExtensionsClientOutputs
+}
+
+interface NativePasskeysPlugin {
+  register(options: { options: Record<string, unknown> }): Promise<NativePasskeyResult>
+  authenticate(options: { options: Record<string, unknown> }): Promise<NativePasskeyResult>
+}
+
+const nativePasskeys = registerPlugin<NativePasskeysPlugin>('NativePasskeys')
+const useNativeIOSPasskeys = (): boolean => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
 
 const getAuthHeader = (): string => {
   const token = localStorage.getItem('safenode_token')
@@ -93,7 +108,18 @@ function buildRequestOptions(
   }
 }
 
-async function collectRegistrationPayload(publicKey: PublicKeyCredentialCreationOptions) {
+async function collectRegistrationPayload(
+  publicKey: PublicKeyCredentialCreationOptions,
+  optionsJson: Record<string, unknown>
+) {
+  if (useNativeIOSPasskeys()) {
+    const result = await nativePasskeys.register({ options: optionsJson })
+    return {
+      payload: result.payload,
+      clientExtensionResults: result.clientExtensionResults || {},
+    }
+  }
+
   const credential = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential | null
   if (!credential) {
     throw new Error('Passkey registration was cancelled.')
@@ -120,7 +146,20 @@ async function collectRegistrationPayload(publicKey: PublicKeyCredentialCreation
   }
 }
 
-async function collectAuthenticationPayload(publicKey: PublicKeyCredentialRequestOptions) {
+async function collectAuthenticationPayload(
+  publicKey: PublicKeyCredentialRequestOptions,
+  optionsJson: Record<string, unknown>
+) {
+  if (useNativeIOSPasskeys()) {
+    const result = await nativePasskeys.authenticate({ options: optionsJson })
+    if (!result.credentialId) throw new Error('Native passkey response did not include a credential ID')
+    return {
+      assertion: { id: result.credentialId },
+      clientExtensionResults: result.clientExtensionResults || {},
+      payload: result.payload,
+    }
+  }
+
   const assertion = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null
   if (!assertion) {
     throw new Error('Passkey sign-in was cancelled.')
@@ -199,7 +238,8 @@ export const registerPasskey = async (
   }
   const optionsJson = await optionsResponse.json()
   const registration = await collectRegistrationPayload(
-    buildCreationOptions(optionsJson, options.extensions || createPrfProbeExtension())
+    buildCreationOptions(optionsJson, options.extensions || createPrfProbeExtension()),
+    optionsJson
   )
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/register/verify`, {
@@ -245,7 +285,10 @@ export const authenticateWithPasskey = async (
     await parseError(optionsResponse, 'Failed to request authentication options')
   }
   const optionsJson = await optionsResponse.json()
-  const authentication = await collectAuthenticationPayload(buildRequestOptions(optionsJson, options.extensions))
+  const authentication = await collectAuthenticationPayload(
+    buildRequestOptions(optionsJson, options.extensions),
+    optionsJson
+  )
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/authenticate/verify`, {
     method: 'POST',
@@ -320,7 +363,8 @@ export async function signUpWithPasskey(input: {
 
   const optionsJson = await optionsResponse.json()
   const registration = await collectRegistrationPayload(
-    buildCreationOptions(optionsJson.options, createPrfProbeExtension())
+    buildCreationOptions(optionsJson.options, createPrfProbeExtension()),
+    optionsJson.options
   )
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/signup/verify`, {
@@ -353,7 +397,10 @@ export async function signInWithPasskey(email: string): Promise<AuthResponse> {
   }
 
   const optionsJson = await optionsResponse.json()
-  const authentication = await collectAuthenticationPayload(buildRequestOptions(optionsJson.options))
+  const authentication = await collectAuthenticationPayload(
+    buildRequestOptions(optionsJson.options),
+    optionsJson.options
+  )
 
   const verifyRes = await fetch(`${API_BASE}/api/passkeys/login/verify`, {
     method: 'POST',

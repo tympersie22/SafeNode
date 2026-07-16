@@ -10,7 +10,7 @@ import EntryForm from './components/EntryForm';
 import { generateTotpCode, encrypt, encryptWithKey, importVaultKey, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
 import { vaultSync } from './sync/vaultSync';
-import { enhancedCopyToClipboard, isTauri, DesktopVault } from './desktop/integration';
+import { enhancedCopyToClipboard } from './desktop/integration';
 import KeyRotation from './components/KeyRotation';
 import SharingKeys from './components/SharingKeys';
 import ShareEntryModal from './components/ShareEntryModal';

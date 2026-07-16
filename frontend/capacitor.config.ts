@@ -7,7 +7,8 @@ const config: CapacitorConfig = {
   server: {
     // Match the WebAuthn relying-party domain while serving bundled assets locally.
     hostname: 'safe-node.app',
-    androidScheme: 'https'
+    androidScheme: 'https',
+    iosScheme: 'capacitor'
   }
 };
 

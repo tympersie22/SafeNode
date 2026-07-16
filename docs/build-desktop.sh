@@ -1,52 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Safenode Desktop Build Script
-echo "🚀 Building Safenode Desktop App..."
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 
-# Check if Rust is installed
-if ! command -v cargo &> /dev/null; then
-    echo "❌ Rust is not installed. Please install Rust first:"
-    echo "   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-    exit 1
-fi
+command -v cargo >/dev/null || { echo "Rust is required" >&2; exit 1; }
+command -v npm >/dev/null || { echo "Node.js and npm are required" >&2; exit 1; }
 
-# Check if Tauri CLI is available
-if ! command -v npx &> /dev/null; then
-    echo "❌ npm/npx is not installed. Please install Node.js first."
-    exit 1
-fi
+npm ci
+npm ci --prefix frontend
+VITE_API_URL="${VITE_API_URL:-https://api.safe-node.app}" npm run tauri:build
 
-echo "✅ Prerequisites check passed"
-
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install
-
-# Build frontend
-echo "🎨 Building frontend..."
-cd frontend && npm install && npm run build && cd ..
-
-# Build desktop app
-echo "🖥️  Building desktop app..."
-npx tauri build
-
-echo "✅ Desktop app built successfully!"
-echo "📁 Find your app in: src-tauri/target/release/bundle/"
-
-# Check if build was successful
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "🎉 Safenode Desktop is ready!"
-    echo ""
-    echo "📋 Next steps:"
-    echo "   1. Run: npm run dev (to test in development)"
-    echo "   2. Find built app in src-tauri/target/release/bundle/"
-    echo "   3. Install system dependencies if needed"
-    echo ""
-    echo "🔧 Development:"
-    echo "   npm run dev     - Run in development mode"
-    echo "   npm run build   - Build for production"
-else
-    echo "❌ Build failed. Check the errors above."
-    exit 1
-fi
+echo "Desktop bundles: src-tauri/target/release/bundle/"
+echo "These are preview artifacts until the passkey browser-handoff release gate passes."

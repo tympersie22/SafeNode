@@ -5,4 +5,4 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT/frontend"
-npm run dev -- --host 0.0.0.0
+VITE_DESKTOP_BUILD=true npm run dev -- --host 127.0.0.1 --port 5173

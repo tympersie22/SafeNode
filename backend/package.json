@@ -13,6 +13,7 @@
     "postbuild": "",
     "predev": "node scripts/check-port.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.new.ts",
+    "dev:ios": "WEBAUTHN_RP_ID=safe-node.app WEBAUTHN_ORIGIN=https://safe-node.app npm run dev",
     "dev:clean": "pkill -f 'ts-node-dev' || true && npm run dev",
     "kill": "pkill -f 'ts-node-dev' || true",
     "kill:force": "pkill -9 -f 'ts-node-dev' || true",

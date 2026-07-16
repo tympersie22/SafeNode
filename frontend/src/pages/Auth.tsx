@@ -11,6 +11,8 @@ import Button from '../components/ui/Button'
 import { login as authLogin, signInWithPasskey, signUpWithPasskey, verifyLoginTwoFactor, getCurrentUser } from '../services/authService'
 import { showToast } from '../components/ui/Toast'
 import { devLog } from '../utils/debug'
+import { ExternalLink, Monitor, ShieldCheck } from 'lucide-react'
+import { isDesktopBuild, openSafenodeInBrowser } from '../desktop/integration'
 
 interface AuthProps {
   onBackToHome?: () => void
@@ -217,6 +219,51 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setIsLoading(false)
       isProcessingRef.current = false
     }
+  }
+
+  if (isDesktopBuild()) {
+    const continueInBrowser = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        await openSafenodeInBrowser()
+      } catch (err: any) {
+        setError(err?.message || 'Could not open the secure browser flow.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    return (
+      <main className="sn-page relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-16">
+        <div className="sn-hero-grid" aria-hidden="true" />
+        <section className="relative w-full max-w-2xl border border-[var(--sn-line)] bg-[var(--sn-surface)] p-8 sm:p-12">
+          <div className="flex h-12 w-12 items-center justify-center border border-[var(--sn-line)] text-[var(--sn-accent)]">
+            <Monitor className="h-6 w-6" />
+          </div>
+          <p className="sn-eyebrow mt-8">Desktop security preview</p>
+          <h1 className="sn-display mt-5">Finish passkey access in your browser.</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--sn-muted)]">
+            Safenode will not run a passkey ceremony on a mismatched desktop origin. Until the signed browser-to-app handoff is complete, authenticate only on the canonical secure domain.
+          </p>
+
+          <div className="mt-8 grid gap-3 border-y border-[var(--sn-line)] py-6 text-sm text-[var(--sn-muted)] sm:grid-cols-2">
+            <span className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-[var(--sn-accent)]" /> No vault secrets exposed to desktop IPC</span>
+            <span className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-[var(--sn-accent)]" /> Passkeys stay bound to safe-node.app</span>
+          </div>
+
+          {error && <p className="mt-6 border border-red-300 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+
+          <button type="button" onClick={continueInBrowser} disabled={isLoading} className="sn-solid-button mt-8 w-full sm:w-auto">
+            {isLoading ? 'Opening secure browser…' : 'Continue on safe-node.app'}
+            <ExternalLink className="h-4 w-4" />
+          </button>
+          <p className="mt-5 text-xs leading-5 text-[var(--sn-muted)]">
+            Desktop downloads remain disabled until this handoff returns a short-lived, one-time session to the signed app.
+          </p>
+        </section>
+      </main>
+    )
   }
 
   // Note: We don't return null here anymore - let the parent component handle unmounting
