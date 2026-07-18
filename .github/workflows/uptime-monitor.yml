@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 5
     env:
       BACKEND_HEALTH_URL: ${{ secrets.BACKEND_HEALTH_URL }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
 
     steps:
       - name: Validate monitor config
@@ -59,10 +60,10 @@ jobs:
           echo "Backend healthy: status=${STATUS}, database=${DB_STATUS}"
 
       - name: Send webhook alert
-        if: failure() && secrets.ALERT_WEBHOOK_URL != ''
+        if: failure() && env.ALERT_WEBHOOK_URL != ''
         run: |
           MSG="Safenode uptime alert: backend health check failed.\nURL: ${BACKEND_HEALTH_URL}\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\nHTTP: ${{ steps.check.outputs.http_code }}"
-          curl -sS -X POST "${{ secrets.ALERT_WEBHOOK_URL }}" \
+          curl -sS -X POST "${ALERT_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "{\"text\":\"${MSG//$'\n'/\\n}\"}" >/dev/null
 
