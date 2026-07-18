@@ -70,6 +70,9 @@ jobs:
         npm ci
     
     - name: Build application
+      env:
+        VITE_API_URL: https://api.safe-node.app
+        VITE_MOBILE_API_URL: https://api.safe-node.app
       run: |
         cd frontend
         npm run build
@@ -84,6 +87,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      deployments: write
     
     steps:
     - uses: actions/checkout@v3
@@ -94,11 +100,11 @@ jobs:
         name: frontend-build
         path: frontend/dist
     
-    - name: Deploy to Vercel
-      env:
-        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      run: |
-        npm install -g vercel
-        cd frontend
-        vercel --token "$VERCEL_TOKEN" --prod
-      continue-on-error: true
+    - name: Deploy to Cloudflare Pages
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        workingDirectory: frontend
+        command: pages deploy dist --project-name=safenode --branch=main
+        gitHubToken: ${{ secrets.GITHUB_TOKEN }}

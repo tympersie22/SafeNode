@@ -28,7 +28,7 @@ it prevents Safenode from shipping in-place updates under the same Android packa
 
 ## Release gate
 
-1. Restore `safe-node.app` and deploy the current frontend.
+1. Deploy the current frontend to Cloudflare Pages on `safe-node.app`.
 2. Confirm `https://safe-node.app/.well-known/assetlinks.json` returns HTTP 200 with
    `Content-Type: application/json` and no redirects.
 3. Tag a release. GitHub Actions builds `assembleRelease`, verifies the APK signer,

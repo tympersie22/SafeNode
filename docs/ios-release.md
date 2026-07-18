@@ -82,7 +82,7 @@ origin, while WebAuthn verification remains cryptographically bound to RP ID
    Domains.
 3. Create an Apple Distribution certificate and App Store provisioning profile,
    or allow Xcode automatic signing to manage them.
-4. Restore the frontend and API deployments before archiving.
+4. Verify the Cloudflare Pages frontend and Railway API before archiving.
 5. Confirm `https://safe-node.app/.well-known/apple-app-site-association` returns
    HTTP 200, JSON content, and the expected app identifier without redirects.
 6. Confirm `https://api.safe-node.app/api/health` returns HTTP 200.

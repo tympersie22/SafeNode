@@ -70,13 +70,9 @@ export async function createApp() {
     credentials: true
   })
 
-  // Vercel handles response compression at the edge. Enabling Fastify compression
-  // inside the inject()-based serverless adapter can corrupt encoded responses.
-  if (!process.env.VERCEL) {
-    await server.register(compress, {
-      encodings: ['gzip', 'deflate']
-    })
-  }
+  await server.register(compress, {
+    encodings: ['gzip', 'deflate']
+  })
 
   // Register raw body support for Stripe webhook signature verification
   await server.register(rawBody, {

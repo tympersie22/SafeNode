@@ -71,6 +71,7 @@ src-tauri/icons/* [0-9].png
 # Vite/Tailwind
 frontend/.vite/
 frontend/.vercel/
+frontend/.wrangler/
 frontend/.tailwindcache/
 frontend/.stylelintcache
 frontend/.eslintcache

@@ -33,7 +33,7 @@ class DatabaseService {
       if (!config.databaseUrl) {
         const error = new Error(
           'A Prisma database URL is required when using Prisma adapter. ' +
-          'Set DATABASE_URL or POSTGRES_PRISMA_URL (Vercel/Supabase).'
+          'Set DATABASE_URL or a supported Supabase-compatible Postgres URL.'
         )
         console.error('❌ Database configuration error:', error.message)
         throw error

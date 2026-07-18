@@ -67,7 +67,7 @@ function getConfig(): Config {
   if (nodeEnv === 'production' && !encryptionKey) {
     console.error('CRITICAL: ENCRYPTION_KEY is required in production for vault encryption at rest')
     console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"')
-    // Don't throw — allow startup but log critical warning so it shows in Vercel logs
+    // Startup validation below prevents production from running without this key.
   }
   if (encryptionKey && Buffer.from(encryptionKey, 'base64').length !== 32) {
     console.warn('WARNING: ENCRYPTION_KEY should be a 32-byte base64-encoded key')
@@ -81,7 +81,7 @@ function getConfig(): Config {
     // Database adapter selection
     // Options: 'file' (default, in-memory), 'prisma' (PostgreSQL/MySQL), 'mongo' (MongoDB)
     // To use Prisma: Set DB_ADAPTER=prisma and provide DATABASE_URL
-    // Vercel/Supabase fallback vars are also supported:
+    // Supabase-compatible fallback vars are also supported:
     // POSTGRES_PRISMA_URL, POSTGRES_URL_NON_POOLING, POSTGRES_URL
     // To use MongoDB: Set DB_ADAPTER=mongo and provide MONGO_URI
     dbAdapter: ((process.env.DB_ADAPTER || (databaseUrl ? 'prisma' : 'file')) as Config['dbAdapter']),
@@ -105,7 +105,7 @@ function getConfig(): Config {
     paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET || null,
 
     // CORS - in production, restrict to your frontend domain
-    // Supports comma-separated URLs and automatically includes Vercel preview URLs
+    // Supports comma-separated URLs for explicitly approved preview origins.
     corsOrigin: nodeEnv === 'production'
       ? (() => {
           const explicitOrigins = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || []
@@ -116,7 +116,7 @@ function getConfig(): Config {
             'capacitor://safe-node.app',
           ]
           const allOrigins = [...new Set([...knownOrigins, ...explicitOrigins])]
-          return allOrigins as unknown as string | RegExp[]
+          return allOrigins
         })()
       : [
           /^http:\/\/localhost:\d+$/,
@@ -148,7 +148,7 @@ if (config.nodeEnv === 'production') {
     throw new Error('JWT_SECRET must be at least 32 characters in production')
   }
   if (!config.encryptionKey) {
-    console.warn('WARNING: ENCRYPTION_KEY not set. Vault data will not be encrypted at rest.')
+    throw new Error('ENCRYPTION_KEY is required in production')
   }
   if (config.billingProvider === 'stripe') {
     if (!config.stripeSecretKey) {

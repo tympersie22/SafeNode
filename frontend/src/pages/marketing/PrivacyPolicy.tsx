@@ -54,7 +54,7 @@ export const PrivacyPolicyPage: React.FC = () => {
         <ul>
           <li>Paddle for subscription billing and merchant-of-record payment processing.</li>
           <li>Resend for transactional email delivery.</li>
-          <li>Vercel for application hosting and deployment infrastructure.</li>
+          <li>Cloudflare and Railway for application hosting and delivery infrastructure.</li>
           <li>Supabase for managed database infrastructure.</li>
         </ul>
       </section>

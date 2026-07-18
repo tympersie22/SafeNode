@@ -1,126 +1,146 @@
 # Safenode Go-Live Runbook
 
-This runbook is the final production checklist for Safenode (web, backend API, and mobile dependency health).
+Safenode production uses Cloudflare Pages for the Vite frontend and Railway for
+the Fastify API. `safe-node.app` remains the WebAuthn relying-party ID; changing
+hosting must not change that security boundary.
 
-## 1) Release Readiness Gate (must pass)
+## 1. Release gate
 
-Run the preflight script from the repository root:
+From the repository root:
 
 ```bash
 ./scripts/go-live-preflight.sh
+cd frontend && npx vitest run && npm run type-check && npm run build
+cd ../backend && npm run type-check
 ```
 
-Required green checks:
-- `npm audit` is zero for `backend`, `frontend`, and `mobile`.
-- `backend` build succeeds.
-- `frontend` build succeeds.
-- No legacy domain references (`*.vercel.app` or `safenode.app`).
-- RLS patch files for `password_reset_tokens` exist.
+Backend integration tests must run against a disposable PostgreSQL database
+whose name contains `test`. Never point the test suite at production.
 
-Current known blockers before hard production launch:
-- Backend test suite requires a real `DATABASE_URL` test database.
-- Frontend test suite has existing failing tests and should be stabilized before launch.
+## 2. Deploy the Railway API
 
-## 2) Supabase Security Advisor Closure
+Create a Railway service from `tympersie22/SafeNode` with:
 
-Apply the one-off SQL patch in Supabase SQL Editor:
+- Branch: `main` after merge; use `security/p0-hardening` only for migration validation.
+- Root directory: `/backend`.
+- Config file: `/backend/railway.json`.
+- Builder: Dockerfile, as declared in config-as-code.
 
-- `backend/prisma/fix-password-reset-tokens-rls.sql`
+Set these required service variables:
 
-This enables RLS for `public.password_reset_tokens` and blocks `anon` / `authenticated` while allowing `service_role`.
+```text
+NODE_ENV=production
+DB_ADAPTER=prisma
+DATABASE_URL=<production PostgreSQL URL>
+JWT_SECRET=<new random secret, at least 32 bytes>
+ENCRYPTION_KEY=<32-byte base64 key; see rotation rules below>
+FRONTEND_URL=https://safe-node.app
+CORS_ORIGIN=https://safe-node.app,https://www.safe-node.app,capacitor://safe-node.app
+BACKEND_URL=https://api.safe-node.app
+SSO_CALLBACK_BASE_URL=https://api.safe-node.app
+WEBAUTHN_RP_ID=safe-node.app
+WEBAUTHN_ORIGIN=https://safe-node.app
+USE_COOKIE_AUTH=true
+SEED_ON_BOOT=false
+```
 
-After running it:
-- Open Supabase Security Advisor.
-- Confirm the `public.password_reset_tokens` RLS findings are closed.
+Preserve the existing `PASSWORD_PEPPER` when carrying existing users. Changing
+it invalidates existing password hashes. Configure email, billing, OAuth, and
+Sentry variables only for integrations that are enabled.
 
-## 3) Production Environment Variables
-
-Backend (Railway):
-- `NODE_ENV=production`
-- `DATABASE_URL` (from Railway Postgres)
-- `JWT_SECRET` (32+ chars)
-- `ENCRYPTION_KEY`
-- `FRONTEND_URL=https://safe-node.app`
-- `SSO_CALLBACK_BASE_URL=https://safe-node.app` (for Google OAuth callback branding)
-- Stripe keys (if billing enabled)
-- Sentry DSN (recommended)
-
-Backend (Vercel + Supabase Postgres alternative):
-- `NODE_ENV=production`
-- `DB_ADAPTER=prisma`
-- `DATABASE_URL=postgres://postgres:[YOUR-PASSWORD]@db.ohzfyxtxffvnzyhkaihs.supabase.co:6543/postgres?sslmode=require` (dedicated pooler)
-- Optional: `POSTGRES_PRISMA_URL` with the same dedicated pooler URL
-- Optional: `POSTGRES_URL_NON_POOLING` for direct non-pool connections
-- `JWT_SECRET` (32+ chars)
-- `ENCRYPTION_KEY` (32-byte base64)
-- `FRONTEND_URL=https://safe-node.app`
-
-Frontend (Vercel):
-- `VITE_API_URL=https://<your-backend-domain>`
-- Optional Sentry/browser telemetry keys
-- Note: Safenode frontend uses Vite env vars (`VITE_*`), not `NEXT_PUBLIC_*`.
-
-Do not use:
-- Legacy domains (`*.vercel.app` or `safenode.app`)
-- `https://www.safe-node.app` unless DNS + certificate are explicitly configured
-
-Google OAuth branding checklist:
-- Set OAuth consent app name to `Safenode` in Google Cloud Console.
-- Upload `Safenodelogo.png` as the OAuth app logo.
-- Add `safe-node.app` as an authorized domain.
-- Ensure redirect URI is `https://safe-node.app/api/sso/callback/google`.
-
-## 4) Deploy Order
-
-1. Deploy backend (Railway).
-2. Run DB migration/deploy step (if pending).
-3. Verify backend health endpoint responds.
-4. Deploy frontend (Vercel).
-5. Verify app can authenticate and hit API.
-
-## 5) Smoke Test (production)
-
-Run this from repo root against production:
+Before the first production deploy, back up the database and synchronize the
+Prisma schema. This repository currently uses `prisma db push`, not a migration
+directory:
 
 ```bash
-BASE_URL="https://<your-backend-domain>" npm run test:apis
+cd backend
+railway link
+railway run npx prisma db push --skip-generate
 ```
 
-Then do manual browser smoke:
-- Register/login/logout
-- Vault create/unlock/save/edit/delete
-- Password reset end-to-end
-- Team/invite/sync flows (if enabled)
-- Billing checkout and webhook flow (if enabled)
+Review Prisma's proposed changes before confirming. Do not use `--accept-data-loss`.
 
-## 6) Observability and Incident Readiness
-
-Before traffic:
-- Confirm Sentry backend + frontend ingest events.
-- Confirm health check/uptime monitor for API.
-- Confirm log access for Railway/Vercel.
-- Configure alerts per `docs/MONITORING_ALERTS.md`.
-
-Rollback plan:
-- Frontend: rollback to previous Vercel deployment.
-- Backend: rollback to previous Railway deployment.
-- Database: restore from latest backup or run rollback migration script if available.
-
-## 7) Post-Launch (first 2 hours)
-
-- Watch error rates and auth failures.
-- Watch API p95 latency and 5xx.
-- Watch password reset and login success rates.
-- If severe auth/data issue appears, rollback immediately and investigate offline.
-
-## 8) TLS Certificate Pre-Generation (local/proxy)
-
-To pre-generate TLS certs for local nginx/docker usage:
+Generate a Railway service domain first and verify:
 
 ```bash
-npm run ssl:generate
+curl -fsS https://YOUR-SERVICE.up.railway.app/api/health
+curl -fsS https://YOUR-SERVICE.up.railway.app/api/health/ready
 ```
 
-This creates:
-- `ssl/fullchain.pem`
-- `ssl/privkey.pem`
+Then add `api.safe-node.app` as a Railway custom domain. Add both the CNAME and
+TXT records Railway provides to Cloudflare DNS; the TXT ownership record is
+required for routing and TLS issuance.
+
+## 3. Deploy Cloudflare Pages
+
+Create a Pages project from the same GitHub repository with:
+
+- Project name: `safenode`.
+- Production branch: `main` after merge.
+- Root directory: `/frontend`.
+- Build command: `npm ci && npm run build`.
+- Build output directory: `dist`.
+- Node.js version: `20`.
+- Build variable: `VITE_API_URL=https://api.safe-node.app`.
+- Build variable: `VITE_MOBILE_API_URL=https://api.safe-node.app`.
+
+The repository's `wrangler.jsonc`, `_headers`, AASA, and Digital Asset Links
+files are copied into the deployment by Vite. Add `safe-node.app` and
+`www.safe-node.app` under Pages > Custom domains. Configure `www` to redirect to
+the apex domain using a Cloudflare Bulk Redirect.
+
+For GitHub Actions deployment, configure repository secrets:
+
+```text
+CLOUDFLARE_API_TOKEN=<token with Account:Cloudflare Pages:Edit>
+CLOUDFLARE_ACCOUNT_ID=<GitHub repository variable containing the Cloudflare account ID>
+```
+
+## 4. Secret rotation
+
+Generate secrets locally and enter them directly in Railway. Never paste them
+into source files, shell history, issue comments, or deployment logs.
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))" # JWT_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))" # ENCRYPTION_KEY
+```
+
+- `JWT_SECRET`: rotate now. Existing sessions will be invalidated, which is expected.
+- `ENCRYPTION_KEY`, existing database: retain the current key until all server-encrypted
+  records have been inventoried and re-encrypted through an explicit rotation job.
+- `ENCRYPTION_KEY`, new empty database: use a newly generated key.
+- `PASSWORD_PEPPER`, existing users: retain it until a password-hash migration exists.
+
+The vault remains zero-knowledge: Railway must never receive a plaintext vault
+key, master password, recovery secret, or WebAuthn PRF output.
+
+## 5. Domain and passkey verification
+
+All of these must succeed before publishing mobile downloads:
+
+```bash
+curl -i https://api.safe-node.app/api/health
+curl -i https://api.safe-node.app/api/health/ready
+curl -i https://safe-node.app/.well-known/apple-app-site-association
+curl -i https://safe-node.app/.well-known/assetlinks.json
+curl -i https://app-site-association.cdn-apple.com/a/v1/safe-node.app
+```
+
+The two `/.well-known/` resources must return `200`, JSON content, and no
+redirect. Apple may take up to 24 hours to refresh its association cache after
+the origin becomes healthy.
+
+## 6. Smoke test and rollback
+
+Test passkey registration/sign-in, PRF vault unlock, recovery fallback, device
+registration/reclaim, vault CRUD/sync, teams, password reset, and enabled billing
+webhooks. Confirm browser storage contains no master password or raw vault key.
+
+- Frontend rollback: Cloudflare Pages > Deployments > Roll back.
+- Backend rollback: Railway service > Deployments > redeploy the last known-good image.
+- Database rollback: restore the pre-deploy backup; do not improvise destructive SQL.
+
+Configure uptime monitoring against
+`https://api.safe-node.app/api/health/ready` and keep Railway, Cloudflare, Sentry,
+and database alerts visible during the first production hours.

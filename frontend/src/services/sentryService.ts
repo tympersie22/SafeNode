@@ -31,7 +31,7 @@ export function initSentry(): void {
 
   if (!dsn) {
     // Sentry is optional - app works fine without it
-    // To enable: set VITE_SENTRY_DSN in Vercel environment variables
+    // To enable: set VITE_SENTRY_DSN in the frontend build environment.
     return
   }
 

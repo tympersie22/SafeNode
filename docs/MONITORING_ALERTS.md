@@ -36,15 +36,12 @@ Then in Sentry project settings, create alert rules:
 Recommended additional alert:
 - Condition: crash-free sessions below `99.5%` (frontend)
 
-## 3) Vercel Logs Alerts
+## 3) Hosting and Deployment Alerts
 
-In Vercel project settings:
-- Enable Runtime Logs retention for backend project.
-- Create notification/webhook integration for deployment failures.
-- Enable alerts for:
-  - production deployment failed
-  - function invocation errors spike
-  - edge/serverless 5xx increase
+In Railway, retain API deployment/runtime logs and alert on failed deployments,
+restarts, memory pressure, and 5xx spikes. In Cloudflare, enable Pages deployment
+notifications and monitor origin errors for `safe-node.app` and
+`api.safe-node.app`.
 
 Recommended channels:
 - Slack (team channel)
@@ -59,4 +56,3 @@ Recommended channels:
    - webhook message is delivered
    - GitHub issue `uptime-alert` is created/updated
 4. Restore correct URL.
-

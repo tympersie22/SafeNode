@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Pressable, SafeAreaView, StatusBar, StyleSh
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview'
 
 const APP_URL = 'https://safe-node.app'
-const ALLOWED_HOSTS = new Set(['safe-node.app', 'www.safe-node.app', 'safe-node-99hv-backend.vercel.app'])
+const ALLOWED_HOSTS = new Set(['safe-node.app', 'www.safe-node.app', 'api.safe-node.app'])
 
 function isAllowedUrl(url: string): boolean {
   try {

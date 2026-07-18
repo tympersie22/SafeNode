@@ -1,156 +1,76 @@
 name: Deploy Backend to Railway
 
-# Trigger on push to main/production branches or manual dispatch
-# Only runs when backend code or workflow file changes
 on:
   push:
-    branches:
-      - main
-      - production
+    branches: [main]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
-  workflow_dispatch: # Allows manual triggering from GitHub UI
+  workflow_dispatch:
+
+concurrency:
+  group: railway-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy Safenode Backend to Railway
+    name: Deploy SafeNode API
     runs-on: ubuntu-latest
-    if: ${{ secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_PROJECT_ID != '' && secrets.RAILWAY_PUBLIC_DOMAIN != '' }}
-    # environment: production # Uncomment if you've created a GitHub environment named "production"
-    
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT }}
+      RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+      RAILWAY_PUBLIC_DOMAIN: ${{ vars.RAILWAY_PUBLIC_DOMAIN }}
+
     steps:
-      # Step 1: Checkout repository code
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1 # Shallow clone for faster checkout
 
-      # Step 2: Setup Node.js 20 with npm caching
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-
-      # Step 3: Install dependencies with npm ci (clean install)
-      # npm ci is faster and more reliable than npm install for CI/CD
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm ci
-        env:
-          # Prisma needs DATABASE_URL even for generate (can be dummy in CI)
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
-
-      # Step 4: Generate Prisma Client
-      # Must run before build since TypeScript depends on generated types
-      - name: Generate Prisma Client
-        working-directory: ./backend
-        run: npx prisma generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
-
-      # Step 5: Build TypeScript to JavaScript
-      - name: Build application
-        working-directory: ./backend
-        run: npm run build
-
-      # Step 6: Deploy to Railway using official action
-      # This uploads the built code and triggers Railway deployment
-      - name: Deploy to Railway
-        uses: railwayapp/deploy-action@v1
-        with:
-          # Railway API token (get from Railway dashboard → Account → Tokens)
-          token: ${{ secrets.RAILWAY_TOKEN }}
-          # Railway project ID (get from Railway project settings)
-          projectId: ${{ secrets.RAILWAY_PROJECT_ID }}
-          # Service name in Railway (must match your service name)
-          service: backend
-          # Path to the directory to deploy (backend folder)
-          path: ./backend
-          # Environment to deploy to (optional, defaults to production)
-          environment: production
-
-      # Step 7: Wait for Railway deployment to complete
-      # Railway deployments are async, so we wait a bit for the service to start
-      - name: Wait for deployment
+      - name: Validate deployment configuration
+        shell: bash
         run: |
-          echo "⏳ Waiting for Railway deployment to complete..."
-          sleep 15
-          echo "✅ Deployment wait complete"
+          set -euo pipefail
+          test -n "$RAILWAY_TOKEN"
+          test -n "$RAILWAY_PROJECT_ID"
+          test -n "$RAILWAY_ENVIRONMENT"
+          test -n "$RAILWAY_SERVICE_NAME"
+          test -n "$RAILWAY_PUBLIC_DOMAIN"
 
-      # Step 8: Run database migrations AFTER deployment
-      # CRITICAL: Migrations must run AFTER the new code is deployed
-      # This ensures the new code can handle the migrated schema
-      # Uses Railway CLI to run migrations inside the Railway environment
-      - name: Run database migrations
-        working-directory: ./backend
-        run: |
-          echo "🔄 Installing Railway CLI..."
-          npm install -g @railway/cli
-          
-          echo "🔄 Authenticating Railway CLI..."
-          railway login --token "$RAILWAY_TOKEN"
-          
-          echo "🔄 Linking to Railway project..."
-          railway link --project "$RAILWAY_PROJECT_ID"
-          
-          echo "🔄 Running database migrations via Railway..."
-          railway run --service backend npx prisma migrate deploy
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
-        continue-on-error: false # Fail if migrations fail
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli
 
-      # Step 9: Health check with retry loop (up to 4 minutes)
-      # Verifies the deployed service is actually running and responding
-      - name: Health check with retry
+      - name: Deploy backend
         run: |
-          echo "🏥 Starting health check..."
-          MAX_ATTEMPTS=24  # 24 attempts × 10 seconds = 4 minutes max
-          ATTEMPT=1
-          HEALTH_URL="https://${{ secrets.RAILWAY_PUBLIC_DOMAIN }}/api/health"
-          
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Checking $HEALTH_URL"
-            
-            # Use curl with timeout and follow redirects
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+          railway up backend \
+            --path-as-root \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE_NAME" \
+            --ci \
+            --message "GitHub ${GITHUB_SHA}"
+
+      - name: Verify production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_url="https://${RAILWAY_PUBLIC_DOMAIN}/api/health"
+          for attempt in $(seq 1 24); do
+            code=$(curl --silent --show-error --location \
+              --output /tmp/health.json \
+              --write-out '%{http_code}' \
               --max-time 10 \
-              --connect-timeout 5 \
-              "$HEALTH_URL" || echo "000")
-            
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ Health check passed! Service is responding."
+              "$health_url" || true)
+            if [ "$code" = "200" ]; then
+              cat /tmp/health.json
               exit 0
-            else
-              echo "❌ Health check failed (HTTP $HTTP_CODE). Retrying in 10 seconds..."
-              sleep 10
-              ATTEMPT=$((ATTEMPT + 1))
             fi
+            echo "Health check attempt ${attempt}/24 returned ${code:-000}"
+            sleep 10
           done
-          
-          echo "❌ Health check failed after $MAX_ATTEMPTS attempts. Service may not be running."
+          echo "Production health check failed: $health_url"
           exit 1
-
-      # Step 10: Optional - Seed database (only on first deploy)
-      # Uncomment this step if you want to seed the database on first deployment
-      # The seed script should be idempotent (safe to run multiple times)
-      # - name: Seed database (first deploy only)
-      #   working-directory: ./backend
-      #   run: |
-      #     echo "🌱 Seeding database..."
-      #     npm run db:seed || echo "⚠️ Seed script failed or already seeded (this is OK)"
-      #   env:
-      #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      #   continue-on-error: true # Don't fail deployment if seeding fails
-
-      # Step 11: Deployment summary
-      - name: Deployment summary
-        if: success()
-        run: |
-          echo "🎉 Deployment successful!"
-          echo "📍 Service URL: https://${{ secrets.RAILWAY_PUBLIC_DOMAIN }}"
-          echo "🏥 Health check: https://${{ secrets.RAILWAY_PUBLIC_DOMAIN }}/api/health"
-          echo "📚 API docs: https://${{ secrets.RAILWAY_PUBLIC_DOMAIN }}/docs"

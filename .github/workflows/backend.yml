@@ -110,26 +110,3 @@ jobs:
       with:
         name: backend-build
         path: backend/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: backend-build
-        path: backend/dist
-    
-    - name: Deploy to Railway
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        npm install -g @railway/cli
-        railway login --token "$RAILWAY_TOKEN"
-        railway up --service safenode-backend
-      continue-on-error: true

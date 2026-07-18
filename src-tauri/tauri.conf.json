@@ -16,7 +16,7 @@
       "capabilities": [
         "desktop"
       ],
-      "csp": "default-src 'self' tauri: asset:; connect-src 'self' ipc: http://ipc.localhost https://api.safe-node.app https://safe-node-99hv-backend.vercel.app https://*.sentry.io; img-src 'self' asset: data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self' tauri: asset:; connect-src 'self' ipc: http://ipc.localhost https://api.safe-node.app https://*.sentry.io; img-src 'self' asset: data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
     },
     "windows": [
       {

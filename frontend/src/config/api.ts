@@ -11,7 +11,7 @@ const env = import.meta.env
 const mode = env.MODE || env.NODE_ENV || 'development'
 const viteApiUrl = env.VITE_API_URL
 const mobileApiUrl = env.VITE_MOBILE_API_URL
-const PROD_API_FALLBACK = 'https://safe-node-99hv-backend.vercel.app'
+const PROD_API_FALLBACK = 'https://api.safe-node.app'
 
 type CapacitorWindow = Window & {
   Capacitor?: {
