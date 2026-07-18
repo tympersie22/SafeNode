@@ -84,6 +84,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Validate release version matches latest tag
         run: |
           set -euo pipefail
@@ -99,7 +106,7 @@ jobs:
             exit 1
           fi
 
-          FILE_VERSION="$(awk -F\"'\" '/RELEASE_VERSION/ {print $2; exit}' frontend/src/config/release.ts)"
+          FILE_VERSION="$(node -e 'const fs = require("node:fs"); const source = fs.readFileSync("frontend/src/config/release.ts", "utf8"); const match = source.match(/\b(v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)\b/); if (!match) process.exit(1); process.stdout.write(match[1]);')"
           if [ -z "${FILE_VERSION}" ]; then
             echo "Could not read RELEASE_VERSION from frontend/src/config/release.ts"
             exit 1
@@ -125,13 +132,6 @@ jobs:
             echo "Update frontend/src/config/release.ts before merging."
             exit 1
           fi
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: ./frontend
