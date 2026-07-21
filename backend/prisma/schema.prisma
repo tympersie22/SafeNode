@@ -62,6 +62,7 @@ model User {
   webAuthnCredentials WebAuthnCredential[]
   webAuthnChallenges WebAuthnChallenge[]
   deviceSessions DeviceSession[]
+  desktopAuthFlows DesktopAuthFlow[]
   accountSuccessor AccountSuccessor?
   
   @@index([email])
@@ -177,6 +178,25 @@ model DeviceSession {
   @@index([deviceId, status])
   @@index([lastSeenAt])
   @@map("device_sessions")
+}
+
+model DesktopAuthFlow {
+  id String @id
+  stateHash String @map("state_hash")
+  codeChallenge String @map("code_challenge")
+  authorizationCodeHash String? @map("authorization_code_hash")
+  userId String? @map("user_id")
+  status String @default("pending") // pending | approved | consumed
+  expiresAt DateTime @map("expires_at")
+  approvedAt DateTime? @map("approved_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+  @@index([userId])
+  @@map("desktop_auth_flows")
 }
 
 // Team Model

@@ -47,6 +47,7 @@ export const RecoveryCenterSettings: React.FC = () => {
   const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [latestRecoveryKit, setLatestRecoveryKit] = useState<string | null>(null)
+  const [migrationPassword, setMigrationPassword] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -324,6 +325,23 @@ export const RecoveryCenterSettings: React.FC = () => {
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 Move legacy vaults to a wrapped-key model, or refresh recovery coverage for already-migrated vaults. Safenode will relock the vault after the upgrade so the next unlock uses the new access profile.
               </p>
+              <div className="mt-4 max-w-sm">
+                <label htmlFor="recovery-master-password" className="block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Master password
+                </label>
+                <input
+                  id="recovery-master-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={migrationPassword}
+                  onChange={(event) => setMigrationPassword(event.target.value)}
+                  placeholder="Required if you unlocked with a passkey"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--sn-accent)] dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100"
+                />
+                <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  Confirms it's you and re-wraps your vault key. You can leave this blank only if you unlocked this session with your password.
+                </p>
+              </div>
             </div>
             <SaasButton
               variant="primary"
@@ -333,7 +351,8 @@ export const RecoveryCenterSettings: React.FC = () => {
                 setIsUpgrading(true)
                 setError(null)
                 try {
-                  const result = await upgradeVaultAccess()
+                  const result = await upgradeVaultAccess(migrationPassword.trim() || undefined)
+                  setMigrationPassword('')
                   setLatestRecoveryKit(result.recoveryKit)
                   setTrustedDeviceReady(true)
                   const refreshedUser = await getCurrentUser()

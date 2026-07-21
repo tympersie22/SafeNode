@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { requireRegisteredDevice } from '../middleware/deviceAccess'
 import { getPrismaClient } from '../db/prisma'
 import { createAuditLog } from '../services/auditLogService'
+import { config } from '../config'
 
 type ReportSeverity = 'high' | 'medium' | 'info'
 const booleanQuery = z.string().optional().default('false').transform((val) => val === 'true')
@@ -376,6 +377,23 @@ export async function registerReportRoutes(server: FastifyInstance) {
 
     const { days, action, severity, includeSystem, includeSessionActivity, includeInformational } = validation.data
     const prisma = getPrismaClient()
+
+    // Writing to reply.raw and flushing headers bypasses Fastify's onSend hook,
+    // where @fastify/cors normally injects the CORS headers — so they must be set
+    // manually here, mirroring the app-level CORS config (echo an allowed origin
+    // + credentials). Without this the browser blocks the SSE stream.
+    const requestOrigin = request.headers.origin
+    if (requestOrigin) {
+      const allowedOrigins = Array.isArray(config.corsOrigin) ? config.corsOrigin : [config.corsOrigin]
+      const originAllowed = allowedOrigins.some((allowed) =>
+        allowed instanceof RegExp ? allowed.test(requestOrigin) : allowed === requestOrigin
+      )
+      if (originAllowed) {
+        reply.raw.setHeader('Access-Control-Allow-Origin', requestOrigin)
+        reply.raw.setHeader('Access-Control-Allow-Credentials', 'true')
+        reply.raw.setHeader('Vary', 'Origin')
+      }
+    }
 
     reply.raw.setHeader('Content-Type', 'text/event-stream')
     reply.raw.setHeader('Cache-Control', 'no-cache, no-transform')

@@ -22,10 +22,11 @@
       {
         "label": "main",
         "title": "Safenode",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
+        "width": 1380,
+        "height": 900,
+        "minWidth": 980,
+        "minHeight": 680,
+        "center": true,
         "resizable": true,
         "fullscreen": false,
         "useHttpsScheme": true
@@ -46,7 +47,15 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "11.0"
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["safenode"]
+      }
     }
   }
 }

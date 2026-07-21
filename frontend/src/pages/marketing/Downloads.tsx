@@ -71,7 +71,7 @@ const DOWNLOADS = {
       os: 'macos',
       logo: BrandLogos.Apple,
       url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-macOS.dmg' : '',
-      size: 'Apple Silicon DMG',
+      size: 'Apple Silicon DMG · unsigned beta',
       version: desktopDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
     {
@@ -79,15 +79,15 @@ const DOWNLOADS = {
       os: 'windows',
       logo: BrandLogos.Windows,
       url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Windows.exe' : '',
-      size: 'NSIS installer',
+      size: 'Signed NSIS installer',
       version: desktopDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
     {
       name: 'Linux',
       os: 'linux',
       logo: BrandLogos.Linux,
-      url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest' : '',
-      size: 'Release assets',
+      url: desktopDownloadEnabled ? 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Linux.AppImage' : '',
+      size: 'Signed AppImage (GPG)',
       version: desktopDownloadEnabled ? RELEASE_VERSION : 'Unavailable',
     },
   ],
@@ -134,12 +134,27 @@ const DOWNLOADS = {
   ],
 };
 
+// Move the entry matching the detected OS to the front so the user's own
+// platform is the first download link in its section.
+function orderByDetected<T extends { os?: string }>(list: readonly T[], os: string | null): T[] {
+  if (!os) return [...list];
+  const idx = list.findIndex((item) => item.os === os);
+  if (idx <= 0) return [...list];
+  const copy = [...list];
+  const [match] = copy.splice(idx, 1);
+  copy.unshift(match);
+  return copy;
+}
+
 export const DownloadsNewPage: React.FC = () => {
   const [userOS, setUserOS] = useState<string | null>(null);
 
   useEffect(() => {
     setUserOS(detectOS());
   }, []);
+
+  const desktopList = orderByDetected(DOWNLOADS.desktop, userOS);
+  const mobileList = orderByDetected(DOWNLOADS.mobile, userOS);
 
   const getPrimaryDownload = () => {
     if (!userOS) return DOWNLOADS.desktop[0]; // Default to macOS
@@ -188,7 +203,7 @@ export const DownloadsNewPage: React.FC = () => {
             </p>
           </motion.div>
 
-          <div className="relative mx-auto w-full max-w-[430px] bg-[var(--sn-ink)] p-5 text-white sm:p-8">
+          <div className="relative mx-auto w-full max-w-[430px] bg-[var(--sn-ink-fixed)] p-5 text-white sm:p-8">
             <div className="flex items-center justify-between border-b border-white/15 pb-5">
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Safenode mobile</span>
               <span className="flex items-center gap-2 text-xs text-[var(--sn-accent-soft)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--sn-accent-soft)]" /> Protected</span>
@@ -214,14 +229,18 @@ export const DownloadsNewPage: React.FC = () => {
             <h2 className="sn-display max-w-4xl">Begin on the device that already holds your passkeys.</h2>
           </div>
           <div className="grid lg:grid-cols-2">
-            {DOWNLOADS.mobile.map((platform) => {
+            {mobileList.map((platform) => {
               const LogoComponent = platform.logo;
               const available = Boolean(platform.url);
+              const isDetected = platform.os === userOS;
               return (
                 <article key={platform.name} className="border-b border-[var(--sn-line)] px-0 py-10 lg:border-r lg:px-10 lg:first:pl-0 lg:last:border-r-0">
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex h-12 w-12 items-center justify-center border border-[var(--sn-line)] text-[var(--sn-ink)] dark:text-white"><span className="h-6 w-6"><LogoComponent /></span></div>
-                    <span className={`font-mono text-[10px] uppercase tracking-[0.16em] ${available ? 'text-[var(--sn-accent)]' : 'text-[var(--sn-muted)]'}`}>{available ? 'Available' : 'In preparation'}</span>
+                    <div className="flex flex-col items-end gap-1.5">
+                      {isDetected && <span className="rounded-full bg-[var(--sn-accent)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white">Your device</span>}
+                      <span className={`font-mono text-[10px] uppercase tracking-[0.16em] ${available ? 'text-[var(--sn-accent)]' : 'text-[var(--sn-muted)]'}`}>{available ? 'Available' : 'In preparation'}</span>
+                    </div>
                   </div>
                   <h3 className="mt-8 font-serif text-4xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">Safenode for {platform.name}</h3>
                   <p className="mt-4 max-w-lg leading-7 text-[var(--sn-muted)]">
@@ -252,13 +271,20 @@ export const DownloadsNewPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3"><MonitorDown className="h-5 w-5 text-[var(--sn-accent)]" /><h2 className="text-2xl font-semibold text-[var(--sn-ink)] dark:text-white">Desktop apps</h2></div>
             <div className="mt-7 border-t border-[var(--sn-line)]">
-              {DOWNLOADS.desktop.map((platform) => {
+              {desktopList.map((platform) => {
                 const LogoComponent = platform.logo;
                 const available = Boolean(platform.url);
+                const isDetected = platform.os === userOS;
                 const content = (
                   <>
                     <span className="h-5 w-5"><LogoComponent /></span>
-                    <span><span className="block text-sm font-semibold">{platform.name}</span><span className="mt-1 block text-xs text-[var(--sn-muted)]">{platform.size} / {platform.version}</span></span>
+                    <span>
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        {platform.name}
+                        {isDetected && <span className="rounded-full bg-[var(--sn-accent)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white">Your device</span>}
+                      </span>
+                      <span className="mt-1 block text-xs text-[var(--sn-muted)]">{platform.size} / {platform.version}</span>
+                    </span>
                     {available ? <Download className="h-4 w-4" /> : <span className="text-xs font-semibold text-[var(--sn-muted)]">In preparation</span>}
                   </>
                 );
@@ -289,7 +315,7 @@ export const DownloadsNewPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-[var(--sn-ink)] py-20 text-white">
+      <section className="bg-[var(--sn-ink-fixed)] py-20 text-white">
         <div className="sn-marketing-container grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="sn-eyebrow text-[var(--sn-accent-soft)]">No installation required</p>

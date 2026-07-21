@@ -88,9 +88,9 @@ export const PRICING_PLANS: PricingPlan[] = [
     features: [
       'Everything in Personal',
       '10 devices',
+      'Up to 6 members',
       '20 shared vaults',
-      '5GB file storage',
-      'Family controls'
+      '5GB encrypted files (soon)'
     ],
     stripePriceIds: {
       monthly: env.VITE_STRIPE_PRICE_FAMILY_MONTHLY,

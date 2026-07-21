@@ -12,14 +12,16 @@ import { login as authLogin, signInWithPasskey, signUpWithPasskey, verifyLoginTw
 import { showToast } from '../components/ui/Toast'
 import { devLog } from '../utils/debug'
 import { ExternalLink, Monitor, ShieldCheck } from 'lucide-react'
-import { isDesktopBuild, openSafenodeInBrowser } from '../desktop/integration'
+import { isDesktopBuild } from '../desktop/integration'
+import { beginDesktopAuthorization, listenForDesktopAuthorization } from '../desktop/desktopAuth'
 
 interface AuthProps {
   onBackToHome?: () => void
   initialMode?: 'signup' | 'login'
+  onAuthenticated?: () => void
 }
 
-const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
+const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login', onAuthenticated }) => {
   const { login: setAuthUser, isAuthenticated } = useAuth()
   const [isLogin, setIsLogin] = useState(initialMode === 'login')
   const [isLoading, setIsLoading] = useState(false)
@@ -30,6 +32,39 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
   const prefersReducedMotion = useReducedMotion()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const finishAuthentication = () => {
+    if (onAuthenticated) onAuthenticated()
+    else navigate('/vault', { replace: true })
+  }
+
+  useEffect(() => {
+    if (!isDesktopBuild()) return
+    let active = true
+    let unlisten: (() => void) | undefined
+
+    void listenForDesktopAuthorization((result) => {
+      if (!active || !result.token) return
+      flushSync(() => setAuthUser(result.user, result.token!))
+      setIsLoading(false)
+      setError(null)
+      navigate('/vault', { replace: true })
+    }, (desktopError) => {
+      if (!active) return
+      setIsLoading(false)
+      setError(desktopError.message)
+    }).then((dispose) => {
+      if (active) unlisten = dispose
+      else dispose()
+    }).catch((listenerError) => {
+      if (active) setError(listenerError instanceof Error ? listenerError.message : 'Desktop callback listener failed.')
+    })
+
+    return () => {
+      active = false
+      unlisten?.()
+    }
+  }, [navigate, setAuthUser])
   
   // NO NAVIGATION - PublicRoute handles redirects for authenticated users
 
@@ -109,7 +144,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setIsLoading(false)
       isProcessingRef.current = false
 
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       const errorMsg = err.message || 'Invalid email or password. Please try again.';
       setError(errorMsg);
@@ -142,7 +177,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
 
       setIsLoading(false)
       isProcessingRef.current = false
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       const errorMsg = err.message || 'Passkey sign-in failed. Please try again.'
       setError(errorMsg)
@@ -176,7 +211,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setTwoFactorCode('')
       setIsLoading(false)
       isProcessingRef.current = false
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       const errorMsg = err.message || 'Invalid 2FA code. Please try again.'
       setError(errorMsg)
@@ -213,7 +248,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setIsLoading(false)
       isProcessingRef.current = false
 
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.')
       setIsLoading(false)
@@ -226,7 +261,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setIsLoading(true)
       setError(null)
       try {
-        await openSafenodeInBrowser()
+        await beginDesktopAuthorization()
       } catch (err: any) {
         setError(err?.message || 'Could not open the secure browser flow.')
       } finally {
@@ -241,10 +276,10 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
           <div className="flex h-12 w-12 items-center justify-center border border-[var(--sn-line)] text-[var(--sn-accent)]">
             <Monitor className="h-6 w-6" />
           </div>
-          <p className="sn-eyebrow mt-8">Desktop security preview</p>
-          <h1 className="sn-display mt-5">Finish passkey access in your browser.</h1>
+          <p className="sn-eyebrow mt-8">Secure desktop access</p>
+          <h1 className="sn-display mt-5">Use your passkey on safe-node.app.</h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--sn-muted)]">
-            Safenode will not run a passkey ceremony on a mismatched desktop origin. Until the signed browser-to-app handoff is complete, authenticate only on the canonical secure domain.
+            Safenode opens its canonical domain for passkey verification, then returns a short-lived one-time authorization to this app.
           </p>
 
           <div className="mt-8 grid gap-3 border-y border-[var(--sn-line)] py-6 text-sm text-[var(--sn-muted)] sm:grid-cols-2">
@@ -255,11 +290,11 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
           {error && <p className="mt-6 border border-red-300 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
 
           <button type="button" onClick={continueInBrowser} disabled={isLoading} className="sn-solid-button mt-8 w-full sm:w-auto">
-            {isLoading ? 'Opening secure browser…' : 'Continue on safe-node.app'}
+            {isLoading ? 'Waiting for browser approval…' : 'Continue securely in browser'}
             <ExternalLink className="h-4 w-4" />
           </button>
           <p className="mt-5 text-xs leading-5 text-[var(--sn-muted)]">
-            Desktop downloads remain disabled until this handoff returns a short-lived, one-time session to the signed app.
+            Keep this app open. The request expires after five minutes and cannot be reused.
           </p>
         </section>
       </main>
@@ -275,7 +310,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       role="main"
       aria-label="Authentication page"
     >
-      <aside className="relative hidden overflow-hidden bg-[var(--sn-ink)] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
+      <aside className="relative hidden overflow-hidden bg-[var(--sn-ink-fixed)] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
         <div className="sn-hero-grid opacity-20" aria-hidden="true" />
         <button onClick={onBackToHome} className="relative inline-flex w-fit items-center gap-3 text-sm font-semibold text-white/65 transition-colors hover:text-white">
           <span aria-hidden="true">←</span> Safenode home

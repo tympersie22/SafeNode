@@ -4,7 +4,14 @@ import { initSentry, captureException } from './services/sentryService';
 import AppRouter from './AppRouter';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/ui/Toast';
+import { initNativeShell, isNativePlatform } from './native/initNativeShell';
 import './index.css';
+
+// Tag the document when running inside the Capacitor native shell so the
+// native-only CSS polish applies without affecting the web build.
+if (isNativePlatform()) {
+  document.documentElement.classList.add('capacitor-native');
+}
 
 // Initialize Sentry (must be first, but doesn't block render)
 try {
@@ -170,3 +177,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+// Configure the native status bar / keyboard / splash screen. No-op on web.
+void initNativeShell();

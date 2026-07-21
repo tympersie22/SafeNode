@@ -22,6 +22,7 @@ import { registerDeviceRoutes } from './routes/devices'
 import { registerAuditRoutes } from './routes/audit'
 import { registerReportRoutes } from './routes/reports'
 import { registerPasskeyRoutes } from './routes/passkeys'
+import { registerDesktopAuthRoutes } from './routes/desktopAuth'
 import { registerResendWebhookRoutes } from './routes/resendWebhook'
 import { registerSuccessorRoutes } from './routes/successor'
 import { registerTeamRoutes } from './routes/teams'
@@ -134,6 +135,9 @@ export async function createApp() {
 
   // Register passkey routes
   await registerPasskeyRoutes(server)
+
+  // Register one-time browser-to-desktop PKCE authorization routes
+  await registerDesktopAuthRoutes(server)
 
   // Register Resend webhook route
   await registerResendWebhookRoutes(server)

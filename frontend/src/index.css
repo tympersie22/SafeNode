@@ -368,6 +368,73 @@
 /* Desktop App Styles */
 .desktop-app {
   -webkit-app-region: no-drag;
+  background: #06100e;
+}
+
+.sn-desktop-shell {
+  min-height: 100vh;
+  background: #06100e;
+}
+
+.sn-desktop-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10000;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 86px;
+  border-bottom: 1px solid rgba(82, 227, 178, 0.16);
+  background: rgba(6, 16, 14, 0.88);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.sn-desktop-titlebar-brand,
+.sn-desktop-trust {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f3f7f5;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.sn-desktop-mark {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid rgba(82, 227, 178, 0.35);
+  border-radius: 8px;
+  color: #52e3b2;
+  background: rgba(82, 227, 178, 0.1);
+}
+
+.sn-desktop-mark svg,
+.sn-desktop-trust svg {
+  width: 13px;
+  height: 13px;
+}
+
+.sn-desktop-trust {
+  color: #7f9a91;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.sn-desktop-trust svg {
+  color: #52e3b2;
+}
+
+.sn-desktop-viewport {
+  min-height: 100vh;
+  padding-top: 52px;
 }
 
 .desktop-menu-bar {
@@ -649,6 +716,10 @@
 /* Unified Safenode visual system */
 :root {
   --sn-ink: #14201b;
+  /* Always-dark slab background (footer, CTA bands, decorative tiles). Unlike
+     --sn-ink (which is the ink/text color and flips to near-white in dark mode),
+     this stays dark in both themes so those slabs never turn bright. */
+  --sn-ink-fixed: #14201b;
   --sn-ink-soft: #23332c;
   --sn-canvas: #f3f1e9;
   --sn-surface: #faf9f4;
@@ -665,6 +736,9 @@
 
 html.dark {
   --sn-ink: #eef3ef;
+  /* Kept dark in dark mode too (see :root note). Slightly lifted off the dark
+     canvas so the slab still reads as a distinct band. */
+  --sn-ink-fixed: #16231d;
   --sn-ink-soft: #dce6df;
   --sn-canvas: #0e1612;
   --sn-surface: #141e19;
@@ -936,4 +1010,42 @@ button:focus-visible,
   .sn-hero-title {
     font-size: clamp(3rem, 15vw, 4.6rem);
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Native app shell polish — Capacitor iOS/Android ONLY.
+   Scoped to html.capacitor-native (set in main.tsx) so the web app at
+   safe-node.app is completely unaffected. Removes the "it's a web page" tells:
+   rubber-band overscroll, tap highlight flash, long-press callout/magnifier,
+   accidental text selection, and content sliding under the notch / home bar.
+--------------------------------------------------------------------------- */
+html.capacitor-native,
+html.capacitor-native body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Respect the notch and home indicator by default (most app screens don't
+   handle safe areas themselves). StatusBar overlays the web view, so the
+   inset area shows the app background behind the status bar. */
+html.capacitor-native #root {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Text selection off by default for a native feel... */
+html.capacitor-native * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ...but keep it on for real inputs and anything explicitly opted-in. */
+html.capacitor-native input,
+html.capacitor-native textarea,
+html.capacitor-native [contenteditable],
+html.capacitor-native [data-selectable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }

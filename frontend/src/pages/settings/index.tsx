@@ -52,7 +52,7 @@ export const SettingsPage: React.FC = () => {
       <header className="border-b border-[var(--sn-line)]">
         <div className="mx-auto flex min-h-[76px] max-w-[1440px] items-center justify-between gap-5 px-5 sm:px-8">
           <div className="flex items-center gap-4">
-            <span className="flex h-10 w-10 items-center justify-center bg-[var(--sn-ink)] text-[var(--sn-canvas)]">
+            <span className="flex h-10 w-10 items-center justify-center bg-[var(--sn-ink-fixed)] text-white">
               <HardDrive className="h-5 w-5" />
             </span>
             <div>

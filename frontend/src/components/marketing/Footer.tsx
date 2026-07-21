@@ -33,7 +33,7 @@ const FOOTER_GROUPS = [
 ] as const
 
 export const Footer: React.FC = () => (
-  <footer className="bg-[var(--sn-ink)] px-5 pb-10 text-white sm:px-8 lg:px-12">
+  <footer className="bg-[var(--sn-ink-fixed)] px-5 pb-10 text-white sm:px-8 lg:px-12">
     <div className="mx-auto max-w-[1440px] border-t border-white/15 pt-12">
       <div className="grid gap-12 pb-16 lg:grid-cols-[1.2fr_1.8fr]">
         <div>

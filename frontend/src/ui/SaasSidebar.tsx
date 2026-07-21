@@ -149,7 +149,7 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
                 <div className="mx-auto flex h-12 w-12 items-center justify-center">{brand.logo}</div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center bg-[var(--sn-ink)] text-[var(--sn-canvas)]">
+                  <div className="flex h-11 w-11 items-center justify-center bg-[var(--sn-ink-fixed)] text-white">
                     {brand.logo}
                   </div>
                   <div className="min-w-0">

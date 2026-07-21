@@ -10,7 +10,7 @@ import EntryForm from './components/EntryForm';
 import { generateTotpCode, encrypt, encryptWithKey, importVaultKey, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
 import { vaultSync } from './sync/vaultSync';
-import { enhancedCopyToClipboard } from './desktop/integration';
+import { enhancedCopyToClipboard, isDesktopBuild } from './desktop/integration';
 import KeyRotation from './components/KeyRotation';
 import SharingKeys from './components/SharingKeys';
 import ShareEntryModal from './components/ShareEntryModal';
@@ -170,8 +170,10 @@ const App: React.FC = () => {
     }
 
     window.addEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
+    window.addEventListener('safenode:desktop-lock', handleLock)
     return () => {
       window.removeEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
+      window.removeEventListener('safenode:desktop-lock', handleLock)
     }
   }, []);
 
@@ -930,6 +932,9 @@ const App: React.FC = () => {
   
   // Not authenticated - show home/auth based on route
   if (!isAuthenticated || !user) {
+    if (isDesktopBuild()) {
+      return <Auth initialMode="login" />
+    }
     const isOnAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth');
     if (isOnAuthPage) {
       return (

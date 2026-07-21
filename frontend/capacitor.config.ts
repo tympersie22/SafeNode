@@ -9,6 +9,25 @@ const config: CapacitorConfig = {
     hostname: 'safe-node.app',
     androidScheme: 'https',
     iosScheme: 'capacitor'
+  },
+  plugins: {
+    // Hidden by initNativeShell() once the app shell mounts (avoids a white flash).
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: '#0f172a',
+      showSpinner: false,
+      splashImmersive: true,
+      splashFullScreen: true
+    },
+    Keyboard: {
+      // Keep the web view still; CSS handles insets.
+      resize: 'native'
+    },
+    StatusBar: {
+      overlaysWebView: true,
+      style: 'DARK',
+      backgroundColor: '#00000000'
+    }
   }
 };
 

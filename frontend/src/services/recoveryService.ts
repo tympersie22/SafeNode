@@ -34,7 +34,7 @@ async function getLocalMasterPassword(masterPassword?: string): Promise<string> 
 
   const sessionSecret = getVaultSessionSecret()
   if (!sessionSecret) {
-    throw new Error('Unlock your vault in this session before enabling recovery migration.')
+    throw new Error('Enter your master password to enable recovery migration (required when you unlocked with a passkey).')
   }
 
   return sessionSecret

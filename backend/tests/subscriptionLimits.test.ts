@@ -26,7 +26,7 @@ describe('Subscription Limits', () => {
     it('should have correct limits for family tier', () => {
       expect(SUBSCRIPTION_LIMITS.family.devices).toBe(10)
       expect(SUBSCRIPTION_LIMITS.family.vaults).toBe(20)
-      expect(SUBSCRIPTION_LIMITS.family.teamMembers).toBe(0)
+      expect(SUBSCRIPTION_LIMITS.family.teamMembers).toBe(6)
       expect(SUBSCRIPTION_LIMITS.family.storageMB).toBe(5120)
     })
 

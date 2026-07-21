@@ -10,7 +10,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onEnterApp }) => {
   const reducedMotion = useReducedMotion()
 
   return (
-    <section className="bg-[var(--sn-ink)] px-5 pb-20 pt-10 text-white sm:px-8 lg:px-12">
+    <section className="bg-[var(--sn-ink-fixed)] px-5 pb-20 pt-10 text-white sm:px-8 lg:px-12">
       <motion.div
         className="mx-auto grid max-w-[1440px] gap-10 border-y border-white/15 py-16 lg:grid-cols-[1.3fr_0.7fr] lg:items-end lg:py-24"
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
