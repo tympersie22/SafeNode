@@ -221,7 +221,7 @@ export const PricingNewPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-[var(--sn-ink-fixed)] py-20 text-white">
+      <section className="bg-[var(--sn-ink-fixed,#14201b)] py-20 text-white">
         <div className="sn-marketing-container grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
           <h2 className="sn-display text-white">

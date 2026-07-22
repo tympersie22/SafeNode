@@ -203,7 +203,7 @@ export const DownloadsNewPage: React.FC = () => {
             </p>
           </motion.div>
 
-          <div className="relative mx-auto w-full max-w-[430px] bg-[var(--sn-ink-fixed)] p-5 text-white sm:p-8">
+          <div className="relative mx-auto w-full max-w-[430px] bg-[var(--sn-ink-fixed,#14201b)] p-5 text-white sm:p-8">
             <div className="flex items-center justify-between border-b border-white/15 pb-5">
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Safenode mobile</span>
               <span className="flex items-center gap-2 text-xs text-[var(--sn-accent-soft)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--sn-accent-soft)]" /> Protected</span>
@@ -315,7 +315,7 @@ export const DownloadsNewPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-[var(--sn-ink-fixed)] py-20 text-white">
+      <section className="bg-[var(--sn-ink-fixed,#14201b)] py-20 text-white">
         <div className="sn-marketing-container grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="sn-eyebrow text-[var(--sn-accent-soft)]">No installation required</p>

@@ -27,7 +27,7 @@ export const SecurityWorkflow: React.FC = () => {
   const reducedMotion = useReducedMotion()
 
   return (
-    <section className="sn-section bg-[var(--sn-ink-fixed)] text-white" aria-labelledby="protection-heading">
+    <section className="sn-section bg-[var(--sn-ink-fixed,#14201b)] text-white" aria-labelledby="protection-heading">
       <div className="sn-marketing-container grid gap-14 lg:grid-cols-[0.75fr_1.25fr] lg:gap-24">
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: 18 }}
