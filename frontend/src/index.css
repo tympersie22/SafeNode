@@ -888,6 +888,16 @@ body,
   line-height: 0.98;
 }
 
+/* Headings on the always-dark slabs opt into white via `text-white`. Because
+   `.sn-display` hard-codes the dark ink color and is unlayered (so it beats
+   Tailwind's layered `text-white`), those headings render dark-on-dark and
+   vanish. This compound selector (0,2,0 specificity) outranks `.sn-display`
+   and restores white text wherever a heading explicitly asked for it. */
+.sn-display.text-white,
+.sn-hero-title.text-white {
+  color: #ffffff;
+}
+
 .sn-hero-title {
   font-size: clamp(3.4rem, 6.9vw, 7.4rem);
   line-height: 0.91;
