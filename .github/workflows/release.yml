@@ -39,6 +39,9 @@ jobs:
     env:
       VITE_API_URL: ${{ vars.MOBILE_API_URL }}
       VITE_DESKTOP_BUILD: "true"
+      # linuxdeploy/AppRun can't use FUSE on GitHub runners; extract-and-run avoids it.
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      NO_STRIP: "true"
       WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_BASE64 }}
@@ -141,6 +144,10 @@ jobs:
   build-android-apk:
     name: Build Native Android APK
     runs-on: ubuntu-latest
+    # Non-blocking: a signing/domain misconfiguration here must not stop the
+    # desktop + extension release from publishing. Android downloads are gated
+    # behind VITE_ANDROID_DOWNLOAD_ENABLED and stay off until this is green.
+    continue-on-error: true
     env:
       ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/mobile/android/release.jks
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -199,14 +206,31 @@ jobs:
 
       - name: Verify Android signature and domain association
         run: |
+          set -uo pipefail
           APK="mobile/android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "${APK}" ]; then
+            echo "::error::Signed APK not found at ${APK}. Listing build outputs:"
+            ls -R mobile/android/app/build/outputs/apk 2>/dev/null || true
+            exit 1
+          fi
+          if [ -z "${ANDROID_CERT_SHA256}" ]; then
+            echo "::error::Repository variable ANDROID_CERT_SHA256 is not set. Add it under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
           APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n 1)/apksigner"
-          test -f "${APK}"
-          test -n "${ANDROID_CERT_SHA256}"
           ACTUAL_FINGERPRINT="$(${APKSIGNER} verify --print-certs "${APK}" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:lower:]' '[:upper:]')"
           EXPECTED_FINGERPRINT="$(printf '%s' "${ANDROID_CERT_SHA256}" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-          test "${ACTUAL_FINGERPRINT}" = "${EXPECTED_FINGERPRINT}"
-          grep -Fq "${ANDROID_CERT_SHA256}" frontend/public/.well-known/assetlinks.json
+          echo "Expected fingerprint: ${EXPECTED_FINGERPRINT}"
+          echo "Actual   fingerprint: ${ACTUAL_FINGERPRINT}"
+          if [ "${ACTUAL_FINGERPRINT}" != "${EXPECTED_FINGERPRINT}" ]; then
+            echo "::error::APK signing certificate does not match ANDROID_CERT_SHA256. Update the variable to match the keystore, or re-sign with the expected key."
+            exit 1
+          fi
+          if ! grep -Fq "${ANDROID_CERT_SHA256}" frontend/public/.well-known/assetlinks.json; then
+            echo "::error::ANDROID_CERT_SHA256 fingerprint is missing from frontend/public/.well-known/assetlinks.json (breaks passkey domain association)."
+            exit 1
+          fi
+          echo "Android signature and domain association verified."
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
@@ -304,10 +328,10 @@ jobs:
           cp "${MAC_FILE}" release-assets/Safenode-macOS.dmg
           cp "${WIN_FILE}" release-assets/Safenode-Windows.exe
           if [ -z "${ANDROID_FILE}" ]; then
-            echo "Missing Android artifact"
-            exit 1
+            echo "::warning::Android APK missing (build-android-apk did not succeed) - publishing desktop + extensions without the Android download."
+          else
+            cp "${ANDROID_FILE}" release-assets/Safenode-Android.apk
           fi
-          cp "${ANDROID_FILE}" release-assets/Safenode-Android.apk
           cp "${LINUX_FILE}" release-assets/Safenode-Linux.AppImage
           if [ -z "${LINUX_SIGNATURE}" ]; then
             echo "Missing Linux GPG signature"
