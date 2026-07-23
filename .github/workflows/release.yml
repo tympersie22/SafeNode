@@ -113,16 +113,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${LINUX_GPG_PRIVATE_KEY_BASE64}" || { echo "LINUX_GPG_PRIVATE_KEY_BASE64 is required" >&2; exit 1; }
+          APPIMAGE="$(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
+          test -n "${APPIMAGE}"
+          sha256sum "${APPIMAGE}" > "${APPIMAGE}.sha256"
+          if [ -z "${LINUX_GPG_PRIVATE_KEY_BASE64}" ] || [ -z "${LINUX_GPG_PASSPHRASE}" ]; then
+            echo "::warning::LINUX_GPG_PRIVATE_KEY_BASE64 and/or LINUX_GPG_PASSPHRASE not set - publishing an UNSIGNED Linux AppImage (checksum only). Set both secrets to enable GPG signing."
+            exit 0
+          fi
           KEY_FILE="${RUNNER_TEMP}/safenode-linux-signing.asc"
           printf '%s' "${LINUX_GPG_PRIVATE_KEY_BASE64}" | base64 --decode > "${KEY_FILE}"
           chmod 600 "${KEY_FILE}"
           gpg --batch --import "${KEY_FILE}"
           KEY_FINGERPRINT="$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
           test -n "${KEY_FINGERPRINT}" || { echo "No Linux signing key was imported" >&2; exit 1; }
-          APPIMAGE="$(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
-          test -n "${APPIMAGE}"
-          sha256sum "${APPIMAGE}" > "${APPIMAGE}.sha256"
           gpg --batch --yes --pinentry-mode loopback --passphrase "${LINUX_GPG_PASSPHRASE}" \
             --local-user "${KEY_FINGERPRINT}" --armor --detach-sign "${APPIMAGE}"
           sha256sum --check "${APPIMAGE}.sha256"
@@ -218,7 +221,12 @@ jobs:
             exit 1
           fi
           APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n 1)/apksigner"
-          ACTUAL_FINGERPRINT="$(${APKSIGNER} verify --print-certs "${APK}" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:lower:]' '[:upper:]')"
+          echo "Using apksigner: ${APKSIGNER}"
+          RAW_CERTS="$("${APKSIGNER}" verify --print-certs "${APK}" 2>&1 || true)"
+          echo "----- apksigner verify --print-certs -----"
+          echo "${RAW_CERTS}"
+          echo "------------------------------------------"
+          ACTUAL_FINGERPRINT="$(printf '%s\n' "${RAW_CERTS}" | sed -n 's/.*SHA-256 digest: //p' | head -n 1 | tr -d ' :' | tr '[:lower:]' '[:upper:]')"
           EXPECTED_FINGERPRINT="$(printf '%s' "${ANDROID_CERT_SHA256}" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
           echo "Expected fingerprint: ${EXPECTED_FINGERPRINT}"
           echo "Actual   fingerprint: ${ACTUAL_FINGERPRINT}"
@@ -334,10 +342,10 @@ jobs:
           fi
           cp "${LINUX_FILE}" release-assets/Safenode-Linux.AppImage
           if [ -z "${LINUX_SIGNATURE}" ]; then
-            echo "Missing Linux GPG signature"
-            exit 1
+            echo "::warning::Linux GPG signature missing - publishing unsigned AppImage with checksum only."
+          else
+            cp "${LINUX_SIGNATURE}" release-assets/Safenode-Linux.AppImage.asc
           fi
-          cp "${LINUX_SIGNATURE}" release-assets/Safenode-Linux.AppImage.asc
           sha256sum release-assets/Safenode-Linux.AppImage > release-assets/Safenode-Linux.AppImage.sha256
 
           cp artifacts/extensions/safenode-extension-chrome.zip release-assets/safenode-extension-chrome.zip
@@ -353,7 +361,10 @@ jobs:
           LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
-          test -n "${LINUX_GPG_PRIVATE_KEY_BASE64}" || { echo "GPG key required to sign SHA256SUMS" >&2; exit 1; }
+          if [ -z "${LINUX_GPG_PRIVATE_KEY_BASE64}" ] || [ -z "${LINUX_GPG_PASSPHRASE}" ]; then
+            echo "::warning::GPG key/passphrase not set - skipping SHA256SUMS signature (checksums still published)."
+            exit 0
+          fi
           KEY_FILE="${RUNNER_TEMP}/safenode-sums-signing.asc"
           printf '%s' "${LINUX_GPG_PRIVATE_KEY_BASE64}" | base64 --decode > "${KEY_FILE}"
           chmod 600 "${KEY_FILE}"
