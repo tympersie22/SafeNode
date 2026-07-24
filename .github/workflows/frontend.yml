@@ -73,8 +73,10 @@ jobs:
       env:
         VITE_API_URL: https://api.safe-node.app
         VITE_MOBILE_API_URL: https://api.safe-node.app
+        VITE_PADDLE_CLIENT_TOKEN: ${{ vars.VITE_PADDLE_CLIENT_TOKEN }}
       run: |
         cd frontend
+        test -n "$VITE_PADDLE_CLIENT_TOKEN"
         npm run build
     
     - name: Upload build artifacts

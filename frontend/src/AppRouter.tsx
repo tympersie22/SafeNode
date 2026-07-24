@@ -21,6 +21,7 @@ const GettingStartedPage = lazy(() => import('./pages/docs/GettingStarted'))
 const TeamsPage = lazy(() => import('./pages/docs/Teams'))
 const DocsSecurityPage = lazy(() => import('./pages/docs/Security').then(({ SecurityPage }) => ({ default: SecurityPage })))
 const BillingPage = lazy(() => import('./pages/docs/Billing'))
+const PaddleCheckoutPage = lazy(() => import('./pages/billing/PaddleCheckout').then(({ PaddleCheckoutPage }) => ({ default: PaddleCheckoutPage })))
 const BillingSuccessPage = lazy(() => import('./pages/billing/BillingSuccess').then(({ BillingSuccessPage }) => ({ default: BillingSuccessPage })))
 const BillingCancelPage = lazy(() => import('./pages/billing/BillingCancel').then(({ BillingCancelPage }) => ({ default: BillingCancelPage })))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPassword').then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })))
@@ -76,7 +77,8 @@ export const AppRouter: React.FC = () => {
               <Route path="/auth/successor" element={<SuccessorClaimPage />} />
               <Route path="/auth/desktop" element={<DesktopAuthApprovalPage />} />
 
-              {/* Billing Result Pages */}
+              {/* Public Paddle checkout and billing result pages */}
+              <Route path="/billing/checkout" element={<PaddleCheckoutPage />} />
               <Route path="/billing/success" element={<BillingSuccessPage />} />
               <Route path="/billing/cancel" element={<BillingCancelPage />} />
 

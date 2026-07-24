@@ -277,7 +277,7 @@ export async function createPaddleCheckoutSession(
   userId: string,
   priceId: string,
   successUrl: string,
-  cancelUrl: string
+  _cancelUrl: string
 ): Promise<{ sessionId: string; url: string }> {
   const apiKey = normalizePaddleApiKey(process.env.PADDLE_API_KEY)
   if (!apiKey) {
@@ -292,6 +292,10 @@ export async function createPaddleCheckoutSession(
   if (!user) {
     throw new Error('User not found')
   }
+
+  const configuredFrontendUrl = process.env.FRONTEND_URL?.trim()
+  const checkoutBaseUrl = configuredFrontendUrl || new URL(successUrl).origin
+  const checkoutUrl = new URL('/billing/checkout', checkoutBaseUrl).toString()
 
   const response = await fetch('https://api.paddle.com/transactions', {
     method: 'POST',
@@ -308,8 +312,7 @@ export async function createPaddleCheckoutSession(
         userId: user.id
       },
       checkout: {
-        success_url: successUrl,
-        cancel_url: cancelUrl
+        url: checkoutUrl
       }
     })
   })
