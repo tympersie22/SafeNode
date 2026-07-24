@@ -295,7 +295,7 @@ export async function createPaddleCheckoutSession(
 
   const configuredFrontendUrl = process.env.FRONTEND_URL?.trim()
   const checkoutBaseUrl = configuredFrontendUrl || new URL(successUrl).origin
-  const checkoutUrl = new URL('/billing/checkout', checkoutBaseUrl).toString()
+  const checkoutPageUrl = new URL('/billing/checkout', checkoutBaseUrl).toString()
 
   const response = await fetch('https://api.paddle.com/transactions', {
     method: 'POST',
@@ -312,7 +312,7 @@ export async function createPaddleCheckoutSession(
         userId: user.id
       },
       checkout: {
-        url: checkoutUrl
+        url: checkoutPageUrl
       }
     })
   })
