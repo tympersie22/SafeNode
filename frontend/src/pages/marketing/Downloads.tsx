@@ -59,10 +59,11 @@ const detectOS = (): 'android' | 'ios' | 'windows' | 'macos' | 'linux' | null =>
   return null;
 };
 
-const androidDownloadEnabled = import.meta.env.VITE_ANDROID_DOWNLOAD_ENABLED === 'true';
+// Enabled by default now that v0.1.6 is published; set the flag to 'false' to hide.
+const androidDownloadEnabled = import.meta.env.VITE_ANDROID_DOWNLOAD_ENABLED !== 'false';
 const androidDownloadUrl = import.meta.env.VITE_ANDROID_DOWNLOAD_URL
   || 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Android.apk';
-const desktopDownloadEnabled = import.meta.env.VITE_DESKTOP_DOWNLOAD_ENABLED === 'true';
+const desktopDownloadEnabled = import.meta.env.VITE_DESKTOP_DOWNLOAD_ENABLED !== 'false';
 
 const DOWNLOADS = {
   desktop: [
