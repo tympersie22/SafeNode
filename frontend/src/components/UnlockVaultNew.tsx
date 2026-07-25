@@ -185,9 +185,13 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   useEffect(() => {
     let active = true
 
+    // Availability is decided by the server-authoritative passkey vault-unlock
+    // check (a PRF-ready record only exists when the account is in wrapped_key
+    // mode), NOT by the possibly-stale cached user.vaultAccessMode. Relying on the
+    // cached mode would lock out a user who just bootstrapped a passkey but whose
+    // auth profile hasn't refreshed yet.
     if (
       hasVault !== true ||
-      user?.vaultAccessMode !== 'wrapped_key' ||
       typeof window === 'undefined' ||
       !('PublicKeyCredential' in window)
     ) {
@@ -211,7 +215,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     return () => {
       active = false
     }
-  }, [hasVault, user?.vaultAccessMode])
+  }, [hasVault, user?.id])
 
   useEffect(() => {
     if (!passkeyReady) {
