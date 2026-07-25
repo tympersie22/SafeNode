@@ -56,6 +56,7 @@ model User {
   devices Device[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  deviceReapprovalTokens DeviceReapprovalToken[]
   auditLogs AuditLog[]
   teamMemberships TeamMember[]
   subscriptions Subscription[]
@@ -132,6 +133,26 @@ model PasswordResetToken {
   @@index([token])
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// Device Re-approval Token
+// Single-use, short-lived token emailed to the account owner to re-approve a
+// device that was previously removed. Grants NO auth or vault access — it only
+// clears the requiresReapproval flag on the bound device.
+model DeviceReapprovalToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  deviceId  String   @map("device_id") // Device.id (row id) to re-approve
+  token     String   @unique // SHA-256 digest; the emailed bearer token is never persisted
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("device_reapproval_tokens")
 }
 
 // Device Model

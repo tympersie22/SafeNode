@@ -28,6 +28,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPassword').then
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPassword').then(({ ResetPasswordPage }) => ({ default: ResetPasswordPage })))
 const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmail'))
 const SuccessorClaimPage = lazy(() => import('./pages/auth/SuccessorClaim'))
+const DeviceApprovePage = lazy(() => import('./pages/devices/DeviceApprove'))
 const DesktopAuthApprovalPage = lazy(() => import('./pages/auth/DesktopAuthApproval'))
 const PrivacyPolicyPage = lazy(() => import('./pages/marketing/PrivacyPolicy').then(({ PrivacyPolicyPage }) => ({ default: PrivacyPolicyPage })))
 const TermsOfServicePage = lazy(() => import('./pages/marketing/TermsOfService').then(({ TermsOfServicePage }) => ({ default: TermsOfServicePage })))
@@ -75,6 +76,7 @@ export const AppRouter: React.FC = () => {
               <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
               <Route path="/auth/verify" element={<VerifyEmailPage />} />
               <Route path="/auth/successor" element={<SuccessorClaimPage />} />
+              <Route path="/devices/approve" element={<DeviceApprovePage />} />
               <Route path="/auth/desktop" element={<DesktopAuthApprovalPage />} />
 
               {/* Public Paddle checkout and billing result pages */}

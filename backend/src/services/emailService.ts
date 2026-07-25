@@ -20,6 +20,16 @@ function getFetch(): typeof globalThis.fetch {
   return globalThis.fetch.bind(globalThis)
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]!)
+}
+
 class EmailService {
   private provider: 'resend' | 'sendgrid' | 'nodemailer' | 'none'
   private apiKey: string | null = null
@@ -209,6 +219,83 @@ This link will expire in 24 hours. If you didn't create a Safenode account, you 
       subject: 'Reset Your Password - Safenode',
       html,
       text: `Reset your password: ${resetUrl}`
+    })
+  }
+
+  async sendDeviceReapprovalEmail(email: string, token: string, name?: string, deviceName?: string): Promise<void> {
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
+    const approveUrl = `${frontendBaseUrl}/devices/approve?token=${token}`
+    const logoUrl = `${frontendBaseUrl}/Safenodelogo.png`
+    const recipientName = escapeHtml(name || 'there')
+    const deviceLabel = deviceName ? `&quot;${escapeHtml(deviceName)}&quot;` : 'a device'
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approve a device - Safenode</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <img
+        src="${logoUrl}"
+        alt="Safenode"
+        width="72"
+        height="72"
+        style="display: block; width: 72px; height: 72px; object-fit: contain; margin: 0 auto 16px;"
+      />
+      <p style="margin: 0 0 10px; color: #0f172a; font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">
+        Safenode
+      </p>
+      <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600;">Approve a device</h1>
+    </div>
+
+    <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
+      Hi ${recipientName},
+    </p>
+
+    <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
+      Someone is trying to access your Safenode vault from ${deviceLabel} that was previously removed from your account. If this was you, approve the device below. Approving only restores this device's access — it does not sign anyone in or unlock your vault.
+    </p>
+
+    <div style="text-align: center; margin: 40px 0;">
+      <a href="${approveUrl}"
+         style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+        Approve this device
+      </a>
+    </div>
+
+    <p style="color: #999; font-size: 14px; margin-top: 30px; margin-bottom: 10px;">
+      Or copy and paste this link into your browser:
+    </p>
+    <p style="color: #667eea; font-size: 12px; word-break: break-all; background-color: #f5f5f5; padding: 12px; border-radius: 6px; margin: 0;">
+      ${approveUrl}
+    </p>
+
+    <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+      <p style="color: #999; font-size: 12px; margin: 0;">
+        This link will expire in 30 minutes and can be used once. If you didn't try to access your vault from a removed device, do not click it — ignore this email and consider changing your password.
+      </p>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 20px;">
+    <p style="color: #999; font-size: 12px; margin: 0;">
+      © ${new Date().getFullYear()} Safenode. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+    `.trim()
+
+    await this.send({
+      to: email,
+      subject: 'Approve a device - Safenode',
+      html,
+      text: `Approve a removed device for your Safenode account: ${approveUrl}`
     })
   }
 

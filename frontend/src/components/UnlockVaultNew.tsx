@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { VaultAccessError, unlockVault, vaultExists } from '../services/vaultService'
 import DeviceLimitPanel from './DeviceLimitPanel'
+import DeviceReapprovalPanel from './DeviceReapprovalPanel'
 import { recoverVaultWithKit, upgradeVaultAccess } from '../services/recoveryService'
 import { logout } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
@@ -96,6 +97,9 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     recommendedPlanName?: string
   } | null>(null)
 
+  // Set when this device was removed and must be re-approved (email-link escape).
+  const [reapproval, setReapproval] = useState<{ message?: string } | null>(null)
+
   const { user } = useAuth()
   const prefersReducedMotion = useReducedMotion()
 
@@ -131,13 +135,18 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     checkInProgress.current = true
     lastCheckedUserId.current = user.id
     setDeviceLimit(null)
+    setReapproval(null)
 
     vaultExists()
       .then((exists) => setHasVault(exists))
       .catch((err) => {
         devWarn('[UnlockVault] vault existence check failed:', err)
         if (err instanceof VaultAccessError) {
-          if (err.status === 403 && Array.isArray(err.details?.devices) && err.details.devices.length > 0) {
+          if (err.code === 'DEVICE_REAPPROVAL_REQUIRED') {
+            // Removed device: offer an email re-approval link instead of a dead end.
+            setReapproval({ message: err.message })
+            setError(null)
+          } else if (err.status === 403 && Array.isArray(err.details?.devices) && err.details.devices.length > 0) {
             // Device-limit lockout: offer self-service device removal instead of a dead end.
             setDeviceLimit({
               devices: err.details.devices,
@@ -431,6 +440,13 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                   : 'Enter your vault passphrase to access your encrypted vault.'}
             </p>
           </div>
+
+          {/* Removed device — email-based re-approval escape */}
+          {reapproval && (
+            <div className="mb-6">
+              <DeviceReapprovalPanel message={reapproval.message} />
+            </div>
+          )}
 
           {/* Device limit reached — self-service device removal */}
           {deviceLimit && (
