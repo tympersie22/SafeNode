@@ -139,13 +139,13 @@ describe('Authentication Service', () => {
       })).rejects.toThrow('Email already exists')
     })
 
-    it('should handle network errors', async () => {
-      ;(global.fetch as any).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    it.each(['Failed to fetch', 'Load failed'])('should handle network error: %s', async (message) => {
+      ;(global.fetch as any).mockRejectedValueOnce(new TypeError(message))
 
       await expect(register({
         email: 'test@example.com',
         password: 'Password123!'
-      })).rejects.toThrow('Unable to connect to the SafeNode backend')
+      })).rejects.toThrow('Unable to connect to the Safenode backend')
     })
 
   })

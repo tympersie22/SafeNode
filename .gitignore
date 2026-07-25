@@ -52,14 +52,26 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+*.jks
+*.keystore
 
 # OS
 .DS_Store
 Thumbs.db
+**/.fuse_hidden*
+
+# Stale duplicate copies created by Finder/file-sync conflict resolution
+.github/workflows/* [0-9].yml
+backend/package-lock [0-9].json
+frontend/package-lock [0-9].json
+frontend/src/**/* [0-9].tsx
+frontend/src/**/*.old.tsx
+src-tauri/icons/* [0-9].png
 
 # Vite/Tailwind
 frontend/.vite/
 frontend/.vercel/
+frontend/.wrangler/
 frontend/.tailwindcache/
 frontend/.stylelintcache
 frontend/.eslintcache
@@ -68,6 +80,9 @@ frontend/.eslintcache
 /src-tauri/target/
 /src-tauri/.cargo/
 /src-tauri/Cargo.lock
+/src-tauri/gen/schemas/
+/src-tauri/icons/android/
+/src-tauri/icons/ios/
 
 # IDE
 .vscode/
@@ -87,3 +102,16 @@ ssl/*.pem
 .vercel
 .env*.local
 .codex-backups/
+
+# --- Security: never commit env dumps / secret exports ---
+# (added during P0 secret-leak remediation)
+railway-*.txt
+vercel-*.txt
+*-env*.txt
+*.env.txt
+secrets*.txt
+PRODUCTION_SECRETS.*
+
+# Test env (local-only, safe to commit)
+!.env.test
+!backend/.env.test

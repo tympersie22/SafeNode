@@ -1,6 +1,6 @@
-# SafeNode Open-Core Security Model
+# Safenode Open-Core Security Model
 
-SafeNode follows an open-core model for trust-critical security components while keeping infrastructure and abuse-resistant operations private.
+Safenode follows an open-core model for trust-critical security components while keeping infrastructure and abuse-resistant operations private.
 
 ## Open Core (public)
 - Client-side cryptography and key-derivation implementation details.

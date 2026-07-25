@@ -7,14 +7,14 @@ export const RefundPolicyPage: React.FC = () => {
     <LegalPageShell
       eyebrow="Billing Policy"
       title="Refund Policy"
-      summary="SafeNode subscription refunds are handled against fraud, duplicate billing, and clear service issues while operating through Paddle as merchant of record."
+      summary="Safenode subscription refunds are handled against fraud, duplicate billing, and clear service issues while operating through Paddle as merchant of record."
       lastUpdated="March 2026"
     >
       <section>
         <h2>1. Scope</h2>
         <p>
-          This Refund Policy applies to paid SafeNode subscriptions purchased through Paddle. Paddle acts as the
-          merchant of record for SafeNode billing transactions.
+          This Refund Policy applies to paid Safenode subscriptions purchased through Paddle. Paddle acts as the
+          merchant of record for Safenode billing transactions.
         </p>
       </section>
 
@@ -24,7 +24,7 @@ export const RefundPolicyPage: React.FC = () => {
         <ul>
           <li>Duplicate charges for the same subscription period.</li>
           <li>Accidental purchase or accidental renewal reported promptly.</li>
-          <li>Material service availability or activation failure attributable to SafeNode.</li>
+          <li>Material service availability or activation failure attributable to Safenode.</li>
           <li>Fraudulent or unauthorized transactions subject to verification.</li>
         </ul>
       </section>
@@ -42,7 +42,7 @@ export const RefundPolicyPage: React.FC = () => {
       <section>
         <h2>4. Request window</h2>
         <p>
-          To maximize the chance of approval, contact SafeNode as soon as possible after the billing event. Requests
+          To maximize the chance of approval, contact Safenode as soon as possible after the billing event. Requests
           should generally be made within 14 days of the charge unless local law requires a different period.
         </p>
       </section>

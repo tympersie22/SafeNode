@@ -559,5 +559,6 @@ export function getStoredFrontendRedirectUri(state: string): string | null {
   return storedState?.frontendRedirectUri || null
 }
 
-// Clean up expired states every 5 minutes
-setInterval(cleanupExpiredStates, 5 * 60 * 1000)
+// Keep cleanup active in long-lived app processes without blocking exit in tests.
+const oauthStateCleanupInterval = setInterval(cleanupExpiredStates, 5 * 60 * 1000)
+oauthStateCleanupInterval.unref?.()

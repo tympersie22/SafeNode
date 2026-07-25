@@ -4,7 +4,16 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { generateSalt, deriveKey, encrypt, decrypt } from '../src/crypto/crypto'
+import {
+  decrypt,
+  deriveKey,
+  encrypt,
+  exportVaultKey,
+  generateSalt,
+  generateVaultKey,
+  unwrapVaultKeyWithPasskeyPrf,
+  wrapVaultKeyWithPasskeyPrf
+} from '../src/crypto/crypto'
 
 // Mock hash-wasm
 vi.mock('hash-wasm', () => ({
@@ -72,18 +81,24 @@ describe('Crypto Utilities', () => {
     })
 
     it('should throw error if WebCrypto not available', async () => {
+      // Generate the salt BEFORE removing WebCrypto: generateSalt now fails
+      // closed when no CSPRNG is available, so evaluating it after the removal
+      // would throw here (and skip the restore below, breaking later tests).
+      const salt = await generateSalt(32)
       const originalCrypto = window.crypto
       Object.defineProperty(window, 'crypto', {
         configurable: true,
         value: undefined
       })
 
-      await expect(deriveKey('password', await generateSalt(32))).rejects.toThrow('WebCrypto API not supported')
-
-      Object.defineProperty(window, 'crypto', {
-        configurable: true,
-        value: originalCrypto
-      })
+      try {
+        await expect(deriveKey('password', salt)).rejects.toThrow('WebCrypto API not supported')
+      } finally {
+        Object.defineProperty(window, 'crypto', {
+          configurable: true,
+          value: originalCrypto
+        })
+      }
     })
 
     it('should produce same key for same password and salt', async () => {
@@ -108,7 +123,7 @@ describe('Crypto Utilities', () => {
 
   describe('encrypt / decrypt', () => {
     it('should encrypt and decrypt data correctly', async () => {
-      const data = 'Hello, SafeNode!'
+      const data = 'Hello, Safenode!'
       const password = 'test-password'
       
       const encrypted = await encrypt(data, password)
@@ -190,12 +205,35 @@ describe('Crypto Utilities', () => {
         value: undefined
       })
 
-      await expect(encrypt('data', 'password')).rejects.toThrow('WebCrypto API not supported')
+      try {
+        await expect(encrypt('data', 'password')).rejects.toThrow('WebCrypto API not supported')
+      } finally {
+        Object.defineProperty(window, 'crypto', {
+          configurable: true,
+          value: originalCrypto
+        })
+      }
+    })
+  })
 
-      Object.defineProperty(window, 'crypto', {
-        configurable: true,
-        value: originalCrypto
+  describe('passkey PRF vault wrapping', () => {
+    it('wraps and unwraps a vault key using PRF-derived HKDF material', async () => {
+      const vaultKey = await generateVaultKey()
+      const prfOutput = await generateSalt(32)
+      const prfSalt = await generateSalt(32)
+
+      const wrapped = await wrapVaultKeyWithPasskeyPrf(vaultKey, prfOutput, prfSalt)
+      const unwrapped = await unwrapVaultKeyWithPasskeyPrf({
+        encrypted: wrapped.encrypted,
+        iv: wrapped.iv,
+        prfOutput,
+        salt: prfSalt
       })
+
+      const original = new Uint8Array(await exportVaultKey(vaultKey))
+      const roundTrip = new Uint8Array(await exportVaultKey(unwrapped))
+
+      expect(roundTrip).toEqual(original)
     })
   })
 })

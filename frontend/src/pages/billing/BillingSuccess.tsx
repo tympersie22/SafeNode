@@ -39,7 +39,7 @@ export const BillingSuccessPage: React.FC = () => {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center px-4">
+    <div className="sn-page min-h-screen flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -71,7 +71,7 @@ export const BillingSuccessPage: React.FC = () => {
           transition={{ delay: 0.5 }}
           className="text-lg text-gray-600 mb-2"
         >
-          Welcome to SafeNode <span className="font-semibold text-gray-900">{planName}</span>.
+          Welcome to Safenode <span className="font-semibold text-gray-900">{planName}</span>.
         </motion.p>
 
         <motion.p

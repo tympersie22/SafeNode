@@ -9,8 +9,8 @@ import { getAccountSuccessor, type AccountSuccessor } from '../../services/accou
 import { getDevices, type Device } from '../../services/deviceService'
 import { listPasskeys } from '../../api/passkeys'
 import { vaultStorage, type VaultMetadata } from '../../storage/vaultStorage'
-import { keychainService } from '../../utils/keychain'
 import { upgradeVaultAccess } from '../../services/recoveryService'
+import { hasVaultSessionSecret } from '../../services/vaultSession'
 
 type RecoveryState = 'ready' | 'attention' | 'missing'
 
@@ -47,6 +47,7 @@ export const RecoveryCenterSettings: React.FC = () => {
   const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [latestRecoveryKit, setLatestRecoveryKit] = useState<string | null>(null)
+  const [migrationPassword, setMigrationPassword] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -65,8 +66,6 @@ export const RecoveryCenterSettings: React.FC = () => {
 
         await vaultStorage.init()
         const metadata = await vaultStorage.getVaultMetadata()
-        const storedVaultSecret = await keychainService.get('safenode', 'master_password')
-
         if (!mounted) return
 
         setUser(currentUser)
@@ -74,7 +73,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         setDevices(deviceOverview.devices)
         setPasskeyCount(passkeys.length)
         setVaultMetadata(metadata)
-        setTrustedDeviceReady(Boolean(storedVaultSecret))
+        setTrustedDeviceReady(hasVaultSessionSecret())
       } catch (err: any) {
         if (!mounted) return
         setError(err.message || 'Failed to load recovery readiness')
@@ -140,7 +139,7 @@ export const RecoveryCenterSettings: React.FC = () => {
       {
         id: 'factors',
         label: 'Fallback factors',
-        detail: user?.twoFactorEnabled || user?.biometricEnabled ? 'Additional verification factors are configured' : 'Set up 2FA or biometrics on a trusted device',
+        detail: user?.twoFactorEnabled || user?.biometricEnabled ? 'Additional verification factors are configured' : 'Set up 2FA or an authenticator-backed device factor',
         state: factorState,
         actionLabel: 'Open identity settings',
         action: () => navigate('/settings?tab=security')
@@ -149,10 +148,10 @@ export const RecoveryCenterSettings: React.FC = () => {
         id: 'device-unlock',
         label: 'Current device trust',
         detail: trustedDeviceReady
-          ? 'This device already has local vault access material for passkey-assisted unlock'
+          ? 'The vault is currently unlocked in this browser session'
           : user?.recoveryKitConfigured
-            ? 'Use your recovery kit or vault passphrase once on this device to enable faster passkey-assisted unlock'
-            : 'Current device trust cannot be restored until recovery is configured',
+            ? 'Use a passkey when vault unlock is enrolled on this device, or fall back to your vault passphrase or recovery kit.'
+            : 'Current device recovery still needs to be configured',
         state: deviceUnlockState,
         actionLabel: 'Review unlock path',
         action: () => navigate('/vault')
@@ -160,7 +159,7 @@ export const RecoveryCenterSettings: React.FC = () => {
       {
         id: 'devices',
         label: 'Trusted devices',
-        detail: devices.length > 0 ? `${devices.length} active device${devices.length === 1 ? '' : 's'} registered` : 'No trusted devices detected',
+        detail: devices.length > 0 ? `${devices.length} active device${devices.length === 1 ? '' : 's'} registered` : 'No active devices detected',
         state: deviceState,
         actionLabel: 'Review devices',
         action: () => navigate('/settings?tab=devices')
@@ -224,7 +223,7 @@ export const RecoveryCenterSettings: React.FC = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Recovery posture</p>
             <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">Account continuity readiness</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              A strong recovery posture means passkeys, verified identity, trusted devices, export readiness, and a continuity plan are all in place.
+              A strong recovery posture means passkeys, verified identity, active devices, export readiness, and a continuity plan are all in place.
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-right dark:border-slate-700 dark:bg-slate-900/50">
@@ -238,7 +237,7 @@ export const RecoveryCenterSettings: React.FC = () => {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             { icon: <KeyRound className="h-5 w-5" />, label: 'Passkeys', value: `${passkeyCount}`, meta: passkeyCount === 1 ? 'credential registered' : 'credentials registered' },
-            { icon: <ShieldCheck className="h-5 w-5" />, label: 'This device', value: trustedDeviceReady ? 'Trusted' : 'Needs unlock', meta: trustedDeviceReady ? 'local vault access is provisioned' : 'recover or unlock once to trust this device' },
+            { icon: <ShieldCheck className="h-5 w-5" />, label: 'This session', value: trustedDeviceReady ? 'Unlocked' : 'Needs unlock', meta: trustedDeviceReady ? 'vault secret is held in memory only' : 'unlock with passphrase or recovery kit when needed' },
             { icon: <Smartphone className="h-5 w-5" />, label: 'Trusted devices', value: `${devices.length}`, meta: devices.length === 1 ? 'device enrolled' : 'devices enrolled' },
             { icon: <Users className="h-5 w-5" />, label: 'Successor', value: successor?.status === 'active' ? 'Set' : 'Unset', meta: successor?.status === 'active' ? 'continuity contact configured' : 'continuity contact missing' },
             { icon: <MailCheck className="h-5 w-5" />, label: 'Verified email', value: user?.emailVerified ? 'Ready' : 'Missing', meta: user?.emailVerified ? 'notification channel confirmed' : 'identity proof incomplete' },
@@ -263,7 +262,7 @@ export const RecoveryCenterSettings: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recovery checklist</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Each control below maps to a real screen in SafeNode. Finish the missing items and this account becomes much harder to lose.
+              Each control below maps to a real screen in Safenode. Finish the missing items and this account becomes much harder to lose.
             </p>
           </div>
         </div>
@@ -296,7 +295,7 @@ export const RecoveryCenterSettings: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">What to fix next</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              SafeNode should help you recover without ever pretending the backend can decrypt your vault for you.
+              Safenode should help you recover without ever pretending the backend can decrypt your vault for you.
             </p>
           </div>
           <SaasButton variant="outline" size="sm" onClick={() => navigate('/settings?tab=data')}>
@@ -306,7 +305,7 @@ export const RecoveryCenterSettings: React.FC = () => {
         <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
           {needsAttention.length === 0 ? (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
-              This account has the core recovery controls in place. Next step: add more than one trusted device and periodically verify your encrypted export path.
+              This account has the core recovery controls in place. Next step: keep more than one active device available and periodically verify your encrypted export path.
             </p>
           ) : (
             needsAttention.map((item) => (
@@ -324,8 +323,25 @@ export const RecoveryCenterSettings: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Modern vault recovery model</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                Move legacy vaults to a wrapped-key model, or refresh recovery coverage for already-migrated vaults. SafeNode will relock the vault after the upgrade so the next unlock uses the new access profile.
+                Move legacy vaults to a wrapped-key model, or refresh recovery coverage for already-migrated vaults. Safenode will relock the vault after the upgrade so the next unlock uses the new access profile.
               </p>
+              <div className="mt-4 max-w-sm">
+                <label htmlFor="recovery-master-password" className="block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Master password
+                </label>
+                <input
+                  id="recovery-master-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={migrationPassword}
+                  onChange={(event) => setMigrationPassword(event.target.value)}
+                  placeholder="Required if you unlocked with a passkey"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--sn-accent)] dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100"
+                />
+                <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  Confirms it's you and re-wraps your vault key. You can leave this blank only if you unlocked this session with your password.
+                </p>
+              </div>
             </div>
             <SaasButton
               variant="primary"
@@ -335,7 +351,8 @@ export const RecoveryCenterSettings: React.FC = () => {
                 setIsUpgrading(true)
                 setError(null)
                 try {
-                  const result = await upgradeVaultAccess()
+                  const result = await upgradeVaultAccess(migrationPassword.trim() || undefined)
+                  setMigrationPassword('')
                   setLatestRecoveryKit(result.recoveryKit)
                   setTrustedDeviceReady(true)
                   const refreshedUser = await getCurrentUser()
@@ -362,7 +379,7 @@ export const RecoveryCenterSettings: React.FC = () => {
                 {latestRecoveryKit}
               </p>
               <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
-                This kit is what keeps the vault recoverable if a trusted device or local passphrase is no longer available.
+                This kit is what keeps the vault recoverable if a passkey-backed device or local passphrase is no longer available.
               </p>
               <div className="mt-4">
                 <SaasButton

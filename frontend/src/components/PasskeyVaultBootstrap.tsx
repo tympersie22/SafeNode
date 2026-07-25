@@ -5,8 +5,8 @@ import { VaultDoor } from '../icons/VaultDoor'
 import { Shield } from '../icons/Shield'
 import { generateSecurePassword, base64ToArrayBuffer } from '../crypto/crypto'
 import { getVaultSalt, initializeVault, unlockVault } from '../services/vaultService'
-import { keychainService } from '../utils/keychain'
 import { showToast } from './ui/Toast'
+import { enrollFirstAvailablePasskeyVaultUnlock } from '../services/passkeyVault'
 
 interface PasskeyVaultBootstrapProps {
   email?: string
@@ -45,14 +45,13 @@ export const PasskeyVaultBootstrap: React.FC<PasskeyVaultBootstrapProps> = ({
       const salt = base64ToArrayBuffer(saltBase64)
       const unlockedVault = await unlockVault(generatedSecret)
 
-      await keychainService.save({
-        service: 'safenode',
-        account: 'master_password',
-        password: generatedSecret,
-      }).catch((keychainError) => {
-        console.warn('Failed to save device secret to keychain:', keychainError)
-        showToast.info('SafeNode could not save your local device unlock automatically. You can still continue and set up another factor later.')
-      })
+      if (unlockedVault._rawVaultKey) {
+        try {
+          await enrollFirstAvailablePasskeyVaultUnlock(unlockedVault._rawVaultKey)
+        } catch (enrollmentError: any) {
+          console.warn('[PasskeyVaultBootstrap] Failed to enroll initial passkey vault unlock:', enrollmentError)
+        }
+      }
 
       setRecoveryKit(initResult.recoveryKit || null)
       setVaultReady(unlockedVault)
@@ -83,8 +82,8 @@ export const PasskeyVaultBootstrap: React.FC<PasskeyVaultBootstrapProps> = ({
           </h2>
           <p className="mt-3 text-gray-600 dark:text-gray-400">
             {recoveryKit
-              ? 'Your first trusted device is now provisioned. Save the recovery kit before entering the workspace.'
-              : `We’ll create a wrapped identity vault for ${email || 'this account'} and keep the device unlock secret off the screen.`}
+              ? 'Your first passkey-backed vault unlock path is ready. Save the recovery kit before entering the workspace.'
+              : `We’ll create a wrapped identity vault for ${email || 'this account'} and keep the temporary vault unlock secret in memory only for this session.`}
           </p>
         </div>
 
@@ -93,9 +92,9 @@ export const PasskeyVaultBootstrap: React.FC<PasskeyVaultBootstrapProps> = ({
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
               <p className="font-semibold text-slate-900">How this works</p>
               <ul className="mt-3 space-y-2 leading-6">
-                <li>1. SafeNode creates a random vault key for this account.</li>
-                <li>2. Your device gets a local wrapped unlock secret so you do not manage a visible master password.</li>
-                <li>3. You receive a recovery kit for new devices and account recovery.</li>
+                <li>1. Safenode creates a random vault key for this account.</li>
+                <li>2. This browser holds the temporary unlock secret in memory only for the current session.</li>
+                <li>3. You receive a recovery kit for future unlocks on new or restarted devices.</li>
               </ul>
             </div>
 

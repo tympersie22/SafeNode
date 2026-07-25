@@ -200,7 +200,7 @@ export async function registerSSORoutes(server: FastifyInstance) {
 
       // Construct backend callback URL for OAuth provider
       // OAuth providers need the backend callback URL, not the frontend URL
-      // In Vercel/production, use environment variable or detect from headers
+      // In production, use the configured URL or detect it from forwarded headers.
       let backendCallbackUrl: string
       
       // Try explicit callback base URL first
@@ -213,9 +213,9 @@ export async function registerSSORoutes(server: FastifyInstance) {
         // Use canonical public domain when backend is behind rewrites/proxy
         backendCallbackUrl = `${process.env.FRONTEND_URL}/api/sso/callback/${provider}`
       } else {
-        // Fallback to constructing from request (works in Vercel)
+        // Fallback to constructing the public origin from the request.
         const protocol = request.headers['x-forwarded-proto'] || request.protocol || 'https'
-        const host = request.headers['host'] || request.hostname || process.env.VERCEL_URL || 'localhost:4000'
+        const host = request.headers['host'] || request.hostname || process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost:4000'
         backendCallbackUrl = `${protocol}://${host}/api/sso/callback/${provider}`
       }
       

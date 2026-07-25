@@ -1,34 +1,44 @@
 /**
  * App Router
- * Main routing configuration for SafeNode
+ * Main routing configuration for Safenode
  */
 
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
-import App from './App'
-import PricingPage from './pages/marketing/Pricing'
-import SecurityPage from './pages/marketing/Security'
-import DownloadsPage from './pages/marketing/Downloads'
-import ContactPage from './pages/marketing/Contact'
-import BlogPage from './pages/marketing/Blog'
-import BlogPostPage from './pages/marketing/BlogPost'
-import CareersPage from './pages/marketing/Careers'
-import GettingStartedPage from './pages/docs/GettingStarted'
-import TeamsPage from './pages/docs/Teams'
-import { SecurityPage as DocsSecurityPage } from './pages/docs/Security'
-import BillingPage from './pages/docs/Billing'
-import { SettingsPage } from './pages/settings/index'
-import { SubscribePage } from './pages/billing/Subscribe'
-import { BillingSuccessPage } from './pages/billing/BillingSuccess'
-import { BillingCancelPage } from './pages/billing/BillingCancel'
-import { ForgotPasswordPage } from './pages/auth/ForgotPassword'
-import { ResetPasswordPage } from './pages/auth/ResetPassword'
-import VerifyEmailPage from './pages/auth/VerifyEmail'
-import SuccessorClaimPage from './pages/auth/SuccessorClaim'
-import { PrivacyPolicyPage } from './pages/marketing/PrivacyPolicy'
-import { TermsOfServicePage } from './pages/marketing/TermsOfService'
-import { RefundPolicyPage } from './pages/marketing/RefundPolicy'
+import { Spinner } from './components/ui/Spinner'
+import { DesktopFrame } from './desktop/DesktopFrame'
+
+const App = lazy(() => import('./App'))
+const PricingPage = lazy(() => import('./pages/marketing/Pricing'))
+const SecurityPage = lazy(() => import('./pages/marketing/Security'))
+const DownloadsPage = lazy(() => import('./pages/marketing/Downloads'))
+const ContactPage = lazy(() => import('./pages/marketing/Contact'))
+const BlogPage = lazy(() => import('./pages/marketing/Blog'))
+const BlogPostPage = lazy(() => import('./pages/marketing/BlogPost'))
+const CareersPage = lazy(() => import('./pages/marketing/Careers'))
+const GettingStartedPage = lazy(() => import('./pages/docs/GettingStarted'))
+const TeamsPage = lazy(() => import('./pages/docs/Teams'))
+const DocsSecurityPage = lazy(() => import('./pages/docs/Security').then(({ SecurityPage }) => ({ default: SecurityPage })))
+const BillingPage = lazy(() => import('./pages/docs/Billing'))
+const PaddleCheckoutPage = lazy(() => import('./pages/billing/PaddleCheckout').then(({ PaddleCheckoutPage }) => ({ default: PaddleCheckoutPage })))
+const BillingSuccessPage = lazy(() => import('./pages/billing/BillingSuccess').then(({ BillingSuccessPage }) => ({ default: BillingSuccessPage })))
+const BillingCancelPage = lazy(() => import('./pages/billing/BillingCancel').then(({ BillingCancelPage }) => ({ default: BillingCancelPage })))
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPassword').then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPassword').then(({ ResetPasswordPage }) => ({ default: ResetPasswordPage })))
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmail'))
+const SuccessorClaimPage = lazy(() => import('./pages/auth/SuccessorClaim'))
+const DeviceApprovePage = lazy(() => import('./pages/devices/DeviceApprove'))
+const DesktopAuthApprovalPage = lazy(() => import('./pages/auth/DesktopAuthApproval'))
+const PrivacyPolicyPage = lazy(() => import('./pages/marketing/PrivacyPolicy').then(({ PrivacyPolicyPage }) => ({ default: PrivacyPolicyPage })))
+const TermsOfServicePage = lazy(() => import('./pages/marketing/TermsOfService').then(({ TermsOfServicePage }) => ({ default: TermsOfServicePage })))
+const RefundPolicyPage = lazy(() => import('./pages/marketing/RefundPolicy').then(({ RefundPolicyPage }) => ({ default: RefundPolicyPage })))
+
+const RouteFallback: React.FC = () => (
+  <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Loading page">
+    <Spinner size="lg" />
+  </div>
+)
 
 /**
  * Router wrapper that handles marketing pages separately from the main app
@@ -37,59 +47,66 @@ import { RefundPolicyPage } from './pages/marketing/RefundPolicy'
 export const AppRouter: React.FC = () => {
   const RouterComponent =
     typeof window !== 'undefined' &&
-    ((window as any).__TAURI__ || !/^https?:$/.test(window.location.protocol))
+    ('__TAURI__' in window || !/^https?:$/.test(window.location.protocol))
       ? HashRouter
       : BrowserRouter
 
   return (
     <AuthProvider>
       <RouterComponent>
-        <Routes>
-          {/* Marketing Pages - accessible without authentication */}
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/security" element={<SecurityPage />} />
-          <Route path="/downloads" element={<DownloadsPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:slug" element={<BlogPostPage />} />
-          <Route path="/careers" element={<CareersPage />} />
-          
-          {/* Legal Pages */}
-          <Route path="/privacy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms" element={<TermsOfServicePage />} />
-          <Route path="/refunds" element={<RefundPolicyPage />} />
+        <DesktopFrame>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              {/* Marketing Pages - accessible without authentication */}
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/security" element={<SecurityPage />} />
+              <Route path="/downloads" element={<DownloadsPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogPostPage />} />
+              <Route path="/careers" element={<CareersPage />} />
 
-          {/* Auth Pages (public) */}
-          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/auth/verify" element={<VerifyEmailPage />} />
-          <Route path="/auth/successor" element={<SuccessorClaimPage />} />
+              {/* Legal Pages */}
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms" element={<TermsOfServicePage />} />
+              <Route path="/refunds" element={<RefundPolicyPage />} />
 
-          {/* Billing Result Pages */}
-          <Route path="/billing/success" element={<BillingSuccessPage />} />
-          <Route path="/billing/cancel" element={<BillingCancelPage />} />
+              {/* Auth Pages (public) */}
+              <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/verify" element={<VerifyEmailPage />} />
+              <Route path="/auth/successor" element={<SuccessorClaimPage />} />
+              <Route path="/devices/approve" element={<DeviceApprovePage />} />
+              <Route path="/auth/desktop" element={<DesktopAuthApprovalPage />} />
 
-          {/* Documentation Pages */}
-          <Route path="/docs/getting-started" element={<GettingStartedPage />} />
-          <Route path="/docs/teams" element={<TeamsPage />} />
-          <Route path="/docs/security" element={<DocsSecurityPage />} />
-          <Route path="/docs/billing" element={<BillingPage />} />
-          
-          {/* Settings Pages - require authentication (handled by App component) */}
-          <Route path="/settings" element={<App />} />
-          <Route path="/settings/*" element={<App />} />
-          
-          {/* Billing Pages - require authentication (handled by App component) */}
-          <Route path="/billing" element={<App />} />
-          <Route path="/billing/*" element={<App />} />
-          
-          {/* SSO Callback Routes */}
-          <Route path="/auth/sso/callback" element={<App />} />
-          <Route path="/auth/sso/error" element={<App />} />
-          
-          {/* Main App - handles home/auth/vault routing internally */}
-          <Route path="/*" element={<App />} />
-        </Routes>
+              {/* Public Paddle checkout and billing result pages */}
+              <Route path="/billing/checkout" element={<PaddleCheckoutPage />} />
+              <Route path="/billing/success" element={<BillingSuccessPage />} />
+              <Route path="/billing/cancel" element={<BillingCancelPage />} />
+
+              {/* Documentation Pages */}
+              <Route path="/docs/getting-started" element={<GettingStartedPage />} />
+              <Route path="/docs/teams" element={<TeamsPage />} />
+              <Route path="/docs/security" element={<DocsSecurityPage />} />
+              <Route path="/docs/billing" element={<BillingPage />} />
+
+              {/* Settings Pages - require authentication (handled by App component) */}
+              <Route path="/settings" element={<App />} />
+              <Route path="/settings/*" element={<App />} />
+
+              {/* Billing Pages - require authentication (handled by App component) */}
+              <Route path="/billing" element={<App />} />
+              <Route path="/billing/*" element={<App />} />
+
+              {/* SSO Callback Routes */}
+              <Route path="/auth/sso/callback" element={<App />} />
+              <Route path="/auth/sso/error" element={<App />} />
+
+              {/* Main App - handles home/auth/vault routing internally */}
+              <Route path="/*" element={<App />} />
+            </Routes>
+          </Suspense>
+        </DesktopFrame>
       </RouterComponent>
     </AuthProvider>
   )

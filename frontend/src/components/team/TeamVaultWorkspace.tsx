@@ -220,7 +220,7 @@ export const TeamVaultWorkspace: React.FC<TeamVaultWorkspaceProps> = ({
 
   const tagUsage = useMemo(() => (
     entries.reduce<Record<string, number>>((acc, entry) => {
-      ;(entry.tags || []).forEach(tag => {
+      (entry.tags || []).forEach(tag => {
         acc[tag] = (acc[tag] || 0) + 1
       })
       return acc
@@ -513,7 +513,7 @@ export const TeamVaultWorkspace: React.FC<TeamVaultWorkspaceProps> = ({
         sidebarItems={sidebarItems}
         activeSidebarItem="team-vault"
         sidebarBrand={{
-          title: 'SafeNode',
+          title: 'Safenode',
           subtitle: 'Encrypted operations center',
           badge: 'Zero-knowledge'
         }}
@@ -843,7 +843,7 @@ export const TeamVaultWorkspace: React.FC<TeamVaultWorkspaceProps> = ({
       <PasswordGeneratorModal
         isOpen={isPasswordGeneratorOpen}
         onClose={() => setIsPasswordGeneratorOpen(false)}
-        onUsePassword={(password) => {
+        onGenerate={(password) => {
           setIsPasswordGeneratorOpen(false)
           setEditingEntry(prev => prev ? { ...prev, password } : prev)
         }}

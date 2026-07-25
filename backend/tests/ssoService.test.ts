@@ -6,16 +6,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import {
   getSSOLoginUrl,
-  handleSSOCallback,
   initializeSSOProvider,
-  cleanupExpiredStates
 } from '../src/services/ssoService'
 import type { SSOConfig } from '../src/services/ssoService'
-import fetch from 'node-fetch'
-
-// Mock node-fetch
-jest.mock('node-fetch')
-const mockedFetch = fetch as jest.MockedFunction<typeof fetch>
 
 describe('SSO Service', () => {
   const mockConfig: SSOConfig = {
@@ -40,7 +33,7 @@ describe('SSO Service', () => {
 
   describe('getSSOLoginUrl', () => {
     it('should generate Google OAuth login URL', async () => {
-      const url = await getSSOLoginUrl('google', 'http://localhost:5173/callback', mockConfig)
+      const url = await getSSOLoginUrl('google', 'http://localhost:5173/callback', undefined, mockConfig)
       
       expect(url).toContain('accounts.google.com')
       expect(url).toContain('test-google-client-id')
@@ -49,7 +42,7 @@ describe('SSO Service', () => {
     })
 
     it('should generate Microsoft OAuth login URL with tenant', async () => {
-      const url = await getSSOLoginUrl('microsoft', 'http://localhost:5173/callback', mockConfig)
+      const url = await getSSOLoginUrl('microsoft', 'http://localhost:5173/callback', undefined, mockConfig)
       
       expect(url).toContain('login.microsoftonline.com')
       expect(url).toContain('test-tenant')
@@ -58,7 +51,7 @@ describe('SSO Service', () => {
     })
 
     it('should generate GitHub OAuth login URL', async () => {
-      const url = await getSSOLoginUrl('github', 'http://localhost:5173/callback', mockConfig)
+      const url = await getSSOLoginUrl('github', 'http://localhost:5173/callback', undefined, mockConfig)
       
       expect(url).toContain('github.com/login/oauth/authorize')
       expect(url).toContain('test-github-client-id')
@@ -67,7 +60,7 @@ describe('SSO Service', () => {
 
     it('should throw error for missing config', async () => {
       await expect(
-        getSSOLoginUrl('google', 'http://localhost:5173/callback', {})
+        getSSOLoginUrl('google', 'http://localhost:5173/callback', undefined, {})
       ).rejects.toThrow('Configuration missing')
     })
   })
@@ -102,4 +95,3 @@ describe('SSO Service', () => {
     })
   })
 })
-

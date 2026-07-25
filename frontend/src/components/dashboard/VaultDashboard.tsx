@@ -599,7 +599,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                             </span>
                           )}
                               <span className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                                {entry.category.replace('-', ' ')}
+                                {(entry.category || 'login').replace('-', ' ')}
                               </span>
                               <span className="hidden text-xs text-slate-300 dark:text-slate-700 sm:inline">•</span>
                               <span className="truncate text-xs text-slate-500 dark:text-slate-400">{formatDomain(entry.url)}</span>

@@ -1,101 +1,61 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Safenode",
+  "mainBinaryName": "Safenode",
+  "version": "0.1.0",
+  "identifier": "com.safenode.desktop",
   "build": {
     "beforeDevCommand": "bash src-tauri/scripts/dev-frontend.sh",
     "beforeBuildCommand": "bash src-tauri/scripts/build-frontend.sh",
-    "devPath": "http://localhost:5173",
-    "distDir": "../frontend/dist",
-    "withGlobalTauri": true
+    "frontendDist": "../frontend/dist",
+    "devUrl": "http://127.0.0.1:5173"
   },
-  "package": {
-    "productName": "SafeNode",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": false,
-        "open": true,
-        "save": true
-      },
-      "fs": {
-        "all": true,
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "copyFile": true,
-        "createDir": true,
-        "removeFile": true,
-        "removeDir": true,
-        "renameFile": true,
-        "exists": true,
-        "scope": ["$APPDATA/safenode", "$HOME/.config/safenode", "$HOME/.safenode"]
-      },
-      "window": {
-        "all": false,
-        "close": true,
-        "hide": true,
-        "show": true,
-        "maximize": true,
-        "minimize": true,
-        "unmaximize": true,
-        "unminimize": true,
-        "startDragging": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.safenode.desktop",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "",
-      "category": "Productivity",
-      "shortDescription": "Secure password manager with offline-first design",
-      "longDescription": "SafeNode is a secure, offline-first password manager that keeps your passwords encrypted locally while providing seamless sync across devices.",
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.13",
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "providerShortName": null,
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "app": {
+    "withGlobalTauri": false,
     "security": {
-      "csp": null
+      "capabilities": [
+        "desktop"
+      ],
+      "csp": "default-src 'self' tauri: asset:; connect-src 'self' ipc: http://ipc.localhost https://api.safe-node.app https://*.sentry.io; img-src 'self' asset: data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
     },
     "windows": [
       {
-        "fullscreen": false,
+        "label": "main",
+        "title": "Safenode",
+        "width": 1380,
+        "height": 900,
+        "minWidth": 980,
+        "minHeight": 680,
+        "center": true,
         "resizable": true,
-        "title": "SafeNode",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600
+        "fullscreen": false,
+        "useHttpsScheme": true
       }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "Passkey-first secure identity and encrypted vault",
+    "longDescription": "Safenode combines passkey-first identity, zero-knowledge vault encryption, recovery, and team secrets.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ],
-    "systemTray": {
-      "iconPath": "icons/32x32.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["safenode"]
+      }
     }
   }
 }

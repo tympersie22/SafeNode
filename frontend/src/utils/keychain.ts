@@ -10,6 +10,8 @@ export interface KeychainEntry {
   metadata?: Record<string, string>;
 }
 
+const BLOCKED_SAFENODE_ACCOUNTS = new Set(['master_password', 'raw_vault_key', 'vault_key']);
+
 class KeychainService {
   private isTauri: boolean = false;
   private tauriApi: any = null;
@@ -26,6 +28,12 @@ class KeychainService {
    * Save credentials to system keychain (Tauri) or secure storage (Web)
    */
   async save(entry: KeychainEntry): Promise<void> {
+    if (this.isBlockedVaultSecret(entry.service, entry.account)) {
+      await this.purgeLegacyEntry(entry.service, entry.account)
+      console.warn(`Refusing to persist sensitive vault secret for ${entry.service}/${entry.account}.`)
+      return
+    }
+
     if (this.isTauri && this.tauriApi) {
       // Use Tauri keychain commands
       try {
@@ -49,6 +57,11 @@ class KeychainService {
    * Retrieve credentials from system keychain
    */
   async get(service: string, account: string): Promise<string | null> {
+    if (this.isBlockedVaultSecret(service, account)) {
+      await this.purgeLegacyEntry(service, account)
+      return null
+    }
+
     if (this.isTauri && this.tauriApi) {
       try {
         const { invoke } = this.tauriApi.core;
@@ -86,6 +99,14 @@ class KeychainService {
       // Web fallback
       await this.deleteFromWebStorage(service, account);
     }
+  }
+
+  async purgeLegacyVaultSecrets(): Promise<void> {
+    await Promise.all([
+      this.purgeLegacyEntry('safenode', 'master_password'),
+      this.purgeLegacyEntry('safenode', 'raw_vault_key'),
+      this.purgeLegacyEntry('safenode', 'vault_key')
+    ])
   }
 
   /**
@@ -225,6 +246,18 @@ class KeychainService {
     return accounts;
   }
 
+  private isBlockedVaultSecret(service: string, account: string): boolean {
+    return service === 'safenode' && BLOCKED_SAFENODE_ACCOUNTS.has(account)
+  }
+
+  private async purgeLegacyEntry(service: string, account: string): Promise<void> {
+    try {
+      await this.delete(service, account)
+    } catch (error) {
+      console.warn(`Failed to purge legacy keychain entry for ${service}/${account}:`, error)
+    }
+  }
+
   /**
    * Check if system keychain is available
    */
@@ -247,4 +280,3 @@ class KeychainService {
 }
 
 export const keychainService = new KeychainService();
-

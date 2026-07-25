@@ -74,16 +74,20 @@ export async function resolveConflicts(
   const prisma = getPrismaClient()
 
   // Log conflict resolution
-  await createAuditLog({
-    userId,
-    action: 'conflicts_resolved',
-    resourceType: 'vault',
-    resourceId: userId,
-    metadata: {
-      resolutionsCount: resolutions.length,
-      resolutions: resolutions.map(r => ({ entryId: r.entryId, resolution: r.resolution }))
-    }
-  }).catch(() => {})
+  try {
+    await createAuditLog({
+      userId,
+      action: 'conflicts_resolved',
+      resourceType: 'vault',
+      resourceId: userId,
+      metadata: {
+        resolutionsCount: resolutions.length,
+        resolutions: resolutions.map(r => ({ entryId: r.entryId, resolution: r.resolution }))
+      }
+    })
+  } catch {
+    // Conflict resolution should continue even if audit logging fails.
+  }
 
   // Get current vault version
   const user = await prisma.user.findUnique({
@@ -145,4 +149,3 @@ export async function getSyncStatus(
     needsSync
   }
 }
-

@@ -11,7 +11,7 @@ const VerifyEmailPage: React.FC = () => {
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>(token ? 'idle' : 'error')
   const [message, setMessage] = useState(
     token
-      ? 'Confirm your email verification to finish activating your SafeNode account.'
+      ? 'Confirm your email verification to finish activating your Safenode account.'
       : 'Missing verification token. Please request a new verification email.',
   )
 
@@ -34,7 +34,7 @@ const VerifyEmailPage: React.FC = () => {
       }
 
       setState('success')
-      setMessage('Email verified successfully. You can now continue using SafeNode.')
+      setMessage('Email verified successfully. You can now continue using Safenode.')
     } catch (error: any) {
       const rawMessage = error?.message || 'Verification failed. Please request a new verification email.'
       const normalized = String(rawMessage).toLowerCase()
@@ -51,7 +51,7 @@ const VerifyEmailPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center px-4">
+    <div className="sn-page min-h-screen flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -60,7 +60,7 @@ const VerifyEmailPage: React.FC = () => {
         <div className="text-center mb-6">
           <Link to="/" className="inline-flex items-center gap-2 mb-5">
             <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900">SafeNode</span>
+            <span className="text-xl font-bold text-gray-900">Safenode</span>
           </Link>
 
           {state === 'loading' && <Loader2 className="w-10 h-10 animate-spin mx-auto text-gray-600" />}

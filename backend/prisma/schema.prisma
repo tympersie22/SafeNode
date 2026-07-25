@@ -1,9 +1,9 @@
-// SafeNode Prisma Schema
+// Safenode Prisma Schema
 // Production-ready database schema for all core entities
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -56,12 +56,14 @@ model User {
   devices Device[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  deviceReapprovalTokens DeviceReapprovalToken[]
   auditLogs AuditLog[]
   teamMemberships TeamMember[]
   subscriptions Subscription[]
   webAuthnCredentials WebAuthnCredential[]
   webAuthnChallenges WebAuthnChallenge[]
   deviceSessions DeviceSession[]
+  desktopAuthFlows DesktopAuthFlow[]
   accountSuccessor AccountSuccessor?
   
   @@index([email])
@@ -133,6 +135,26 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+// Device Re-approval Token
+// Single-use, short-lived token emailed to the account owner to re-approve a
+// device that was previously removed. Grants NO auth or vault access — it only
+// clears the requiresReapproval flag on the bound device.
+model DeviceReapprovalToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  deviceId  String   @map("device_id") // Device.id (row id) to re-approve
+  token     String   @unique // SHA-256 digest; the emailed bearer token is never persisted
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("device_reapproval_tokens")
+}
+
 // Device Model
 model Device {
   id String @id @default(cuid())
@@ -177,6 +199,25 @@ model DeviceSession {
   @@index([deviceId, status])
   @@index([lastSeenAt])
   @@map("device_sessions")
+}
+
+model DesktopAuthFlow {
+  id String @id
+  stateHash String @map("state_hash")
+  codeChallenge String @map("code_challenge")
+  authorizationCodeHash String? @map("authorization_code_hash")
+  userId String? @map("user_id")
+  status String @default("pending") // pending | approved | consumed
+  expiresAt DateTime @map("expires_at")
+  approvedAt DateTime? @map("approved_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+  @@index([userId])
+  @@map("desktop_auth_flows")
 }
 
 // Team Model
@@ -290,6 +331,9 @@ model WebAuthnCredential {
   transports String[] @default([])
   deviceType String? @map("device_type")
   backedUp Boolean? @map("backed_up")
+  prfSalt String? @map("prf_salt")
+  prfWrappedVaultKey String? @map("prf_wrapped_vault_key")
+  prfWrappedVaultKeyIV String? @map("prf_wrapped_vault_key_iv")
   createdAt DateTime @default(now()) @map("created_at")
   lastUsedAt DateTime? @map("last_used_at")
 

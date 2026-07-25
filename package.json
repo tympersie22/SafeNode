@@ -1,13 +1,16 @@
 {
   "name": "safenode",
   "version": "0.1.0",
-  "description": "SafeNode - Secure Password Manager",
+  "description": "Safenode - Secure Password Manager",
   "private": true,
   "scripts": {
     "test:apis": "node test-apis.js",
     "test:apis:bash": "./test-apis.sh",
     "test:apis:help": "echo 'Usage: npm run test:apis (Node.js) or npm run test:apis:bash (Bash)'",
     "ssl:generate": "./scripts/generate-ssl-certs.sh",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "tauri:icons": "./scripts/regenerate-tauri-icons.sh"
   },
   "keywords": [
@@ -15,12 +18,13 @@
     "security",
     "encryption"
   ],
-  "author": "SafeNode Team",
+  "author": "Safenode Team",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
     "@types/cors": "^2.8.19"
   }
 }

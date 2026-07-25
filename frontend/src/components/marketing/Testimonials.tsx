@@ -15,13 +15,13 @@ const TESTIMONIALS = [
     rating: 5
   },
   {
-    quote: "Finally, an identity and secret platform I actually trust with recovery and team access.",
+    quote: "Finally, a password manager I actually trust with my data.",
     author: "Sarah Martinez",
     role: "Product Manager",
     rating: 5
   },
   {
-    quote: "Our whole family uses it. Recovery is clearer, sharing is safer, and it works everywhere.",
+    quote: "Our whole family uses it. Simple, secure, works everywhere.",
     author: "Michael Brown",
     role: "Small Business Owner",
     rating: 5

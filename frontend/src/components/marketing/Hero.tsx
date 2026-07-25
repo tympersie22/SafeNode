@@ -1,122 +1,115 @@
-/**
- * Hero Section - Modern Next.js / Vercel Inspired
- * Clean, minimal, high-impact
- */
-
-import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { KeyRound, Shield, Users, Zap } from 'lucide-react';
+import React from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { ArrowRight, Check, Fingerprint, KeyRound, Shield } from 'lucide-react'
 
 interface HeroProps {
-  onEnterApp: (mode?: 'signup' | 'login') => void;
+  onEnterApp: (mode?: 'signup' | 'login') => void
 }
 
 export const Hero: React.FC<HeroProps> = ({ onEnterApp }) => {
-  const prefersReducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion()
 
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-white">
-      {/* Subtle grid background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-gray-100/80 to-transparent rounded-full blur-3xl" />
-      </div>
+    <section className="relative overflow-hidden border-b border-[var(--sn-line)]">
+      <div className="sn-hero-grid" aria-hidden="true" />
+      <div className="sn-marketing-container relative grid min-h-[760px] items-center gap-14 py-20 lg:grid-cols-[1.08fr_0.92fr] lg:py-28">
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65 }}
+        >
+          <div className="sn-eyebrow flex items-center gap-3">
+            <span className="h-2 w-2 bg-[var(--sn-accent)]" />
+            Passkey-first security infrastructure
+          </div>
+          <h1 className="sn-hero-title mt-7 max-w-3xl">
+            Your digital identity needs more than a password manager.
+          </h1>
+          <p className="mt-7 max-w-2xl text-lg leading-8 text-[var(--sn-muted)] sm:text-xl">
+            Safenode brings passkeys, zero-knowledge secrets, recovery, and trusted devices into one dependable control plane.
+          </p>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center">
-          {/* Badge */}
-          <motion.div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-50 text-gray-600 text-sm font-medium mb-8 border border-gray-200/60"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Passkey-First Security Platform
-          </motion.div>
-
-          {/* Main Headline */}
-          <motion.h1
-            className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-950 mb-6 leading-[1.08] tracking-tight"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            Identity. Recovery.
-            <br />
-            <span className="bg-gradient-to-r from-gray-950 via-gray-600 to-gray-950 bg-clip-text text-transparent">
-              Team Secrets.
-            </span>
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-          >
-            SafeNode is the secure control plane for passkeys, recovery, trusted devices, and shared secrets. Your vault stays zero-knowledge. Your identity flows stay modern.
-          </motion.p>
-
-          {/* CTA Buttons */}
-          <motion.div
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <motion.button
+              className="sn-solid-button min-h-12 px-6"
               onClick={() => onEnterApp('signup')}
-              className="group px-7 py-3.5 bg-gray-950 hover:bg-gray-800 text-white text-base font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-gray-950/10 hover:shadow-xl hover:shadow-gray-950/20"
-              whileHover={prefersReducedMotion ? {} : { scale: 1.02, y: -2 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+              whileHover={reducedMotion ? undefined : { y: -2 }}
+              whileTap={reducedMotion ? undefined : { scale: 0.98 }}
             >
-              <span className="flex items-center gap-2">
-                Get Started Free
-                <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
+              Start with a passkey <ArrowRight className="h-4 w-4" />
             </motion.button>
-            <motion.button
-              onClick={() => onEnterApp('login')}
-              className="px-7 py-3.5 bg-white border border-gray-200 text-gray-700 text-base font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm"
-              whileHover={prefersReducedMotion ? {} : { scale: 1.02, y: -2 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-            >
-              Sign In
-            </motion.button>
-          </motion.div>
+            <button className="sn-outline-button min-h-12 px-6" onClick={() => onEnterApp('login')}>
+              Open existing vault
+            </button>
+          </div>
 
-          {/* Trust badges */}
-          <motion.div
-            className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400"
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.45 }}
-          >
-            <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4" />
-              <span>Passkey-first access</span>
+          <div className="mt-12 flex flex-wrap gap-x-7 gap-y-3 border-t border-[var(--sn-line)] pt-6 text-sm text-[var(--sn-muted)]">
+            {['No reusable login password', 'Client-side decryption', 'Recovery by design'].map((label) => (
+              <span key={label} className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-[var(--sn-accent)]" /> {label}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="relative"
+          initial={reducedMotion ? false : { opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.75, delay: 0.12 }}
+        >
+          <div className="sn-system-panel">
+            <div className="flex items-center justify-between border-b border-white/12 pb-5">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/45">Identity graph</p>
+                <p className="mt-2 text-sm font-medium text-white">Protected session</p>
+              </div>
+              <span className="flex items-center gap-2 text-xs text-[var(--sn-accent-soft)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--sn-accent-soft)]" /> Live
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <span>Zero-knowledge vaults</span>
+
+            <div className="space-y-2 py-7">
+              {[
+                { icon: Fingerprint, label: 'Identity proof', value: 'Device passkey', state: 'verified' },
+                { icon: KeyRound, label: 'Vault boundary', value: 'Local key unwrap', state: 'private' },
+                { icon: Shield, label: 'Recovery posture', value: 'Kit + trusted device', state: 'ready' }
+              ].map((row, index) => (
+                <div key={row.label} className="relative grid grid-cols-[44px_1fr_auto] items-center gap-4 py-4">
+                  {index < 2 && <span className="absolute left-[21px] top-[54px] h-[22px] w-px bg-white/15" />}
+                  <span className="flex h-11 w-11 items-center justify-center border border-white/15 bg-white/[0.04]">
+                    <row.icon className="h-5 w-5 text-[var(--sn-accent-soft)]" />
+                  </span>
+                  <div>
+                    <p className="text-xs text-white/42">{row.label}</p>
+                    <p className="mt-1 text-sm font-medium text-white/90">{row.value}</p>
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/42">{row.state}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span>Recovery and team controls</span>
+
+            <div className="grid grid-cols-3 border-t border-white/12 pt-5">
+              {[
+                ['0', 'plaintext keys'],
+                ['3', 'recovery layers'],
+                ['1', 'trusted session']
+              ].map(([value, label]) => (
+                <div key={label} className="border-l border-white/12 px-4 first:border-l-0 first:pl-0">
+                  <p className="text-2xl font-semibold text-white">{value}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/35">{label}</p>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              <span>Auditable operations</span>
-            </div>
-          </motion.div>
-        </div>
+          </div>
+          <div className="absolute -bottom-5 -left-5 hidden border border-[var(--sn-line)] bg-[var(--sn-canvas)] px-5 py-4 text-xs text-[var(--sn-muted)] shadow-[var(--sn-shadow)] sm:block">
+            <span className="font-mono text-[var(--sn-accent)]">ZK / 01</span>
+            <span className="ml-4">The server never sees your vault key.</span>
+          </div>
+        </motion.div>
       </div>
     </section>
-  );
-};
+  )
+}
 
-export default Hero;
+export default Hero

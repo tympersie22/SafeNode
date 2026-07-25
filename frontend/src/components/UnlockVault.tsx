@@ -6,9 +6,9 @@ import { vaultSync } from '../sync/vaultSync';
 import { pinManager } from '../utils/pinManager';
 import { auditLogStorage } from '../storage/auditLogs';
 import { biometricAuthService, type BiometricCapabilities } from '../utils/biometricAuth';
-import { keychainService } from '../utils/keychain';
 import { API_BASE } from '../config/api';
 import { getCurrentDeviceHeaders } from '../services/deviceService';
+import { stripTransientVaultFields } from '../services/vaultService';
 import Logo from './Logo';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -76,40 +76,13 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
     setError(null);
 
     try {
-      // Use a stable local identifier for device-side ML features.
-      // This avoids any hardcoded demo identity leaking into production behavior.
-      const userId = localStorage.getItem('safenode_biometric_user') || 'local-user';
-      
-      // Authenticate with ML enhancements enabled
-      const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
-        enableML: true, // Enable ML-based security features
-        userId: userId,
-        collectBehavioral: true // Collect behavioral biometrics
-      });
+      const result = await biometricAuthService.authenticate('Unlock Safenode vault');
       
       if (!result.success) {
         throw new Error(result.error || 'Biometric authentication failed');
       }
 
-      // Log ML analysis results if available
-      if (result.mlResult) {
-        devLog('ML Analysis:', {
-          confidence: result.mlResult.confidence,
-          livenessScore: result.mlResult.livenessScore,
-          spoofingRisk: result.mlResult.spoofingRisk,
-          isAuthentic: result.mlResult.isAuthentic
-        });
-      }
-
-      // For biometric unlock, we need to get the master password from keychain
-      // or use a stored credential
-      const storedPassword = await keychainService.get('safenode', 'master_password');
-      if (!storedPassword) {
-        throw new Error('Master password not found. Please unlock with password first.');
-      }
-
-      // Continue with normal unlock flow using stored password
-      await performUnlock(storedPassword, null);
+      throw new Error('Biometric sign-in does not unlock the vault on web. Please use your vault passphrase.');
     } catch (err) {
       console.error('Biometric unlock failed:', err);
       if (err instanceof Error) {
@@ -177,7 +150,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
       vault = { entries: [] };
       
       // Still encrypt and store it for future use
-      const vaultJson = JSON.stringify(vault);
+      const vaultJson = JSON.stringify(stripTransientVaultFields(vault));
       const encryptedResult = await encrypt(vaultJson, passwordToUse, saltBuffer);
 
       storedVault = vaultStorage.createVault(
@@ -619,7 +592,7 @@ const UnlockVault: React.FC<UnlockVaultProps> = ({ onVaultUnlocked }) => {
 
         {/* Footer */}
         <div className="text-center mt-8 text-slate-500 dark:text-slate-400 text-sm">
-          <p>SafeNode v0.1.0 • Secure Password Management</p>
+          <p>Safenode v0.1.0 • Secure Password Management</p>
         </div>
       </motion.div>
     </div>

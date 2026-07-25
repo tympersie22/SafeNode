@@ -3,14 +3,14 @@
  * Tests conflict detection and resolution
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals'
+import { describe, it, expect, beforeEach } from '@jest/globals'
 import { createUser, updateVault } from '../../src/services/userService'
 
 describe('E2E: Sync Conflicts', () => {
   let userId: string
   let userEmail: string
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     userEmail = `sync-e2e-${Date.now()}@example.com`
 
     const user = await createUser({

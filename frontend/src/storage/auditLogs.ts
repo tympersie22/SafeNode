@@ -1,5 +1,5 @@
 /**
- * SafeNode Audit Logs
+ * Safenode Audit Logs
  * Encrypted audit trail for security events
  */
 
@@ -50,7 +50,7 @@ export type AuditEventType =
   | 'pin_unlock'
   | 'multi_factor_unlock';
 
-const DB_NAME = 'SafeNodeAuditLogs';
+const DB_NAME = 'SafenodeAuditLogs';
 const DB_VERSION = 1;
 const STORE_NAME = 'audit_logs';
 const MAX_LOGS = 10000; // Keep last 10k logs

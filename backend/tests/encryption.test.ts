@@ -3,7 +3,7 @@
  * Unit tests for AES-256-GCM encryption utilities
  */
 
-import { describe, it, expect } from '@jest/globals'
+import { describe, it, expect, jest } from '@jest/globals'
 import {
   encryptBuffer,
   decryptBuffer,
@@ -16,7 +16,7 @@ import {
 
 describe('Encryption Utilities', () => {
   const testKey = Buffer.from('test-key-32-bytes-long-exactly!!').toString('base64')
-  const testData = 'Hello, SafeNode! This is test data.'
+  const testData = 'Hello, Safenode! This is test data.'
   const testBuffer = Buffer.from(testData, 'utf8')
 
   describe('encryptBuffer / decryptBuffer', () => {
@@ -150,38 +150,50 @@ describe('Encryption Utilities', () => {
   describe('encryptWithConfig / decryptWithConfig', () => {
     it('should return null if encryption key is not configured', () => {
       const originalKey = process.env.ENCRYPTION_KEY
-      delete process.env.ENCRYPTION_KEY
-      
-      // Reload config
+      process.env.ENCRYPTION_KEY = ''
+
       jest.resetModules()
-      
-      const result = encryptWithConfig(testBuffer)
+      let result: ReturnType<typeof encryptWithConfig> | null = null
+      jest.isolateModules(() => {
+        const { encryptWithConfig: isolatedEncryptWithConfig } = require('../src/utils/encryption')
+        result = isolatedEncryptWithConfig(testBuffer)
+      })
       expect(result).toBeNull()
-      
-      // Restore
-      if (originalKey) {
+
+      if (originalKey !== undefined) {
         process.env.ENCRYPTION_KEY = originalKey
+      } else {
+        delete process.env.ENCRYPTION_KEY
       }
     })
 
     it('should encrypt/decrypt with configured key if available', () => {
       const originalKey = process.env.ENCRYPTION_KEY
       process.env.ENCRYPTION_KEY = testKey
-      
-      // Reload config
+
       jest.resetModules()
-      
-      const encrypted = encryptWithConfig(testBuffer)
+
+      let encrypted: ReturnType<typeof encryptWithConfig> | null = null
+      let decrypted: Buffer | null = null
+      jest.isolateModules(() => {
+        const {
+          encryptWithConfig: isolatedEncryptWithConfig,
+          decryptWithConfig: isolatedDecryptWithConfig
+        } = require('../src/utils/encryption')
+        encrypted = isolatedEncryptWithConfig(testBuffer)
+        if (encrypted) {
+          decrypted = isolatedDecryptWithConfig(
+            encrypted.ciphertext,
+            encrypted.iv,
+            encrypted.authTag
+          )
+        }
+      })
+
       if (encrypted) {
-        const decrypted = decryptWithConfig(
-          encrypted.ciphertext,
-          encrypted.iv,
-          encrypted.authTag
-        )
         expect(decrypted?.toString('utf8')).toBe(testData)
       }
-      
-      // Restore
+
       if (originalKey) {
         process.env.ENCRYPTION_KEY = originalKey
       } else {
@@ -194,11 +206,11 @@ describe('Encryption Utilities', () => {
     it('should return true if encryption key is configured', () => {
       const originalKey = process.env.ENCRYPTION_KEY
       process.env.ENCRYPTION_KEY = testKey
-      
+
       jest.resetModules()
       const { isEncryptionEnabled } = require('../src/utils/encryption')
       expect(isEncryptionEnabled()).toBe(true)
-      
+
       if (originalKey) {
         process.env.ENCRYPTION_KEY = originalKey
       } else {
@@ -207,4 +219,3 @@ describe('Encryption Utilities', () => {
     })
   })
 })
-

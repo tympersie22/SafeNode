@@ -1,5 +1,5 @@
 /**
- * SafeNode Animation System
+ * Safenode Animation System
  * Framer Motion animations for web
  */
 

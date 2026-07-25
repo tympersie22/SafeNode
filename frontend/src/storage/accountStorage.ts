@@ -1,5 +1,5 @@
 /**
- * SafeNode Multi-Account Storage
+ * Safenode Multi-Account Storage
  * Manages multiple vault accounts (personal, work, etc.)
  */
 

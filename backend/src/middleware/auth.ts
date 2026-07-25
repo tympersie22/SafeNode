@@ -195,11 +195,13 @@ export async function requireAuth(
       stack: error?.stack,
       path: request.url 
     }, 'Authentication error')
+    // Do not leak internal error details to the client in production.
+    const isProduction = (process.env.NODE_ENV || 'development') === 'production'
     return reply.code(401).send({
       error: 'unauthorized',
       code: 'AUTH_ERROR',
       message: 'Authentication failed',
-      details: error?.message
+      ...(isProduction ? {} : { details: error?.message })
     })
   }
 }

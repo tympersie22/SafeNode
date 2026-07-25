@@ -127,7 +127,7 @@
   }
 }
 
-/* SafeNode Component System */
+/* Safenode Component System */
 @layer components {
   /* Premium Glass Effects */
   .glass {
@@ -368,6 +368,73 @@
 /* Desktop App Styles */
 .desktop-app {
   -webkit-app-region: no-drag;
+  background: #06100e;
+}
+
+.sn-desktop-shell {
+  min-height: 100vh;
+  background: #06100e;
+}
+
+.sn-desktop-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10000;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 86px;
+  border-bottom: 1px solid rgba(82, 227, 178, 0.16);
+  background: rgba(6, 16, 14, 0.88);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.sn-desktop-titlebar-brand,
+.sn-desktop-trust {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f3f7f5;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.sn-desktop-mark {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid rgba(82, 227, 178, 0.35);
+  border-radius: 8px;
+  color: #52e3b2;
+  background: rgba(82, 227, 178, 0.1);
+}
+
+.sn-desktop-mark svg,
+.sn-desktop-trust svg {
+  width: 13px;
+  height: 13px;
+}
+
+.sn-desktop-trust {
+  color: #7f9a91;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.sn-desktop-trust svg {
+  color: #52e3b2;
+}
+
+.sn-desktop-viewport {
+  min-height: 100vh;
+  padding-top: 52px;
 }
 
 .desktop-menu-bar {
@@ -644,4 +711,351 @@
   .no-print {
     display: none !important;
   }
+}
+
+/* Unified Safenode visual system */
+:root {
+  --sn-ink: #14201b;
+  /* Always-dark slab background (footer, CTA bands, decorative tiles). Unlike
+     --sn-ink (which is the ink/text color and flips to near-white in dark mode),
+     this stays dark in both themes so those slabs never turn bright. */
+  --sn-ink-fixed: #14201b;
+  --sn-ink-soft: #23332c;
+  --sn-canvas: #f3f1e9;
+  --sn-surface: #faf9f4;
+  --sn-surface-strong: #ffffff;
+  --sn-line: #d7d7cc;
+  --sn-muted: #626b65;
+  --sn-accent: #2f765f;
+  --sn-accent-soft: #8fd4b9;
+  --sn-accent-wash: #e4eee8;
+  --sn-ring: 0 0 0 3px rgba(47, 118, 95, 0.22);
+  --sn-shadow-sm: 0 1px 2px rgba(20, 32, 27, 0.06);
+  --sn-shadow: 0 18px 55px rgba(20, 32, 27, 0.10);
+}
+
+html.dark {
+  --sn-ink: #eef3ef;
+  /* Kept dark in dark mode too (see :root note). Slightly lifted off the dark
+     canvas so the slab still reads as a distinct band. */
+  --sn-ink-fixed: #16231d;
+  --sn-ink-soft: #dce6df;
+  --sn-canvas: #0e1612;
+  --sn-surface: #141e19;
+  --sn-surface-strong: #19251f;
+  --sn-line: #2c3932;
+  --sn-muted: #9eaaa3;
+  --sn-accent: #78bda2;
+  --sn-accent-soft: #9cdec3;
+  --sn-accent-wash: #1b3027;
+}
+
+html,
+body {
+  background: var(--sn-canvas);
+}
+
+body,
+.dark body {
+  color: var(--sn-ink);
+  background: var(--sn-canvas);
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+}
+
+.sn-page {
+  color: var(--sn-ink);
+  background: var(--sn-canvas);
+}
+
+.sn-dashboard-shell {
+  color: var(--sn-ink);
+  background-color: var(--sn-canvas);
+}
+
+.sn-marketing-container {
+  width: min(100% - 2.5rem, 1440px);
+  margin-inline: auto;
+}
+
+.sn-marketing-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid color-mix(in srgb, var(--sn-line) 80%, transparent);
+  background: color-mix(in srgb, var(--sn-canvas) 90%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.sn-nav-link,
+.sn-text-button {
+  color: var(--sn-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: color 160ms ease;
+}
+
+.sn-nav-link:hover,
+.sn-text-button:hover,
+.sn-text-link:hover {
+  color: var(--sn-ink);
+}
+
+.sn-solid-button,
+.sn-outline-button,
+.sn-light-button,
+.sn-dark-outline-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 4px;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.sn-solid-button {
+  border: 1px solid var(--sn-ink);
+  background: var(--sn-ink);
+  color: var(--sn-canvas);
+}
+
+.sn-solid-button:hover {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: white;
+}
+
+.sn-outline-button {
+  border: 1px solid var(--sn-line);
+  background: transparent;
+  color: var(--sn-ink);
+}
+
+.sn-outline-button:hover {
+  border-color: var(--sn-ink);
+}
+
+.sn-light-button {
+  background: var(--sn-canvas);
+  color: #14201b;
+  border: 1px solid var(--sn-canvas);
+}
+
+.sn-dark-outline-button {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.sn-dark-outline-button:hover {
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.sn-text-link {
+  color: var(--sn-accent);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.sn-section {
+  padding: clamp(5rem, 9vw, 8.5rem) 0;
+}
+
+.sn-eyebrow {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--sn-accent);
+}
+
+.sn-display,
+.sn-hero-title {
+  font-family: Iowan Old Style, Baskerville, 'Times New Roman', serif;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  color: var(--sn-ink);
+}
+
+.sn-display {
+  font-size: clamp(2.5rem, 5vw, 5.25rem);
+  line-height: 0.98;
+}
+
+/* Headings on the always-dark slabs opt into white via `text-white`. Because
+   `.sn-display` hard-codes the dark ink color and is unlayered (so it beats
+   Tailwind's layered `text-white`), those headings render dark-on-dark and
+   vanish. This compound selector (0,2,0 specificity) outranks `.sn-display`
+   and restores white text wherever a heading explicitly asked for it. */
+.sn-display.text-white,
+.sn-hero-title.text-white {
+  color: #ffffff;
+}
+
+.sn-hero-title {
+  font-size: clamp(3.4rem, 6.9vw, 7.4rem);
+  line-height: 0.91;
+}
+
+.sn-hero-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.48;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--sn-line) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--sn-line) 55%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to right, black, transparent 88%);
+}
+
+.sn-system-panel {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.04), transparent 45%),
+    #14201b;
+  box-shadow: 0 40px 100px rgba(20, 32, 27, 0.22);
+}
+
+.sn-auth-card {
+  border-top: 1px solid var(--sn-line);
+  border-bottom: 1px solid var(--sn-line);
+  padding: clamp(1.75rem, 5vw, 2.75rem) 0;
+  background: transparent;
+}
+
+.btn {
+  border-radius: 5px;
+  font-weight: 700;
+  transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.btn-primary,
+.dark .btn-primary {
+  background: var(--sn-ink);
+  color: var(--sn-canvas);
+  box-shadow: none;
+}
+
+.btn-primary:hover,
+.dark .btn-primary:hover {
+  background: var(--sn-accent);
+  color: white;
+  box-shadow: none;
+}
+
+.btn-secondary,
+.dark .btn-secondary {
+  background: var(--sn-accent-wash);
+  color: var(--sn-ink);
+  border: 1px solid var(--sn-line);
+}
+
+.btn-outline,
+.dark .btn-outline {
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  box-shadow: none;
+}
+
+.btn-outline:hover,
+.dark .btn-outline:hover {
+  border-color: var(--sn-ink);
+  color: var(--sn-ink);
+}
+
+.btn-ghost:hover,
+.dark .btn-ghost:hover {
+  background: var(--sn-accent-wash);
+  color: var(--sn-ink);
+}
+
+.card,
+.dark .card {
+  border-radius: 6px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  box-shadow: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.card:hover,
+.card-hover:hover {
+  border-color: color-mix(in srgb, var(--sn-accent) 55%, var(--sn-line));
+  box-shadow: none;
+  transform: none;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+  border-radius: 4px !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: none;
+  border-color: var(--sn-accent);
+  box-shadow: var(--sn-ring);
+}
+
+@media (max-width: 640px) {
+  .sn-marketing-container {
+    width: min(100% - 2rem, 1440px);
+  }
+
+  .sn-hero-title {
+    font-size: clamp(3rem, 15vw, 4.6rem);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Native app shell polish — Capacitor iOS/Android ONLY.
+   Scoped to html.capacitor-native (set in main.tsx) so the web app at
+   safe-node.app is completely unaffected. Removes the "it's a web page" tells:
+   rubber-band overscroll, tap highlight flash, long-press callout/magnifier,
+   accidental text selection, and content sliding under the notch / home bar.
+--------------------------------------------------------------------------- */
+html.capacitor-native,
+html.capacitor-native body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Respect the notch and home indicator by default (most app screens don't
+   handle safe areas themselves). StatusBar overlays the web view, so the
+   inset area shows the app background behind the status bar. */
+html.capacitor-native #root {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Text selection off by default for a native feel... */
+html.capacitor-native * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ...but keep it on for real inputs and anything explicitly opted-in. */
+html.capacitor-native input,
+html.capacitor-native textarea,
+html.capacitor-native [contenteditable],
+html.capacitor-native [data-selectable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }

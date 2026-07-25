@@ -6,30 +6,13 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import Logo from '../../components/Logo'
+import MarketingHeader from '../../components/marketing/MarketingHeader'
 import Footer from '../../components/marketing/Footer'
 
 export const BillingPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900">
-      <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center gap-3">
-              <Logo variant="nav" />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">
-                SafeNode
-              </h1>
-            </Link>
-            <Link
-              to="/"
-              className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm font-medium"
-            >
-              Back to Home
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="sn-page min-h-screen">
+      <MarketingHeader />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <motion.article
@@ -42,7 +25,7 @@ export const BillingPage: React.FC = () => {
             Billing & Subscriptions
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            Learn about SafeNode subscription plans, billing, and payment management.
+            Learn about Safenode subscription plans, billing, and payment management.
           </p>
 
           <section className="mb-12">
@@ -152,4 +135,3 @@ export const BillingPage: React.FC = () => {
 }
 
 export default BillingPage
-

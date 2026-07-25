@@ -101,7 +101,7 @@ const ImportSharedModal: React.FC<ImportSharedModalProps> = ({ isOpen, onClose, 
 
         <div className="p-6 space-y-4">
           <p id="import-shared-description" className="text-sm text-slate-600">
-            Import a shared SafeNode credential envelope using your previously generated sharing keys.
+            Import a shared Safenode credential envelope using your previously generated sharing keys.
           </p>
           <div>
             <div className="text-sm font-medium text-slate-700 mb-2">Encrypted Envelope (JSON)</div>

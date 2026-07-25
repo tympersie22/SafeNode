@@ -11,6 +11,10 @@ import { findUserById } from '../src/services/userService'
 
 jest.mock('../src/services/userService')
 
+const mockedFindUserById = findUserById as unknown as {
+  mockResolvedValue: (value: unknown) => unknown
+}
+
 describe('Per-User Rate Limiting', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -22,7 +26,7 @@ describe('Per-User Rate Limiting', () => {
         id: 'user-1',
         subscriptionTier: 'free'
       }
-      ;(findUserById as jest.Mock).mockResolvedValue(mockUser)
+      mockedFindUserById.mockResolvedValue(mockUser as any)
 
       const status = await getUserRateLimitStatus('user-1')
       
@@ -37,7 +41,7 @@ describe('Per-User Rate Limiting', () => {
         id: 'user-2',
         subscriptionTier: 'enterprise'
       }
-      ;(findUserById as jest.Mock).mockResolvedValue(mockUser)
+      mockedFindUserById.mockResolvedValue(mockUser as any)
 
       const status = await getUserRateLimitStatus('user-2')
       
@@ -47,7 +51,7 @@ describe('Per-User Rate Limiting', () => {
     })
 
     it('should throw error for non-existent user', async () => {
-      ;(findUserById as jest.Mock).mockResolvedValue(null)
+      mockedFindUserById.mockResolvedValue(null as any)
 
       await expect(
         getUserRateLimitStatus('invalid-user')
@@ -63,4 +67,3 @@ describe('Per-User Rate Limiting', () => {
     })
   })
 })
-

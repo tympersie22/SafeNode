@@ -14,27 +14,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { VaultAccessError, unlockVault, vaultExists } from '../services/vaultService'
-import { recoverVaultWithKit } from '../services/recoveryService'
+import DeviceLimitPanel from './DeviceLimitPanel'
+import DeviceReapprovalPanel from './DeviceReapprovalPanel'
+import { recoverVaultWithKit, upgradeVaultAccess } from '../services/recoveryService'
 import { logout } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
 import { SaasButton, SaasInput, SaasCard } from '../ui'
-import { Vault, Eye, EyeOff, LogOut, ShieldCheck, Fingerprint, LifeBuoy } from 'lucide-react'
+import { Vault, Eye, EyeOff, LogOut, ShieldCheck, LifeBuoy } from 'lucide-react'
 import { base64ToArrayBuffer } from '../crypto/crypto'
 import { API_BASE } from '../config/api'
-import { keychainService } from '../utils/keychain'
 import { getCurrentDeviceHeaders } from '../services/deviceService'
 import { devLog, devWarn } from '../utils/debug'
-
-const loadPasskeyApi = () => import('../api/passkeys')
-const loadBiometricAuthService = async () => (await import('../utils/biometricAuth')).biometricAuthService
-
-const PasskeyIcon = () => (
-  <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="5" width="18" height="14" rx="4" className="fill-current opacity-10" />
-    <path d="M9 12a3 3 0 1 1 6 0c0 1.1-.6 1.9-1.4 2.4v1.6h-3.2v-1.6A2.82 2.82 0 0 1 9 12Z" className="stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M17.5 9.5h1.5M17.5 12h2M17.5 14.5h1.5" className="stroke-current" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-)
+import { hasPasskeyVaultUnlock, unlockVaultWithPasskey } from '../services/passkeyVault'
+import { showToast } from './ui/Toast'
 
 interface UnlockVaultProps {
   onVaultUnlocked: (vault: any, masterPassword: string, salt: ArrayBuffer) => void
@@ -77,6 +69,13 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   const [showRecoveryKit, setShowRecoveryKit] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [unlockMode, setUnlockMode] = useState<'passphrase' | 'recovery'>('passphrase')
+  const [passkeyReady, setPasskeyReady] = useState(false)
+  const [showFallbackMethods, setShowFallbackMethods] = useState(false)
+  const [migrationState, setMigrationState] = useState<{
+    recoveryKit: string
+    vault: any
+    salt: ArrayBuffer
+  } | null>(null)
 
   /**
    * hasVault tri-state:
@@ -90,12 +89,16 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
   const [unlockAttempts, setUnlockAttempts] = useState(0)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
 
-  // Biometric / passkey state
-  const [biometricEnabled, setBiometricEnabled] = useState(false)
-  const [biometricAvailable, setBiometricAvailable] = useState(false)
-  const [passkeyAvailable, setPasskeyAvailable] = useState(false)
-  const [passkeyEnabled, setPasskeyEnabled] = useState(false)
-  const [trustedDeviceReady, setTrustedDeviceReady] = useState(false)
+  const [deviceLimit, setDeviceLimit] = useState<{
+    devices: Array<{ id: string; deviceId: string; name: string; platform: string; lastSeen: number; isCurrent?: boolean }>
+    current: number
+    limit: number
+    planName?: string
+    recommendedPlanName?: string
+  } | null>(null)
+
+  // Set when this device was removed and must be re-approved (email-link escape).
+  const [reapproval, setReapproval] = useState<{ message?: string } | null>(null)
 
   const { user } = useAuth()
   const prefersReducedMotion = useReducedMotion()
@@ -114,30 +117,46 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     }
   }, [vaultPresenceHint])
 
-  // ── Check vault existence once per user ────────────────────────────────────
-  useEffect(() => {
+  // ── Check vault existence (re-runnable so we can retry after a device swap) ──
+  const runVaultCheck = useCallback((force = false) => {
     if (!user?.id) {
       lastCheckedUserId.current = null
       setHasVault(null)
       return
     }
 
-    if (typeof vaultPresenceHint === 'boolean') {
+    if (typeof vaultPresenceHint === 'boolean' && !force) {
       lastCheckedUserId.current = user.id
       return
     }
 
-    if (user.id === lastCheckedUserId.current || checkInProgress.current) return
+    if (!force && (user.id === lastCheckedUserId.current || checkInProgress.current)) return
 
     checkInProgress.current = true
     lastCheckedUserId.current = user.id
+    setDeviceLimit(null)
+    setReapproval(null)
 
     vaultExists()
       .then((exists) => setHasVault(exists))
       .catch((err) => {
         devWarn('[UnlockVault] vault existence check failed:', err)
         if (err instanceof VaultAccessError) {
-          if (err.status === 403) {
+          if (err.code === 'DEVICE_REAPPROVAL_REQUIRED') {
+            // Removed device: offer an email re-approval link instead of a dead end.
+            setReapproval({ message: err.message })
+            setError(null)
+          } else if (err.status === 403 && Array.isArray(err.details?.devices) && err.details.devices.length > 0) {
+            // Device-limit lockout: offer self-service device removal instead of a dead end.
+            setDeviceLimit({
+              devices: err.details.devices,
+              current: err.details.current,
+              limit: err.details.limit,
+              planName: err.details.currentPlanName,
+              recommendedPlanName: err.details.recommendedPlanName
+            })
+            setError(null)
+          } else if (err.status === 403) {
             setError(err.message || 'This device is not approved to access your existing vault yet.')
           } else if (err.status === 401) {
             setError(err.message || 'Your session is no longer active. Please sign in again.')
@@ -156,7 +175,53 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       .finally(() => {
         checkInProgress.current = false
       })
-  }, [user?.id])
+  }, [user?.id, vaultPresenceHint])
+
+  // ── Check vault existence once per user ────────────────────────────────────
+  useEffect(() => {
+    runVaultCheck()
+  }, [runVaultCheck])
+
+  useEffect(() => {
+    let active = true
+
+    // Availability is decided by the server-authoritative passkey vault-unlock
+    // check (a PRF-ready record only exists when the account is in wrapped_key
+    // mode), NOT by the possibly-stale cached user.vaultAccessMode. Relying on the
+    // cached mode would lock out a user who just bootstrapped a passkey but whose
+    // auth profile hasn't refreshed yet.
+    if (
+      hasVault !== true ||
+      typeof window === 'undefined' ||
+      !('PublicKeyCredential' in window)
+    ) {
+      setPasskeyReady(false)
+      return
+    }
+
+    hasPasskeyVaultUnlock()
+      .then((ready) => {
+        if (active) {
+          setPasskeyReady(ready)
+        }
+      })
+      .catch((error) => {
+        console.warn('[UnlockVault] Failed to check passkey vault unlock availability:', error)
+        if (active) {
+          setPasskeyReady(false)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [hasVault, user?.id])
+
+  useEffect(() => {
+    if (!passkeyReady) {
+      setShowFallbackMethods(true)
+    }
+  }, [passkeyReady])
 
   // ── Auto-proceed to setup when no vault found ──────────────────────────────
   useEffect(() => {
@@ -167,64 +232,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       return () => clearTimeout(t)
     }
   }, [hasVault])
-
-  // ── Biometric availability ─────────────────────────────────────────────────
-  useEffect(() => {
-    const checkBiometric = async () => {
-      try {
-        const biometricAuthService = await loadBiometricAuthService()
-        const caps = await biometricAuthService.isAvailable()
-        setBiometricAvailable(caps.available)
-        const enabled = localStorage.getItem('safenode_biometric_enabled') === 'true'
-        const hasStoredPassword = await keychainService.get('safenode', 'master_password')
-        setTrustedDeviceReady(Boolean(hasStoredPassword))
-        setBiometricEnabled(Boolean(user?.biometricEnabled) && enabled && caps.available && !!hasStoredPassword)
-      } catch (err) {
-        devWarn('Biometric check failed:', err)
-        setBiometricAvailable(false)
-        setBiometricEnabled(false)
-        setTrustedDeviceReady(false)
-      }
-    }
-    const timer = window.setTimeout(() => {
-      checkBiometric()
-    }, 150)
-
-    return () => window.clearTimeout(timer)
-  }, [user?.biometricEnabled])
-
-  // ── Passkey availability (only when vault exists — skip for new users) ──────
-  useEffect(() => {
-    // Don't check passkeys until we know the user has a vault
-    if (hasVault !== true) return
-    if (!user?.id || typeof window === 'undefined' || !('PublicKeyCredential' in window)) {
-      setPasskeyAvailable(false)
-      setPasskeyEnabled(false)
-      return
-    }
-
-    const checkPasskeys = async () => {
-      try {
-        const { listPasskeys } = await loadPasskeyApi()
-        const [storedPassword, passkeys] = await Promise.all([
-          keychainService.get('safenode', 'master_password'),
-          listPasskeys().catch(() => [])
-        ])
-        setTrustedDeviceReady(Boolean(storedPassword))
-        setPasskeyAvailable(true)
-        setPasskeyEnabled(Boolean(storedPassword) && passkeys.length > 0)
-      } catch (err) {
-        devWarn('Passkey check failed:', err)
-        setPasskeyAvailable(true)
-        setPasskeyEnabled(false)
-      }
-    }
-    const timer = window.setTimeout(() => {
-      checkPasskeys()
-    }, 150)
-
-    return () => window.clearTimeout(timer)
-  }, [user?.id, hasVault]) // Only run when hasVault becomes true
 
   // ── Lockout timer ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -261,67 +268,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     return base64ToArrayBuffer(salt)
   }, [])
 
-  // ── Biometric unlock ───────────────────────────────────────────────────────
-  const handleBiometricUnlock = useCallback(async () => {
-    if (!biometricEnabled) return
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const biometricAuthService = await loadBiometricAuthService()
-      const result = await biometricAuthService.authenticate('Unlock SafeNode vault', {
-        enableML: true,
-        userId: user?.id || 'user',
-        collectBehavioral: true
-      })
-      if (!result.success) throw new Error(result.error || 'Biometric authentication failed')
-
-      const storedPassword = await keychainService.get('safenode', 'master_password')
-      if (!storedPassword) throw new Error('Master password not found. Please unlock with password first.')
-
-      const vault = await unlockVault(storedPassword)
-      const salt = await getSalt(vault)
-
-      setUnlockAttempts(0)
-      setLockoutUntil(null)
-      setTrustedDeviceReady(true)
-      onVaultUnlocked(vault, storedPassword, salt)
-    } catch (err: any) {
-      console.error('Biometric unlock failed:', err)
-      setError(err.message || 'Biometric authentication failed. Please use your master password.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [biometricEnabled, user?.id, getSalt, onVaultUnlocked])
-
-  // ── Passkey unlock ─────────────────────────────────────────────────────────
-  const handlePasskeyUnlock = useCallback(async () => {
-    if (!passkeyEnabled) return
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const { authenticateWithPasskey } = await loadPasskeyApi()
-      await authenticateWithPasskey()
-
-      const storedPassword = await keychainService.get('safenode', 'master_password')
-      if (!storedPassword) throw new Error('This passkey is registered, but this device is not trusted for vault access yet. Use your vault passphrase or recovery kit once on this device first.')
-
-      const vault = await unlockVault(storedPassword)
-      const salt = await getSalt(vault)
-
-      setUnlockAttempts(0)
-      setLockoutUntil(null)
-      setTrustedDeviceReady(true)
-      onVaultUnlocked(vault, storedPassword, salt)
-    } catch (err: any) {
-      console.error('Passkey unlock failed:', err)
-      setError(err.message || 'Passkey authentication failed. Please use your master password.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [passkeyEnabled, getSalt, onVaultUnlocked])
-
   const handleRecoveryUnlock = useCallback(async () => {
     if (!recoveryKit.trim()) {
       setError('Please enter your recovery kit')
@@ -336,7 +282,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       const result = await recoverVaultWithKit(recoveryKit)
       setUnlockAttempts(0)
       setLockoutUntil(null)
-      setTrustedDeviceReady(true)
       onVaultUnlocked(result.vault, result.deviceSecret, result.salt)
     } catch (err: any) {
       console.error('Recovery unlock failed:', err)
@@ -345,6 +290,25 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
       setIsLoading(false)
     }
   }, [recoveryKit, hasVault, onVaultUnlocked])
+
+  const handlePasskeyUnlock = useCallback(async () => {
+    if (!passkeyReady || hasVault !== true) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const result = await unlockVaultWithPasskey()
+      setUnlockAttempts(0)
+      setLockoutUntil(null)
+      onVaultUnlocked(result.vault, '', result.salt)
+    } catch (err: any) {
+      console.error('Passkey vault unlock failed:', err)
+      setError(err.message || 'Passkey vault unlock failed. Use your vault passphrase or recovery kit.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [passkeyReady, hasVault, onVaultUnlocked])
 
   // ── Master-password unlock ─────────────────────────────────────────────────
   const handleUnlock = useCallback(async () => {
@@ -365,6 +329,20 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
 
       setUnlockAttempts(0)
       setLockoutUntil(null)
+      if (vault?._accessProfile?.accessMode === 'passphrase') {
+        const upgrade = await upgradeVaultAccess(masterPassword)
+        const migratedVault = await unlockVault(masterPassword)
+        const migratedSalt = await getSalt(migratedVault)
+        setMigrationState({
+          recoveryKit: upgrade.recoveryKit,
+          vault: migratedVault,
+          salt: migratedSalt,
+        })
+        return
+      }
+      if (vault?._accessProfile?.accessMode === 'wrapped_key' && !passkeyReady) {
+        showToast.info('Open Passkeys after unlock to enable cryptographic passkey vault unlock on this device.')
+      }
       onVaultUnlocked(vault, masterPassword, salt)
     } catch (err: any) {
       console.error('Unlock failed:', err)
@@ -391,7 +369,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [masterPassword, lockoutUntil, hasVault, unlockAttempts, getSalt, onVaultUnlocked])
+  }, [masterPassword, lockoutUntil, hasVault, unlockAttempts, getSalt, onVaultUnlocked, passkeyReady])
 
   const recoveryAvailable = user?.vaultAccessMode === 'wrapped_key' && Boolean(user?.recoveryKitConfigured)
 
@@ -459,11 +437,34 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
               Unlock Your Vault
             </h2>
             <p className="text-slate-600 dark:text-slate-400">
-              {recoveryAvailable
-                ? 'Use a trusted device factor, your vault passphrase, or a recovery kit to restore access.'
-                : 'Enter your vault passphrase to access your encrypted vault.'}
+              {passkeyReady
+                ? 'Use your passkey for instant cryptographic unlock. Your passphrase and recovery kit stay available as fallback.'
+                : recoveryAvailable
+                  ? 'Use your vault passphrase or recovery kit to restore access.'
+                  : 'Enter your vault passphrase to access your encrypted vault.'}
             </p>
           </div>
+
+          {/* Removed device — email-based re-approval escape */}
+          {reapproval && (
+            <div className="mb-6">
+              <DeviceReapprovalPanel message={reapproval.message} />
+            </div>
+          )}
+
+          {/* Device limit reached — self-service device removal */}
+          {deviceLimit && (
+            <div className="mb-6">
+              <DeviceLimitPanel
+                devices={deviceLimit.devices}
+                current={deviceLimit.current}
+                limit={deviceLimit.limit}
+                planName={deviceLimit.planName}
+                recommendedPlanName={deviceLimit.recommendedPlanName}
+                onResolved={() => runVaultCheck(true)}
+              />
+            </div>
+          )}
 
           {/* Error */}
           <AnimatePresence>
@@ -494,66 +495,90 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
             )}
           </AnimatePresence>
 
-          {(passkeyAvailable || recoveryAvailable) && (
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/40">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500 dark:text-slate-300" />
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-900 dark:text-slate-100">Trusted device status</p>
-                  <p className="text-slate-600 dark:text-slate-400">
-                    {trustedDeviceReady
-                      ? 'This device already has local vault access material, so passkeys and biometrics can assist unlock here.'
-                      : 'This device is not trusted for direct vault access yet. Use your passphrase or recovery kit once here to enable passkey-assisted unlock next time.'}
-                  </p>
-                </div>
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/40">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500 dark:text-slate-300" />
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                  {migrationState
+                    ? 'Wrapped-key upgrade is ready'
+                    : passkeyReady
+                      ? 'Passkey vault unlock is ready'
+                      : 'Vault unlock stays local'}
+                </p>
+                <p className="text-slate-600 dark:text-slate-400">
+                  {migrationState
+                    ? 'This vault was upgraded from the legacy passphrase-only model. Save the recovery kit below before you continue into the workspace.'
+                    : passkeyReady
+                    ? 'This device can derive a vault-wrapping key from your passkey without storing the vault secret locally. If the passkey path is unavailable, use your vault passphrase or recovery kit.'
+                    : 'Passkeys sign you in to Safenode. Your vault secret still stays local to this browser session, so use your vault passphrase or recovery kit when access material has not been enrolled for passkey unlock.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {migrationState && (
+            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-left dark:border-amber-800 dark:bg-amber-900/20">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                Recovery kit
+              </p>
+              <p className="mt-3 break-all rounded-xl bg-white/80 px-4 py-3 font-mono text-sm text-amber-900 shadow-sm dark:bg-slate-950/40 dark:text-amber-100">
+                {migrationState.recoveryKit}
+              </p>
+              <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
+                Store this now. It is the fallback bridge for a new device or a passkey that has not been enrolled for vault unlock yet.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <SaasButton
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(migrationState.recoveryKit)
+                    showToast.success('Recovery kit copied')
+                  }}
+                >
+                  Copy recovery kit
+                </SaasButton>
+                <SaasButton
+                  variant="primary"
+                  onClick={() => {
+                    const pending = migrationState
+                    setMigrationState(null)
+                    if (!passkeyReady) {
+                      showToast.info('Open Passkeys after unlock to enable cryptographic passkey vault unlock on this device.')
+                    }
+                    onVaultUnlocked(pending.vault, masterPassword, pending.salt)
+                  }}
+                >
+                  Continue to vault
+                </SaasButton>
               </div>
             </div>
           )}
 
-          {/* Passkey / Biometric quick-unlock */}
-          {(passkeyEnabled || biometricEnabled) && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 space-y-3"
-            >
-              {passkeyEnabled && (
-                <SaasButton
-                  type="button"
-                  variant="gradient"
-                  size="md"
-                  className="w-full min-h-[44px] touch-manipulation rounded-2xl px-4 py-2.5 text-sm"
-                  onClick={handlePasskeyUnlock}
-                  loading={isLoading}
-                  disabled={isLoading || isLockedOut}
-                >
-                  <span className="mr-1.5 inline-flex h-7 w-7 shrink-0 items-center justify-center text-white">
-                    <PasskeyIcon />
-                  </span>
-                  {isLoading ? 'Authenticating…' : 'Unlock with Passkey'}
-                </SaasButton>
-              )}
-              {biometricEnabled && (
-                <SaasButton
-                  type="button"
-                  variant={passkeyEnabled ? 'outline' : 'gradient'}
-                  size="md"
-                  className="w-full min-h-[44px] touch-manipulation rounded-2xl px-4 py-2.5 text-sm"
-                  onClick={handleBiometricUnlock}
-                  loading={isLoading}
-                  disabled={isLoading || isLockedOut}
-                >
-                  <span className={`mr-1.5 inline-flex h-7 w-7 shrink-0 items-center justify-center ${passkeyEnabled ? 'text-slate-700 dark:text-slate-200' : 'text-white'}`}>
-                    <Fingerprint className="h-6 w-6" />
-                  </span>
-                  {isLoading ? 'Authenticating…' : 'Unlock with Biometric'}
-                </SaasButton>
-              )}
-              <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-1">or</p>
-            </motion.div>
+          {passkeyReady && (
+            <div className="mb-5">
+              <SaasButton
+                type="button"
+                variant="gradient"
+                size="lg"
+                className="w-full min-h-[52px] touch-manipulation rounded-2xl"
+                onClick={handlePasskeyUnlock}
+                loading={isLoading}
+                disabled={isLoading || isLockedOut || Boolean(migrationState)}
+              >
+                {isLoading ? 'Unlocking…' : 'Unlock with Passkey'}
+              </SaasButton>
+              <button
+                type="button"
+                onClick={() => setShowFallbackMethods((value) => !value)}
+                className="mt-3 w-full text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+              >
+                {showFallbackMethods ? 'Hide other methods' : 'Use another method'}
+              </button>
+            </div>
           )}
 
-          {recoveryAvailable && (
+          {(showFallbackMethods || !passkeyReady) && recoveryAvailable && (
             <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900/50">
               <button
                 type="button"
@@ -587,6 +612,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
           )}
 
           {/* Password / recovery input */}
+          {(showFallbackMethods || !passkeyReady) && (
           <div className="space-y-4">
             {unlockMode === 'passphrase' ? (
               <>
@@ -599,7 +625,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     onKeyDown={handleKeyDown}
                     placeholder="Enter your vault passphrase"
                     required
-                    autoFocus={!biometricEnabled && !passkeyEnabled}
+                    autoFocus={!passkeyReady}
                     className={error && error.includes('Incorrect') ? 'border-red-500 focus:ring-red-500' : ''}
                     rightIcon={
                       <button
@@ -621,12 +647,12 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
 
                 <SaasButton
                   type="button"
-                  variant={biometricEnabled || passkeyEnabled ? 'outline' : 'gradient'}
+                  variant="gradient"
                   size="lg"
                   className="w-full min-h-[50px] touch-manipulation rounded-2xl"
                   onClick={handleUnlock}
                   loading={isLoading}
-                  disabled={!masterPassword || isLoading || isLockedOut}
+                  disabled={!masterPassword || isLoading || isLockedOut || Boolean(migrationState)}
                 >
                   {isLoading ? 'Unlocking…' : 'Unlock with Passphrase'}
                 </SaasButton>
@@ -642,7 +668,6 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     onKeyDown={handleKeyDown}
                     placeholder="ABCDE-12345-..."
                     required
-                    autoFocus={!biometricEnabled && !passkeyEnabled}
                     rightIcon={
                       <button
                         type="button"
@@ -655,7 +680,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                     }
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Recovery unlock will restore local vault access on this device and enable faster passkey-assisted access next time.
+                    Recovery unlock restores access for the current session only. You will use your passphrase or recovery kit again after the session ends.
                   </p>
                 </div>
 
@@ -666,7 +691,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
                   className="w-full min-h-[50px] touch-manipulation rounded-2xl"
                   onClick={handleRecoveryUnlock}
                   loading={isLoading}
-                  disabled={!recoveryKit.trim() || isLoading || isLockedOut}
+                  disabled={!recoveryKit.trim() || isLoading || isLockedOut || Boolean(migrationState)}
                 >
                   <span className="mr-2 inline-flex h-5 w-5 items-center justify-center">
                     <LifeBuoy className="h-4.5 w-4.5" />
@@ -676,6 +701,7 @@ export const UnlockVault: React.FC<UnlockVaultProps> = ({
               </>
             )}
           </div>
+          )}
 
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-3">

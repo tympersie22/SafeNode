@@ -22,6 +22,7 @@ import { registerDeviceRoutes } from './routes/devices'
 import { registerAuditRoutes } from './routes/audit'
 import { registerReportRoutes } from './routes/reports'
 import { registerPasskeyRoutes } from './routes/passkeys'
+import { registerDesktopAuthRoutes } from './routes/desktopAuth'
 import { registerResendWebhookRoutes } from './routes/resendWebhook'
 import { registerSuccessorRoutes } from './routes/successor'
 import { registerTeamRoutes } from './routes/teams'
@@ -70,13 +71,9 @@ export async function createApp() {
     credentials: true
   })
 
-  // Vercel handles response compression at the edge. Enabling Fastify compression
-  // inside the inject()-based serverless adapter can corrupt encoded responses.
-  if (!process.env.VERCEL) {
-    await server.register(compress, {
-      encodings: ['gzip', 'deflate']
-    })
-  }
+  await server.register(compress, {
+    encodings: ['gzip', 'deflate']
+  })
 
   // Register raw body support for Stripe webhook signature verification
   await server.register(rawBody, {
@@ -138,6 +135,9 @@ export async function createApp() {
 
   // Register passkey routes
   await registerPasskeyRoutes(server)
+
+  // Register one-time browser-to-desktop PKCE authorization routes
+  await registerDesktopAuthRoutes(server)
 
   // Register Resend webhook route
   await registerResendWebhookRoutes(server)
@@ -354,7 +354,7 @@ export async function createApp() {
 
     // Root health check route
     server.get('/', async (request, reply) => {
-          return { status: 'ok', message: 'SafeNode API is running' }
+          return { status: 'ok', message: 'Safenode API is running' }
     })
 
   return server

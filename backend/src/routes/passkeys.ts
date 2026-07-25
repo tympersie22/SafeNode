@@ -7,6 +7,7 @@ import { createUser, deleteUser, findUserByEmail, updateUser } from '../services
 import { issueToken } from '../middleware/auth'
 import {
   createAuthenticationOptions,
+  createAuthenticationOptionsForCredentialIds,
   createAuthenticationOptionsForCredentials,
   createRegistrationOptions,
   createRegistrationOptionsForIdentity,
@@ -100,6 +101,22 @@ function toAuthenticationResponse(body: any) {
 }
 
 export async function registerPasskeyRoutes(server: FastifyInstance) {
+  const parseVaultWrapBody = (body: any) => {
+    const prfSalt = typeof body?.prfSalt === 'string' ? body.prfSalt.trim() : ''
+    const prfWrappedVaultKey = typeof body?.prfWrappedVaultKey === 'string' ? body.prfWrappedVaultKey.trim() : ''
+    const prfWrappedVaultKeyIV = typeof body?.prfWrappedVaultKeyIV === 'string' ? body.prfWrappedVaultKeyIV.trim() : ''
+
+    if (!prfSalt || !prfWrappedVaultKey || !prfWrappedVaultKeyIV) {
+      throw new Error('PRF vault-wrapping payload is incomplete.')
+    }
+
+    return {
+      prfSalt,
+      prfWrappedVaultKey,
+      prfWrappedVaultKeyIV,
+    }
+  }
+
   server.post('/api/passkeys/signup/options', async (request, reply) => {
     try {
       const body = request.body as { email?: string; displayName?: string }
@@ -327,6 +344,7 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
           transports: c.transports,
           signCount: Number(c.counter),
           friendlyName: c.deviceType || 'Passkey',
+          prfReady: Boolean(c.prfSalt && c.prfWrappedVaultKey && c.prfWrappedVaultKeyIV),
           createdAt: c.createdAt.getTime(),
         })),
       }
@@ -388,6 +406,7 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
           transports: created?.transports || [],
           signCount: Number(created?.counter || 0),
           friendlyName: (body?.friendlyName as string) || created?.deviceType || 'Passkey',
+          prfReady: Boolean(created?.prfSalt && created?.prfWrappedVaultKey && created?.prfWrappedVaultKeyIV),
           createdAt: (created?.createdAt || new Date()).getTime(),
         },
       }
@@ -400,6 +419,15 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
   server.post('/api/passkeys/authenticate/options', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const user = (request as any).user
+      const body = (request.body as { credentialIds?: string[] } | undefined) ?? undefined
+      const credentialIds = Array.isArray(body?.credentialIds)
+        ? body!.credentialIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        : []
+
+      if (credentialIds.length > 0) {
+        return await createAuthenticationOptionsForCredentialIds(user.id, credentialIds)
+      }
+
       return await createAuthenticationOptions(user.id)
     } catch (error: any) {
       request.log.error(error)
@@ -421,6 +449,65 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
     } catch (error: any) {
       request.log.error(error)
       return reply.code(500).send({ error: 'server_error', message: error?.message || 'Failed to authenticate passkey' })
+    }
+  })
+
+  server.get('/api/passkeys/vault-unlock', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const prisma = getPrismaClient()
+      const creds = await prisma.webAuthnCredential.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      return {
+        passkeys: creds.map((credential) => ({
+          credentialId: credential.credentialId,
+          friendlyName: credential.deviceType || 'Passkey',
+          createdAt: credential.createdAt.getTime(),
+          prfReady: Boolean(credential.prfSalt && credential.prfWrappedVaultKey && credential.prfWrappedVaultKeyIV),
+          prfSalt: credential.prfSalt,
+          prfWrappedVaultKey: credential.prfWrappedVaultKey,
+          prfWrappedVaultKeyIV: credential.prfWrappedVaultKeyIV,
+        })),
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({ error: 'server_error', message: 'Failed to load passkey vault wrapping data' })
+    }
+  })
+
+  server.post('/api/passkeys/:id/vault-unlock', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const { id } = request.params as { id: string }
+      const { prfSalt, prfWrappedVaultKey, prfWrappedVaultKeyIV } = parseVaultWrapBody(request.body)
+      const prisma = getPrismaClient()
+
+      const updated = await prisma.webAuthnCredential.updateMany({
+        where: {
+          userId: user.id,
+          credentialId: id,
+        },
+        data: {
+          prfSalt,
+          prfWrappedVaultKey,
+          prfWrappedVaultKeyIV,
+        },
+      })
+
+      if (updated.count === 0) {
+        return reply.code(404).send({ error: 'passkey_not_found', message: 'Passkey not found' })
+      }
+
+      return { success: true }
+    } catch (error: any) {
+      request.log.error(error)
+      if (error?.message === 'PRF vault-wrapping payload is incomplete.') {
+        return reply.code(400).send({ error: 'validation_error', message: error.message })
+      }
+      return reply.code(500).send({ error: 'server_error', message: error?.message || 'Failed to save passkey vault wrapping data' })
     }
   })
 }

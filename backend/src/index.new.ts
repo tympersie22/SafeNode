@@ -1,5 +1,5 @@
 /**
- * SafeNode Backend Entry Point
+ * Safenode Backend Entry Point
  * Initializes the server with adapters, graceful shutdown, and error handling
  */
 
@@ -48,7 +48,7 @@ process.on('uncaughtException', (error) => {
  */
 async function start() {
   try {
-    console.log('🚀 Starting SafeNode backend...')
+    console.log('🚀 Starting Safenode backend...')
     console.log(`📦 Environment: ${config.nodeEnv}`)
     console.log(`💾 Database adapter: ${config.dbAdapter}`)
     

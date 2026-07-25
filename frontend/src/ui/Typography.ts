@@ -1,5 +1,5 @@
 /**
- * SafeNode Typography System
+ * Safenode Typography System
  * Defines typography tokens and utilities
  */
 

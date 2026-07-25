@@ -3,37 +3,37 @@
  * Unit tests for Stripe integration (mocked)
  */
 
-import { describe, it, expect, beforeEach, vi } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { SUBSCRIPTION_LIMITS, checkSubscriptionLimits } from '../src/services/stripeService'
 import { createUser, updateUser } from '../src/services/userService'
 
 // Mock Stripe
-vi.mock('stripe', () => {
+jest.mock('stripe', () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
+    default: jest.fn().mockImplementation(() => ({
       customers: {
-        create: vi.fn().mockResolvedValue({
+        create: jest.fn().mockImplementation(async () => ({
           id: 'cus_test123',
           email: 'test@example.com'
-        })
+        }))
       },
       checkout: {
         sessions: {
-          create: vi.fn().mockResolvedValue({
+          create: jest.fn().mockImplementation(async () => ({
             id: 'cs_test123',
             url: 'https://checkout.stripe.com/test'
-          })
+          }))
         }
       },
       billingPortal: {
         sessions: {
-          create: vi.fn().mockResolvedValue({
+          create: jest.fn().mockImplementation(async () => ({
             url: 'https://billing.stripe.com/test'
-          })
+          }))
         }
       },
       subscriptions: {
-        retrieve: vi.fn().mockResolvedValue({
+        retrieve: jest.fn().mockImplementation(async () => ({
           id: 'sub_test123',
           status: 'active',
           items: {
@@ -46,7 +46,7 @@ vi.mock('stripe', () => {
           current_period_start: Math.floor(Date.now() / 1000),
           current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
           cancel_at_period_end: false
-        })
+        }))
       }
     }))
   }

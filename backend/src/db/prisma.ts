@@ -1,6 +1,6 @@
 /**
  * Prisma Database Client
- * Centralized Prisma client instance for SafeNode
+ * Centralized Prisma client instance for Safenode
  */
 
 import { PrismaClient } from '@prisma/client'
@@ -23,7 +23,7 @@ function resolveDatabaseUrl(): string | null {
  * Uses singleton pattern to avoid multiple connections
  */
 export function getPrismaClient(): PrismaClient {
-  // Allow Vercel/Supabase POSTGRES_* vars without requiring manual DATABASE_URL duplication.
+  // Allow Supabase-compatible POSTGRES_* vars without requiring DATABASE_URL duplication.
   const resolvedDatabaseUrl = resolveDatabaseUrl()
   if (!process.env.DATABASE_URL && resolvedDatabaseUrl) {
     process.env.DATABASE_URL = resolvedDatabaseUrl

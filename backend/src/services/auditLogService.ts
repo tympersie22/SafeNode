@@ -192,6 +192,7 @@ export async function getUserAuditLogs(
   return {
     logs: logs.map(log => ({
       id: log.id,
+      userId: log.userId,
       action: log.action,
       resourceType: log.resourceType,
       resourceId: log.resourceId,

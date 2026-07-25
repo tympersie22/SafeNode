@@ -12,7 +12,7 @@ KEY_FILE="$SSL_DIR/privkey.pem"
 openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 825 \
   -keyout "$KEY_FILE" \
   -out "$CERT_FILE" \
-  -subj "/C=US/ST=State/L=City/O=SafeNode/OU=Security/CN=safe-node.app" \
+  -subj "/C=US/ST=State/L=City/O=Safenode/OU=Security/CN=safe-node.app" \
   -addext "subjectAltName=DNS:safe-node.app,DNS:www.safe-node.app,DNS:localhost,IP:127.0.0.1"
 
 chmod 600 "$KEY_FILE"

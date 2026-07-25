@@ -10,7 +10,7 @@ import EntryForm from './components/EntryForm';
 import { generateTotpCode, encrypt, encryptWithKey, importVaultKey, arrayBufferToBase64, base64ToArrayBuffer, getPasswordBreachCount, generateSecurePassword } from './crypto/crypto';
 import { vaultStorage } from './storage/vaultStorage';
 import { vaultSync } from './sync/vaultSync';
-import { enhancedCopyToClipboard, isTauri, DesktopVault } from './desktop/integration';
+import { enhancedCopyToClipboard, isDesktopBuild } from './desktop/integration';
 import KeyRotation from './components/KeyRotation';
 import SharingKeys from './components/SharingKeys';
 import ShareEntryModal from './components/ShareEntryModal';
@@ -41,7 +41,6 @@ import PINSetupModal from './components/PINSetupModal';
 import { accountStorage, type Account } from './storage/accountStorage';
 import { auditLogStorage } from './storage/auditLogs';
 import { teamVaultStorage } from './storage/teamVaults';
-import { keychainService } from './utils/keychain';
 import { pinManager } from './utils/pinManager';
 // keychainService is dynamically imported where needed to reduce bundle size
 import { apiPost, apiPut, apiDelete } from './utils/apiClient';
@@ -51,10 +50,13 @@ import StrengthenPasswordsModal from './components/StrengthenPasswordsModal';
 import VaultDashboard from './components/dashboard/VaultDashboard';
 import { DashboardLayout } from './layout/DashboardLayout';
 import type { SidebarItem } from './ui/SaasSidebar';
-import type { VaultAccessProfile } from './services/vaultService';
+import { stripTransientVaultFields, type VaultAccessProfile } from './services/vaultService';
+import { clearVaultSessionSecret, setVaultSessionSecret } from './services/vaultSession';
 
 interface VaultData {
   entries: VaultEntry[];
+  _accessProfile?: VaultAccessProfile;
+  _rawVaultKey?: string;
 }
 
 // Single source of truth for vault state
@@ -137,6 +139,12 @@ const App: React.FC = () => {
     setKnownHasVault(typeof user?.hasVault === 'boolean' ? user.hasVault : null);
   }, [user?.id, user?.hasVault]);
 
+  useEffect(() => {
+    if (!user?.id) {
+      clearVaultSessionSecret();
+    }
+  }, [user?.id])
+
   const isPendingPasskeyBootstrap = typeof window !== 'undefined' &&
     sessionStorage.getItem('safenode_passkey_bootstrap_pending') === '1'
 
@@ -162,10 +170,16 @@ const App: React.FC = () => {
     }
 
     window.addEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
+    window.addEventListener('safenode:desktop-lock', handleLock)
     return () => {
       window.removeEventListener('safenode:vault-access-updated', handleVaultAccessUpdated)
+      window.removeEventListener('safenode:desktop-lock', handleLock)
     }
   }, []);
+
+  useEffect(() => {
+    void import('./utils/keychain').then(({ keychainService }) => keychainService.purgeLegacyVaultSecrets())
+  }, [])
 
   // Session timeout tracking — ref-based so activity resets don't cause re-renders
   useEffect(() => {
@@ -373,6 +387,7 @@ const App: React.FC = () => {
     setVaultStatus('UNLOCKED');
     setKnownHasVault(true);
     setMasterPassword(password);
+    setVaultSessionSecret(password);
     setVaultSalt(salt);
     setVaultAccessProfile(unlockedVault?._accessProfile || null);
     setRawVaultKey(unlockedVault?._rawVaultKey || null);
@@ -409,19 +424,6 @@ const App: React.FC = () => {
       showToast.error('Failed to load account settings. Using defaults.');
     });
     
-    // Store master password in keychain for biometric unlock (fire-and-forget)
-    // Use dynamic import - Vite will handle it correctly
-    if (password) {
-      keychainService.save({
-        service: 'safenode',
-        account: 'master_password',
-        password: password
-      }).catch((error: any) => {
-        console.warn('Failed to store password in keychain:', error);
-        showToast.info('Could not enable biometric unlock. You can set this up later in settings.');
-      });
-    }
-    
     // IndexedDB storage is handled inside unlockVault() itself —
     // no redundant GET /api/auth/vault/latest needed here.
   };
@@ -433,6 +435,7 @@ const App: React.FC = () => {
     setVault(null);
     setVaultStatus('LOCKED');
     setMasterPassword('');
+    clearVaultSessionSecret();
     setVaultSalt(null);
     setVaultAccessProfile(null);
     setRawVaultKey(null);
@@ -453,6 +456,7 @@ const App: React.FC = () => {
       setVault(null);
       setVaultStatus('LOCKED');
       setMasterPassword('');
+      clearVaultSessionSecret();
       setVaultSalt(null);
       setVaultAccessProfile(null);
       setRawVaultKey(null);
@@ -712,7 +716,7 @@ const App: React.FC = () => {
         throw new Error('No vault salt available. Please unlock your vault again.');
       }
 
-      const vaultJson = JSON.stringify(vaultData);
+      const vaultJson = JSON.stringify(stripTransientVaultFields(vaultData));
       const activeAccessProfile =
         vaultAccessProfile?.accessMode === 'wrapped_key'
           ? vaultAccessProfile
@@ -928,6 +932,9 @@ const App: React.FC = () => {
   
   // Not authenticated - show home/auth based on route
   if (!isAuthenticated || !user) {
+    if (isDesktopBuild()) {
+      return <Auth initialMode="login" />
+    }
     const isOnAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth');
     if (isOnAuthPage) {
       return (
@@ -1098,7 +1105,7 @@ const App: React.FC = () => {
     }
   ]
 
-  const userName = user?.displayName || user?.email?.split('@')[0] || 'SafeNode Operator'
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'Safenode Operator'
   const userPlan = user?.subscriptionTier === 'pro' ? 'personal' : user?.subscriptionTier === 'enterprise' ? 'teams' : 'free'
   const sessionCountdownLabel =
     remainingSessionTime !== null && remainingSessionTime > 0 ? formatSessionTime(remainingSessionTime) : 'Secure session active'
@@ -1134,7 +1141,7 @@ const App: React.FC = () => {
       activeSidebarItem="vault"
       sidebarBrand={{
         logo: <Logo variant="header" />,
-        title: 'SafeNode',
+        title: 'Safenode',
         subtitle: 'Identity, recovery, and team secrets',
         badge: 'Passkey-first'
       }}
@@ -1418,7 +1425,11 @@ const App: React.FC = () => {
       }} />
       {isPasskeysOpen && (
         <React.Suspense fallback={null}>
-          <PasskeysModal isOpen={isPasskeysOpen} onClose={() => setIsPasskeysOpen(false)} />
+          <PasskeysModal
+            isOpen={isPasskeysOpen}
+            onClose={() => setIsPasskeysOpen(false)}
+            rawVaultKey={rawVaultKey}
+          />
         </React.Suspense>
       )}
       <WatchtowerModal
@@ -1462,7 +1473,7 @@ const App: React.FC = () => {
             isOpen={isBiometricSetupOpen}
             onClose={() => setIsBiometricSetupOpen(false)}
             userId={user?.id || user?.email || 'local-user'}
-            userName={user?.displayName || user?.email || 'SafeNode User'}
+            userName={user?.displayName || user?.email || 'Safenode User'}
             onSuccess={() => {
               // Biometric setup successful
             }}

@@ -11,13 +11,17 @@ import Button from '../components/ui/Button'
 import { login as authLogin, signInWithPasskey, signUpWithPasskey, verifyLoginTwoFactor, getCurrentUser } from '../services/authService'
 import { showToast } from '../components/ui/Toast'
 import { devLog } from '../utils/debug'
+import { ExternalLink, Monitor, ShieldCheck } from 'lucide-react'
+import { isDesktopBuild } from '../desktop/integration'
+import { beginDesktopAuthorization, listenForDesktopAuthorization } from '../desktop/desktopAuth'
 
 interface AuthProps {
   onBackToHome?: () => void
   initialMode?: 'signup' | 'login'
+  onAuthenticated?: () => void
 }
 
-const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
+const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login', onAuthenticated }) => {
   const { login: setAuthUser, isAuthenticated } = useAuth()
   const [isLogin, setIsLogin] = useState(initialMode === 'login')
   const [isLoading, setIsLoading] = useState(false)
@@ -28,6 +32,39 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
   const prefersReducedMotion = useReducedMotion()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const finishAuthentication = () => {
+    if (onAuthenticated) onAuthenticated()
+    else navigate('/vault', { replace: true })
+  }
+
+  useEffect(() => {
+    if (!isDesktopBuild()) return
+    let active = true
+    let unlisten: (() => void) | undefined
+
+    void listenForDesktopAuthorization((result) => {
+      if (!active || !result.token) return
+      flushSync(() => setAuthUser(result.user, result.token!))
+      setIsLoading(false)
+      setError(null)
+      navigate('/vault', { replace: true })
+    }, (desktopError) => {
+      if (!active) return
+      setIsLoading(false)
+      setError(desktopError.message)
+    }).then((dispose) => {
+      if (active) unlisten = dispose
+      else dispose()
+    }).catch((listenerError) => {
+      if (active) setError(listenerError instanceof Error ? listenerError.message : 'Desktop callback listener failed.')
+    })
+
+    return () => {
+      active = false
+      unlisten?.()
+    }
+  }, [navigate, setAuthUser])
   
   // NO NAVIGATION - PublicRoute handles redirects for authenticated users
 
@@ -107,7 +144,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setIsLoading(false)
       isProcessingRef.current = false
 
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       const errorMsg = err.message || 'Invalid email or password. Please try again.';
       setError(errorMsg);
@@ -140,7 +177,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
 
       setIsLoading(false)
       isProcessingRef.current = false
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       const errorMsg = err.message || 'Passkey sign-in failed. Please try again.'
       setError(errorMsg)
@@ -174,7 +211,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setTwoFactorCode('')
       setIsLoading(false)
       isProcessingRef.current = false
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       const errorMsg = err.message || 'Invalid 2FA code. Please try again.'
       setError(errorMsg)
@@ -211,7 +248,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
       setIsLoading(false)
       isProcessingRef.current = false
 
-      navigate('/vault', { replace: true })
+      finishAuthentication()
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.')
       setIsLoading(false)
@@ -219,20 +256,85 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
     }
   }
 
+  if (isDesktopBuild()) {
+    const continueInBrowser = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        await beginDesktopAuthorization()
+      } catch (err: any) {
+        setError(err?.message || 'Could not open the secure browser flow.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    return (
+      <main className="sn-page relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-16">
+        <div className="sn-hero-grid" aria-hidden="true" />
+        <section className="relative w-full max-w-2xl border border-[var(--sn-line)] bg-[var(--sn-surface)] p-8 sm:p-12">
+          <div className="flex h-12 w-12 items-center justify-center border border-[var(--sn-line)] text-[var(--sn-accent)]">
+            <Monitor className="h-6 w-6" />
+          </div>
+          <p className="sn-eyebrow mt-8">Secure desktop access</p>
+          <h1 className="sn-display mt-5">Use your passkey on safe-node.app.</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--sn-muted)]">
+            Safenode opens its canonical domain for passkey verification, then returns a short-lived one-time authorization to this app.
+          </p>
+
+          <div className="mt-8 grid gap-3 border-y border-[var(--sn-line)] py-6 text-sm text-[var(--sn-muted)] sm:grid-cols-2">
+            <span className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-[var(--sn-accent)]" /> No vault secrets exposed to desktop IPC</span>
+            <span className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-[var(--sn-accent)]" /> Passkeys stay bound to safe-node.app</span>
+          </div>
+
+          {error && <p className="mt-6 border border-red-300 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+
+          <button type="button" onClick={continueInBrowser} disabled={isLoading} className="sn-solid-button mt-8 w-full sm:w-auto">
+            {isLoading ? 'Waiting for browser approval…' : 'Continue securely in browser'}
+            <ExternalLink className="h-4 w-4" />
+          </button>
+          <p className="mt-5 text-xs leading-5 text-[var(--sn-muted)]">
+            Keep this app open. The request expires after five minutes and cannot be reused.
+          </p>
+        </section>
+      </main>
+    )
+  }
+
   // Note: We don't return null here anymore - let the parent component handle unmounting
   // The parent (App.tsx) will unmount this component when user is set
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center p-4"
+      className="sn-page grid min-h-screen lg:grid-cols-[0.85fr_1.15fr]"
       role="main"
       aria-label="Authentication page"
     >
-      <div className="w-full max-w-md">
+      <aside className="relative hidden overflow-hidden bg-[var(--sn-ink-fixed,#14201b)] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
+        <div className="sn-hero-grid opacity-20" aria-hidden="true" />
+        <button onClick={onBackToHome} className="relative inline-flex w-fit items-center gap-3 text-sm font-semibold text-white/65 transition-colors hover:text-white">
+          <span aria-hidden="true">←</span> Safenode home
+        </button>
+        <div className="relative max-w-xl">
+          <p className="sn-eyebrow text-[var(--sn-accent-soft)]">Identity boundary</p>
+          <h1 className="sn-display mt-7 text-white">Access should be proven, not remembered.</h1>
+          <p className="mt-7 max-w-lg text-lg leading-8 text-white/55">
+            Your passkey proves who you are. Your vault key remains on your device. Recovery stays explicit and under your control.
+          </p>
+        </div>
+        <div className="relative grid grid-cols-3 border-t border-white/15 pt-6 text-xs text-white/42">
+          <span>Passkey first</span>
+          <span>Zero knowledge</span>
+          <span>Recovery ready</span>
+        </div>
+      </aside>
+
+      <div className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10">
+      <div className="w-full max-w-[520px]">
         {/* Back Button */}
         <motion.button
           onClick={onBackToHome}
-          className="mb-8 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 rounded px-2 py-1"
+          className="mb-8 flex items-center gap-2 text-sm font-semibold text-[var(--sn-muted)] transition-colors hover:text-[var(--sn-ink)] lg:hidden"
           whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
           whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
           aria-label="Go back to home page"
@@ -252,7 +354,7 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
               animate={{ opacity: 1, x: 0 }}
               exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
-              className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg"
+              className="sn-auth-card"
             >
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Verify second factor</h2>
@@ -360,15 +462,16 @@ const Auth: React.FC<AuthProps> = ({ onBackToHome, initialMode = 'login' }) => {
           initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-8 text-center"
+          className="mt-7 border-t border-[var(--sn-line)] pt-5 text-center"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs text-slate-600 dark:text-slate-400">
+          <div className="inline-flex items-center gap-2 text-xs text-[var(--sn-muted)]">
             <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <span>Your data is encrypted with AES-256-GCM before it leaves your device</span>
           </div>
         </motion.div>
+      </div>
       </div>
     </div>
   )

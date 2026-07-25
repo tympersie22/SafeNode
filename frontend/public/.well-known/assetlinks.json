@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds",
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.safenode.mobile",
+      "sha256_cert_fingerprints": [
+        "08:C2:92:63:EB:A7:6D:FD:BD:27:29:42:E5:C8:23:06:F1:64:24:97:C3:5E:78:9B:68:39:C0:E1:F6:5F:44:80"
+      ]
+    }
+  }
+]

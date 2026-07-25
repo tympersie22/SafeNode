@@ -3,6 +3,7 @@
  * Handles device registration and management
  */
 import { API_BASE } from '../config/api'
+import { isTauri } from '../desktop/integration'
 
 export interface Device {
   id: string
@@ -88,8 +89,7 @@ export function detectPlatform(): 'web' | 'desktop' | 'mobile' {
     return 'mobile'
   }
   
-  // Check if running in Tauri (desktop)
-  if (window.__TAURI__) {
+  if (isTauri()) {
     return 'desktop'
   }
   
@@ -262,4 +262,73 @@ export async function approveDevice(deviceId: string): Promise<void> {
     const error = await response.json()
     throw new Error(error.message || 'Failed to approve device')
   }
+}
+
+/**
+ * Free a device slot from an authenticated session (no registered-device
+ * requirement). Used by the "device limit reached" screen so a locked-out user
+ * can remove one of their devices and register this one.
+ */
+export async function reclaimDeviceSlot(deviceRowId: string): Promise<void> {
+  const token = localStorage.getItem('safenode_token')
+  if (!token) throw new Error('Not authenticated')
+
+  const response = await fetch(`${API_BASE}/api/devices/reclaim`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-Device-ID': getCurrentDeviceId()
+    },
+    body: JSON.stringify({ id: deviceRowId })
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || 'Failed to remove device')
+  }
+}
+
+/**
+ * Ask the backend to email a one-time re-approval link for this removed device.
+ * Callable from the locked-out device (authenticated, but no trusted-device
+ * requirement). Returns the server's uniform confirmation message.
+ */
+export async function requestDeviceReapprovalEmail(deviceId?: string): Promise<string> {
+  const token = localStorage.getItem('safenode_token')
+  if (!token) throw new Error('Not authenticated')
+
+  const response = await fetch(`${API_BASE}/api/devices/reapproval/request`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-Device-ID': getCurrentDeviceId()
+    },
+    body: JSON.stringify({ deviceId: deviceId || getCurrentDeviceId() })
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to send re-approval email')
+  }
+  return data.message || 'If this device needs re-approval, a link has been sent to your account email.'
+}
+
+/**
+ * Consume a re-approval token from the emailed link. Intentionally unauthenticated —
+ * the link may be opened in any browser. Clears the removed-device flag only.
+ */
+export async function confirmDeviceReapproval(reapprovalToken: string): Promise<{ deviceName?: string; message: string }> {
+  const response = await fetch(`${API_BASE}/api/devices/reapproval/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: reapprovalToken })
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.message || 'This approval link is invalid or has expired.')
+  }
+  return { deviceName: data.deviceName, message: data.message || 'Device approved.' }
 }

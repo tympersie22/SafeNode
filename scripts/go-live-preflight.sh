@@ -42,7 +42,7 @@ audit_zero() {
 }
 
 check_no_bad_domain() {
-  ! rg -n "www\\.safe-node\\.vercel\\.app|safe-node\\.vercel\\.app|safenode\\.app" \
+  ! rg -n "safe-node-99hv-backend\\.vercel\\.app|www\\.safe-node\\.vercel\\.app|safe-node\\.vercel\\.app|safenode\\.app" \
     "$ROOT_DIR/backend" \
     "$ROOT_DIR/frontend" \
     "$ROOT_DIR/.github" \
@@ -67,7 +67,7 @@ check_backend_tests() {
   (cd "$ROOT_DIR/backend" && npm run test -- --runInBand)
 }
 
-blue "SafeNode Go-Live Preflight"
+blue "Safenode Go-Live Preflight"
 echo "Repository: $ROOT_DIR"
 echo
 
@@ -84,13 +84,13 @@ run_step "Frontend lint (non-blocking warnings allowed)" bash -lc "cd \"$ROOT_DI
 run_step "Backend tests (requires DATABASE_URL)" check_backend_tests
 run_step "Frontend tests" bash -lc "cd \"$ROOT_DIR/frontend\" && npm run test -- --run"
 
-run_step "No legacy domain references (vercel.app/safenode.app)" check_no_bad_domain
+run_step "No legacy deployment-domain references" check_no_bad_domain
 run_step "RLS patch files for password_reset_tokens present" check_rls_patch_present
 
 blue "Manual Gate Reminders"
 echo "- Run Supabase SQL patch: backend/prisma/fix-password-reset-tokens-rls.sql"
 echo "- Confirm Security Advisor is clean for password_reset_tokens"
-echo "- Verify production env vars on Railway and Vercel"
+echo "- Verify production env vars on Railway and Cloudflare Pages"
 echo "- Run API smoke test against production with BASE_URL"
 echo
 

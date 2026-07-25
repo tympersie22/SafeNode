@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * SafeNode API Testing Script (Node.js version)
+ * Safenode API Testing Script (Node.js version)
  * Tests all authentication and vault endpoints
  */
 
@@ -120,7 +120,7 @@ async function checkBackend() {
 // Main test suite
 async function runTests() {
   console.log(`${colors.blue}========================================${colors.reset}`);
-  console.log(`${colors.blue}SafeNode API Test Suite${colors.reset}`);
+  console.log(`${colors.blue}Safenode API Test Suite${colors.reset}`);
   console.log(`${colors.blue}========================================${colors.reset}\n`);
 
   // Check backend

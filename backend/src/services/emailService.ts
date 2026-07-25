@@ -20,6 +20,16 @@ function getFetch(): typeof globalThis.fetch {
   return globalThis.fetch.bind(globalThis)
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]!)
+}
+
 class EmailService {
   private provider: 'resend' | 'sendgrid' | 'nodemailer' | 'none'
   private apiKey: string | null = null
@@ -50,7 +60,7 @@ class EmailService {
   async sendVerificationEmail(email: string, token: string, name?: string): Promise<void> {
     const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
     const verificationUrl = `${frontendBaseUrl}/auth/verify?token=${token}`
-    const logoUrl = `${frontendBaseUrl}/SafeNodelogo.png`
+    const logoUrl = `${frontendBaseUrl}/Safenodelogo.png`
     
     const html = `
 <!DOCTYPE html>
@@ -58,7 +68,7 @@ class EmailService {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email - SafeNode</title>
+  <title>Verify Your Email - Safenode</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
   <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -81,7 +91,7 @@ class EmailService {
     </p>
     
     <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
-      Thanks for signing up for SafeNode! Please verify your email address by clicking the button below:
+      Thanks for signing up for Safenode! Please verify your email address by clicking the button below:
     </p>
     
     <div style="text-align: center; margin: 40px 0;">
@@ -100,14 +110,14 @@ class EmailService {
     
     <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
       <p style="color: #999; font-size: 12px; margin: 0;">
-        This link will expire in 24 hours. If you didn't create a SafeNode account, you can safely ignore this email.
+        This link will expire in 24 hours. If you didn't create a Safenode account, you can safely ignore this email.
       </p>
     </div>
   </div>
   
   <div style="text-align: center; margin-top: 20px;">
     <p style="color: #999; font-size: 12px; margin: 0;">
-      © ${new Date().getFullYear()} SafeNode. All rights reserved.
+      © ${new Date().getFullYear()} Safenode. All rights reserved.
     </p>
   </div>
 </body>
@@ -117,18 +127,18 @@ class EmailService {
     const text = `
 Hi ${name || 'there'},
 
-Thanks for signing up for SafeNode! Please verify your email address by visiting:
+Thanks for signing up for Safenode! Please verify your email address by visiting:
 
 ${verificationUrl}
 
-This link will expire in 24 hours. If you didn't create a SafeNode account, you can safely ignore this email.
+This link will expire in 24 hours. If you didn't create a Safenode account, you can safely ignore this email.
 
-© ${new Date().getFullYear()} SafeNode. All rights reserved.
+© ${new Date().getFullYear()} Safenode. All rights reserved.
     `.trim()
 
     await this.send({
       to: email,
-      subject: 'Verify Your Email - SafeNode',
+      subject: 'Verify Your Email - Safenode',
       html,
       text
     })
@@ -140,7 +150,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
   async sendPasswordResetEmail(email: string, token: string, name?: string): Promise<void> {
     const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
     const resetUrl = `${frontendBaseUrl}/auth/reset-password?token=${token}`
-    const logoUrl = `${frontendBaseUrl}/SafeNodelogo.png`
+    const logoUrl = `${frontendBaseUrl}/Safenodelogo.png`
     
     const html = `
 <!DOCTYPE html>
@@ -148,7 +158,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Your Password - SafeNode</title>
+  <title>Reset Your Password - Safenode</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
   <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -171,7 +181,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
     </p>
     
     <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
-      We received a request to reset your SafeNode password. Click the button below to create a new password:
+      We received a request to reset your Safenode password. Click the button below to create a new password:
     </p>
     
     <div style="text-align: center; margin: 40px 0;">
@@ -197,7 +207,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
   
   <div style="text-align: center; margin-top: 20px;">
     <p style="color: #999; font-size: 12px; margin: 0;">
-      © ${new Date().getFullYear()} SafeNode. All rights reserved.
+      © ${new Date().getFullYear()} Safenode. All rights reserved.
     </p>
   </div>
 </body>
@@ -206,9 +216,86 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
 
     await this.send({
       to: email,
-      subject: 'Reset Your Password - SafeNode',
+      subject: 'Reset Your Password - Safenode',
       html,
       text: `Reset your password: ${resetUrl}`
+    })
+  }
+
+  async sendDeviceReapprovalEmail(email: string, token: string, name?: string, deviceName?: string): Promise<void> {
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
+    const approveUrl = `${frontendBaseUrl}/devices/approve?token=${token}`
+    const logoUrl = `${frontendBaseUrl}/Safenodelogo.png`
+    const recipientName = escapeHtml(name || 'there')
+    const deviceLabel = deviceName ? `&quot;${escapeHtml(deviceName)}&quot;` : 'a device'
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approve a device - Safenode</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <img
+        src="${logoUrl}"
+        alt="Safenode"
+        width="72"
+        height="72"
+        style="display: block; width: 72px; height: 72px; object-fit: contain; margin: 0 auto 16px;"
+      />
+      <p style="margin: 0 0 10px; color: #0f172a; font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">
+        Safenode
+      </p>
+      <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600;">Approve a device</h1>
+    </div>
+
+    <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
+      Hi ${recipientName},
+    </p>
+
+    <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
+      Someone is trying to access your Safenode vault from ${deviceLabel} that was previously removed from your account. If this was you, approve the device below. Approving only restores this device's access — it does not sign anyone in or unlock your vault.
+    </p>
+
+    <div style="text-align: center; margin: 40px 0;">
+      <a href="${approveUrl}"
+         style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+        Approve this device
+      </a>
+    </div>
+
+    <p style="color: #999; font-size: 14px; margin-top: 30px; margin-bottom: 10px;">
+      Or copy and paste this link into your browser:
+    </p>
+    <p style="color: #667eea; font-size: 12px; word-break: break-all; background-color: #f5f5f5; padding: 12px; border-radius: 6px; margin: 0;">
+      ${approveUrl}
+    </p>
+
+    <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+      <p style="color: #999; font-size: 12px; margin: 0;">
+        This link will expire in 30 minutes and can be used once. If you didn't try to access your vault from a removed device, do not click it — ignore this email and consider changing your password.
+      </p>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 20px;">
+    <p style="color: #999; font-size: 12px; margin: 0;">
+      © ${new Date().getFullYear()} Safenode. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+    `.trim()
+
+    await this.send({
+      to: email,
+      subject: 'Approve a device - Safenode',
+      html,
+      text: `Approve a removed device for your Safenode account: ${approveUrl}`
     })
   }
 
@@ -221,16 +308,16 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
   }): Promise<void> {
     const frontendBaseUrl = process.env.FRONTEND_URL || 'https://safe-node.app'
     const claimUrl = `${frontendBaseUrl}/auth/successor`
-    const ownerName = options.ownerName || 'A SafeNode account owner'
+    const ownerName = options.ownerName || 'A Safenode account owner'
 
     await this.send({
       to: options.to,
-      subject: 'You were added as a SafeNode successor contact',
+      subject: 'You were added as a Safenode successor contact',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc;">
           <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
-            <h1 style="margin: 0 0 12px; font-size: 24px;">You were added as a SafeNode account successor</h1>
-            <p style="margin: 0 0 16px; color: #475569;">${ownerName} designated this email as the successor contact for their SafeNode account.</p>
+            <h1 style="margin: 0 0 12px; font-size: 24px;">You were added as a Safenode account successor</h1>
+            <p style="margin: 0 0 16px; color: #475569;">${ownerName} designated this email as the successor contact for their Safenode account.</p>
             <p style="margin: 0 0 16px; color: #475569;">If a succession claim is ever started, there will be a ${options.waitingPeriodDays}-day delay so the current owner can cancel it.</p>
             ${options.relationshipLabel ? `<p style="margin: 0 0 12px; color: #475569;"><strong>Relationship:</strong> ${options.relationshipLabel}</p>` : ''}
             ${options.note ? `<div style="margin: 0 0 20px; padding: 16px; border-radius: 12px; background: #f8fafc; color: #334155;"><strong>Owner note:</strong><br />${options.note}</div>` : ''}
@@ -239,7 +326,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
           </div>
         </div>
       `.trim(),
-      text: `${ownerName} designated you as a SafeNode successor contact. If you ever need to start the process, visit ${claimUrl}.`
+      text: `${ownerName} designated you as a Safenode successor contact. If you ever need to start the process, visit ${claimUrl}.`
     })
   }
 
@@ -254,11 +341,11 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
 
     await this.send({
       to: options.to,
-      subject: 'SafeNode succession claim started',
+      subject: 'Safenode succession claim started',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc;">
           <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
-            <h1 style="margin: 0 0 12px; font-size: 24px;">A SafeNode succession claim was started</h1>
+            <h1 style="margin: 0 0 12px; font-size: 24px;">A Safenode succession claim was started</h1>
             <p style="margin: 0 0 16px; color: #475569;">${options.successorEmail} requested account succession for ${options.ownerName || 'your account'}.</p>
             <p style="margin: 0 0 16px; color: #475569;">If this was not expected, cancel it from Account Settings before <strong>${options.claimAvailableAt.toUTCString()}</strong>.</p>
             <a href="${settingsUrl}" style="display: inline-block; background: #991b1b; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600;">Review in Account Settings</a>
@@ -277,18 +364,18 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
   }): Promise<void> {
     await this.send({
       to: options.to,
-      subject: 'SafeNode succession claim in progress',
+      subject: 'Safenode succession claim in progress',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc;">
           <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
-            <h1 style="margin: 0 0 12px; font-size: 24px;">Your SafeNode succession claim is in progress</h1>
+            <h1 style="margin: 0 0 12px; font-size: 24px;">Your Safenode succession claim is in progress</h1>
             <p style="margin: 0 0 16px; color: #475569;">A claim for ${options.ownerEmail} was started. The owner can cancel it during the waiting period.</p>
             <p style="margin: 0 0 16px; color: #475569;">You can complete the claim after <strong>${options.claimAvailableAt.toUTCString()}</strong>.</p>
             <a href="${options.claimUrl}" style="display: inline-block; background: #0f766e; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600;">Open claim status</a>
           </div>
         </div>
       `.trim(),
-      text: `Your SafeNode succession claim for ${options.ownerEmail} is in progress. Complete it after ${options.claimAvailableAt.toUTCString()}: ${options.claimUrl}`
+      text: `Your Safenode succession claim for ${options.ownerEmail} is in progress. Complete it after ${options.claimAvailableAt.toUTCString()}: ${options.claimUrl}`
     })
   }
 
@@ -343,7 +430,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'SafeNode <noreply@safe-node.app>',
+        from: process.env.EMAIL_FROM || 'Safenode <noreply@safe-node.app>',
         to: [options.to],
         subject: options.subject,
         html: options.html,
@@ -378,7 +465,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
         }],
         from: {
           email: process.env.EMAIL_FROM || 'noreply@safe-node.app',
-          name: 'SafeNode'
+          name: 'Safenode'
         },
         subject: options.subject,
         content: [
@@ -419,7 +506,7 @@ This link will expire in 24 hours. If you didn't create a SafeNode account, you 
     })
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'SafeNode <noreply@safe-node.app>',
+      from: process.env.EMAIL_FROM || 'Safenode <noreply@safe-node.app>',
       to: options.to,
       subject: options.subject,
       html: options.html,

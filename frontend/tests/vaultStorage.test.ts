@@ -17,6 +17,7 @@ class MockIDBDatabase {
 class MockIDBRequest {
   onsuccess: ((event: any) => void) | null = null
   onerror: ((event: any) => void) | null = null
+  onupgradeneeded: ((event: any) => void) | null = null
   result: any = null
   error: any = null
 
@@ -45,14 +46,18 @@ const asyncSuccessRequest = <T>(result: T) => {
   return request
 }
 
-// @ts-ignore
-global.indexedDB = {
+const mockIndexedDB = {
   open: vi.fn(() => {
     mockOpenRequest.result = mockDB
     return mockOpenRequest
   }),
   deleteDatabase: vi.fn(() => new MockIDBRequest())
-}
+} as unknown as IDBFactory
+
+Object.defineProperty(globalThis, 'indexedDB', {
+  configurable: true,
+  value: mockIndexedDB
+})
 
 describe('Vault Storage', () => {
   let vaultStorage: any
@@ -80,7 +85,7 @@ describe('Vault Storage', () => {
       mockOpenRequest.simulateSuccess(mockDB)
       await initPromise
       
-      expect(global.indexedDB.open).toHaveBeenCalledWith('SafeNodeVault', 1)
+      expect(global.indexedDB.open).toHaveBeenCalledWith('SafenodeVault', 1)
     })
 
     it('should create object store on upgrade', async () => {

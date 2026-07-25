@@ -3,7 +3,7 @@
  * Handles encrypted vault export and import functionality
  */
 
-import { Vault, EncryptedVault } from './vaultService'
+import { Vault, EncryptedVault, stripTransientVaultFields } from './vaultService'
 import { encrypt, decrypt, base64ToArrayBuffer, arrayBufferToBase64 } from '../crypto/crypto'
 
 /**
@@ -15,7 +15,7 @@ export async function exportVault(
   salt: ArrayBuffer
 ): Promise<Blob> {
   // Encrypt the vault again with the master password
-  const vaultJson = JSON.stringify(vault)
+  const vaultJson = JSON.stringify(stripTransientVaultFields(vault))
   const encrypted = await encrypt(vaultJson, masterPassword, salt)
 
   // Create export object
@@ -131,4 +131,3 @@ export async function validateImportFile(file: File): Promise<{
     }
   }
 }
-

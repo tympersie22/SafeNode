@@ -7,10 +7,26 @@
  */
 
 // Get environment variables
-const env = (import.meta as any).env || {}
+const env = import.meta.env
 const mode = env.MODE || env.NODE_ENV || 'development'
 const viteApiUrl = env.VITE_API_URL
-const PROD_API_FALLBACK = 'https://safe-node-99hv-backend.vercel.app'
+const mobileApiUrl = env.VITE_MOBILE_API_URL
+const PROD_API_FALLBACK = 'https://api.safe-node.app'
+
+type CapacitorWindow = Window & {
+  Capacitor?: {
+    isNativePlatform?: () => boolean
+  }
+}
+
+function normalizeApiOrigin(value: string): string {
+  return value.trim().replace(/\/+$/, '')
+}
+
+function isNativeApp(): boolean {
+  if (typeof window === 'undefined') return false
+  return Boolean((window as CapacitorWindow).Capacitor?.isNativePlatform?.())
+}
 
 /**
  * Get API base URL
@@ -20,13 +36,26 @@ const PROD_API_FALLBACK = 'https://safe-node-99hv-backend.vercel.app'
  * 2. In development: Empty string (uses Vite proxy from vite.config.mjs)
  */
 export function getApiBase(): string {
+  if (isNativeApp()) {
+    const configuredOrigin = mobileApiUrl || viteApiUrl
+    if (!configuredOrigin) {
+      throw new Error('[API Config] VITE_MOBILE_API_URL is required for native builds')
+    }
+
+    const normalizedOrigin = normalizeApiOrigin(configuredOrigin)
+    if (!normalizedOrigin.startsWith('https://')) {
+      throw new Error('[API Config] Native API origin must use HTTPS')
+    }
+    return normalizedOrigin
+  }
+
   // In production, VITE_API_URL must be set
   if (mode === 'production' || mode === 'prod') {
     if (!viteApiUrl || viteApiUrl.trim() === '') {
       console.error(`[API Config] VITE_API_URL is required in production but not set; falling back to ${PROD_API_FALLBACK}`)
       return PROD_API_FALLBACK
     }
-    return viteApiUrl.trim()
+    return normalizeApiOrigin(viteApiUrl)
   }
   
   // In development, use empty string to leverage Vite proxy

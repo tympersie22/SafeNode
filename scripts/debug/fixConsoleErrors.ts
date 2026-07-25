@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 
 /**
- * SafeNode Automated Debugging & Error Fixing Tool
+ * Safenode Automated Debugging & Error Fixing Tool
  * Scans the project and automatically fixes common errors
  */
 
@@ -17,7 +17,7 @@ interface ErrorFix {
   applied: boolean
 }
 
-class SafeNodeDebugger {
+class SafenodeDebugger {
   private fixes: ErrorFix[] = []
   private projectRoot: string
   private autoFix: boolean = false
@@ -33,7 +33,7 @@ class SafeNodeDebugger {
    * Main execution method
    */
   async run(): Promise<void> {
-    console.log('🔍 SafeNode Debugger Starting...\n')
+    console.log('🔍 Safenode Debugger Starting...\n')
     console.log(`Project Root: ${this.projectRoot}`)
     console.log(`Auto-fix: ${this.autoFix ? 'ENABLED' : 'DISABLED'}`)
     console.log(`Dry Run: ${this.dryRun ? 'YES' : 'NO'}\n`)
@@ -492,6 +492,6 @@ const autoFix = args.includes('--fix')
 const dryRun = args.includes('--dry-run')
 const projectRoot = process.cwd()
 
-const debugger = new SafeNodeDebugger(projectRoot, autoFix, dryRun)
+const debugger = new SafenodeDebugger(projectRoot, autoFix, dryRun)
 debugger.run().catch(console.error)
 

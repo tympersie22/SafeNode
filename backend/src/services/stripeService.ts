@@ -37,21 +37,31 @@ async function getStripe(): Promise<StripeInstance | null> {
 type PaidPlan = 'individual' | 'family' | 'teams'
 type ResolvedPlan = 'free' | PaidPlan
 
+// Includes BOTH Stripe and Paddle price IDs so the plan resolves correctly
+// regardless of the active billing provider. Without the Paddle IDs here, a
+// Family subscription bought via Paddle would fall back to the collapsed
+// 'pro' tier and be under-provisioned as Individual.
 const PLAN_PRICE_IDS: Record<PaidPlan, string[]> = {
   individual: [
     process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY || '',
     process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL || '',
-    process.env.STRIPE_PRICE_INDIVIDUAL || '' // backward compatibility
+    process.env.STRIPE_PRICE_INDIVIDUAL || '', // backward compatibility
+    process.env.PADDLE_PRICE_INDIVIDUAL_MONTHLY || '',
+    process.env.PADDLE_PRICE_INDIVIDUAL_ANNUAL || ''
   ].filter(Boolean),
   family: [
     process.env.STRIPE_PRICE_FAMILY_MONTHLY || '',
     process.env.STRIPE_PRICE_FAMILY_ANNUAL || '',
-    process.env.STRIPE_PRICE_FAMILY || '' // backward compatibility
+    process.env.STRIPE_PRICE_FAMILY || '', // backward compatibility
+    process.env.PADDLE_PRICE_FAMILY_MONTHLY || '',
+    process.env.PADDLE_PRICE_FAMILY_ANNUAL || ''
   ].filter(Boolean),
   teams: [
     process.env.STRIPE_PRICE_TEAMS_MONTHLY || '',
     process.env.STRIPE_PRICE_TEAMS_ANNUAL || '',
-    process.env.STRIPE_PRICE_TEAMS || '' // backward compatibility
+    process.env.STRIPE_PRICE_TEAMS || '', // backward compatibility
+    process.env.PADDLE_PRICE_TEAMS_MONTHLY || '',
+    process.env.PADDLE_PRICE_TEAMS_ANNUAL || ''
   ].filter(Boolean)
 }
 
@@ -73,7 +83,7 @@ const PLAN_LIMITS: Record<ResolvedPlan, { devices: number; vaults: number; teamM
   family: {
     devices: 10,
     vaults: 20,
-    teamMembers: 0,
+    teamMembers: 6,
     storageMB: 5120
   },
   teams: {
@@ -131,6 +141,9 @@ async function resolveUserPlan(userId: string, subscriptionTier: string): Promis
     return planFromPrice
   }
 
+  if (subscriptionTier === 'teams') return 'teams'
+  if (subscriptionTier === 'family') return 'family'
+  if (subscriptionTier === 'individual') return 'individual'
   if (subscriptionTier === 'enterprise') return 'teams'
   if (subscriptionTier === 'pro') return 'individual'
   return 'free'
@@ -467,10 +480,28 @@ export async function checkSubscriptionLimits(
         where: { teamId: { in: teams.map(t => t.teamId) } }
       })
       break
-    case 'storage':
-      // This would require calculating vault size - simplified for now
-      current = 0
+    case 'storage': {
+      // Actual usage = size of the user's encrypted personal vault plus the
+      // encrypted team vaults they own/administer. Measured in bytes of the
+      // stored ciphertext (what actually consumes storage), reported in MB.
+      const personalBytes = Buffer.byteLength(user.vaultEncrypted || '', 'utf8')
+      const ownedTeams = await prisma.teamMember.findMany({
+        where: { userId, role: { in: ['owner', 'admin'] } },
+        select: { teamId: true }
+      })
+      const ownedTeamVaults = ownedTeams.length
+        ? await prisma.teamVault.findMany({
+            where: { teamId: { in: ownedTeams.map((t) => t.teamId) } },
+            select: { encryptedVault: true }
+          })
+        : []
+      const teamBytes = ownedTeamVaults.reduce(
+        (sum, v) => sum + Buffer.byteLength(v.encryptedVault || '', 'utf8'),
+        0
+      )
+      current = Math.ceil((personalBytes + teamBytes) / (1024 * 1024))
       break
+    }
   }
 
   const limit = resource === 'storage' ? limits.storageMB : limits[resource]

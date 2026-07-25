@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 SafeNode Testing Environment Setup"
+echo "🚀 Safenode Testing Environment Setup"
 echo "======================================"
 echo ""
 

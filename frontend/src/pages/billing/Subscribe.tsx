@@ -1,6 +1,6 @@
 /**
  * Billing Subscribe Page
- * Allows users to subscribe to SafeNode plans
+ * Allows users to subscribe to Safenode plans
  */
 
 import React, { useState } from 'react'
@@ -55,7 +55,7 @@ export const SubscribePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-950/20 py-12 px-4">
+    <div className="sn-page min-h-screen py-12 px-4">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -87,7 +87,7 @@ export const SubscribePage: React.FC = () => {
             Choose Your Plan
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-6">
-            Upgrade to unlock advanced features and protect your digital life with SafeNode
+            Upgrade to unlock advanced features and protect your digital life with Safenode
           </p>
 
           <div className="inline-flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-full">

@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // SafeNode Semantic Colors
+        // Safenode Semantic Colors
         safenode: {
           primary: '#26A387',      // Main brand color (secondary-500)
           secondary: '#3EC6A8',   // Accent color (secondary-400)
@@ -101,7 +101,7 @@ export default {
           900: '#0c4a6e',
           950: '#082f49',
         },
-        // Gray scale (SafeNode tokens)
+        // Gray scale (Safenode tokens)
         gray: {
           50: '#f9fafb',
           100: '#f3f4f6',

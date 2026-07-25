@@ -1,5 +1,5 @@
 /**
- * SafeNode Icon Library
+ * Safenode Icon Library
  * Consistent, modern, security-focused icon set
  */
 

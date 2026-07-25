@@ -1,9 +1,9 @@
 /**
- * SafeNode Extension - Content Script
+ * Safenode Extension - Content Script
  * Detects password fields and injects autofill UI
  */
 
-class SafeNodeAutofill {
+class SafenodeAutofill {
   constructor() {
     this.injectedElements = new Set();
     this.isUnlocked = false;
@@ -32,7 +32,7 @@ class SafeNodeAutofill {
         }
       }
     } catch (error) {
-      console.log('SafeNode: Failed to check vault status', error);
+      console.log('Safenode: Failed to check vault status', error);
     }
   }
 
@@ -43,7 +43,7 @@ class SafeNodeAutofill {
         this.vaultData = response.data;
       }
     } catch (error) {
-      console.log('SafeNode: Failed to load vault data', error);
+      console.log('Safenode: Failed to load vault data', error);
     }
   }
 
@@ -246,7 +246,7 @@ class SafeNodeAutofill {
     prompt.innerHTML = `
       <div class="safenode-prompt-header">
         <div class="safenode-prompt-icon">🔒</div>
-        <div class="safenode-prompt-title">Save to SafeNode?</div>
+        <div class="safenode-prompt-title">Save to Safenode?</div>
       </div>
       <div class="safenode-prompt-content">
         <div class="safenode-prompt-site">${new URL(url).hostname}</div>
@@ -318,7 +318,7 @@ class SafeNodeAutofill {
   showSaveSuccess() {
     const feedback = document.createElement('div');
     feedback.className = 'safenode-success-feedback';
-    feedback.textContent = '✓ Saved to SafeNode';
+    feedback.textContent = '✓ Saved to Safenode';
     feedback.style.position = 'fixed';
     feedback.style.top = '20px';
     feedback.style.right = '20px';
@@ -443,7 +443,7 @@ class SafeNodeAutofill {
         <div class="safenode-entry-icon">🔒</div>
         <div class="safenode-entry-info">
           <div class="safenode-entry-name">No matches found</div>
-          <div class="safenode-entry-username">Open SafeNode to add entries</div>
+          <div class="safenode-entry-username">Open Safenode to add entries</div>
         </div>
       </div>
     `;
@@ -550,7 +550,7 @@ class SafeNodeAutofill {
   showSuccessFeedback(field) {
     const feedback = document.createElement('div');
     feedback.className = 'safenode-success-feedback';
-    feedback.textContent = '✓ Filled by SafeNode';
+    feedback.textContent = '✓ Filled by Safenode';
     
     const rect = field.getBoundingClientRect();
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -585,5 +585,5 @@ class SafeNodeAutofill {
   }
 }
 
-// Initialize SafeNode autofill
-const safeNodeAutofill = new SafeNodeAutofill();
+// Initialize Safenode autofill
+const safeNodeAutofill = new SafenodeAutofill();

@@ -1,15 +1,13 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Link, useNavigate } from 'react-router-dom'
 import { Mail, ShieldAlert, Briefcase, Send } from 'lucide-react'
-import Logo from '../../components/Logo'
+import MarketingHeader from '../../components/marketing/MarketingHeader'
 import Footer from '../../components/marketing/Footer'
 import AppFeatureRibbon from '../../components/marketing/AppFeatureRibbon'
 import { showToast } from '../../components/ui/Toast'
 import { Spinner } from '../../components/ui/Spinner'
 
 const ContactPage: React.FC = () => {
-  const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -29,7 +27,7 @@ const ContactPage: React.FC = () => {
     setIsSubmitting(true)
     try {
       await new Promise((resolve) => setTimeout(resolve, 1200))
-      showToast.success('Message queued. The SafeNode team will reply shortly.')
+      showToast.success('Message queued. The Safenode team will reply shortly.')
       setFormData({ name: '', email: '', team: '', subject: '', message: '' })
     } catch {
       showToast.error('Unable to send message right now. Please email support directly.')
@@ -39,28 +37,13 @@ const ContactPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900">
-      <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <Logo variant="nav" />
-              <Link to="/" className="text-xl font-bold bg-gradient-to-r from-slate-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">SafeNode</Link>
-            </div>
-            <div className="hidden md:flex items-center gap-4">
-              <Link to="/security" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Security</Link>
-              <Link to="/blog" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Blog</Link>
-              <Link to="/careers" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Careers</Link>
-              <button onClick={() => navigate('/auth')} className="px-4 py-2 bg-gradient-to-r from-secondary-600 to-secondary-500 text-white text-sm font-semibold rounded-lg">Open Vault</button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="sn-page min-h-screen">
+      <MarketingHeader />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl">
           <p className="text-xs tracking-[0.18em] uppercase text-secondary-600 dark:text-secondary-400 font-semibold mb-3">Contact</p>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Talk to the SafeNode Team</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Talk to the Safenode Team</h1>
           <p className="text-slate-600 dark:text-slate-400 text-lg">
             Reach product, support, and security engineering from one place. For urgent incidents, use the security contact channel.
           </p>
@@ -145,7 +128,7 @@ const ContactPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold disabled:opacity-60"
+                className="btn btn-primary btn-md disabled:opacity-60"
               >
                 {isSubmitting ? (
                   <>

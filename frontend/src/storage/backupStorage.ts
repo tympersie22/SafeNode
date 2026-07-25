@@ -7,7 +7,7 @@ export interface VaultBackup {
   vault: StoredVault;
 }
 
-const DB_NAME = 'SafeNodeBackups';
+const DB_NAME = 'SafenodeBackups';
 const DB_VERSION = 1;
 const STORE_NAME = 'backups';
 

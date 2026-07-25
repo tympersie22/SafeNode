@@ -2,10 +2,14 @@ import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { listPasskeys, registerPasskey, deletePasskey, authenticateWithPasskey } from '../api/passkeys';
 import type { PasskeyRecord } from '../types/passkeys';
+import { generateSalt } from '../crypto/crypto';
+import { enrollPasskeyVaultUnlock } from '../services/passkeyVault';
+import { showToast } from './ui/Toast';
 
 interface PasskeysModalProps {
   isOpen: boolean;
   onClose: () => void;
+  rawVaultKey?: string | null;
 }
 
 const formatRelative = (timestamp: number) => {
@@ -19,7 +23,7 @@ const formatRelative = (timestamp: number) => {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 };
 
-const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
+const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose, rawVaultKey }) => {
   const [passkeys, setPasskeys] = React.useState<PasskeyRecord[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -49,7 +53,28 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
     try {
       setLoading(true);
       const friendlyName = window.prompt('Give this passkey a friendly name (optional):', 'My Device') || undefined;
-      const record = await registerPasskey(friendlyName);
+      const prfProbeSalt = await generateSalt(32);
+      const result = await registerPasskey(friendlyName, {
+        extensions: {
+          prf: {
+            eval: {
+              first: new Uint8Array(prfProbeSalt),
+            },
+          },
+        },
+      });
+
+      let record: PasskeyRecord = result.passkey;
+      if (result.prfEnabled && rawVaultKey) {
+        await enrollPasskeyVaultUnlock(rawVaultKey, result.passkey.id);
+        record = { ...result.passkey, prfReady: true };
+        showToast.success('Passkey can now unlock this vault cryptographically.');
+      } else if (!result.prfEnabled) {
+        showToast.info('This passkey can sign you in, but this browser/authenticator did not expose PRF for vault unlock.');
+      } else if (!rawVaultKey) {
+        showToast.info('Vault unlock wrapping will be available after you unlock the vault in this session.');
+      }
+
       setPasskeys(prev => [...prev, record]);
     } catch (err: any) {
       console.error(err);
@@ -68,6 +93,27 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
     } catch (err) {
       console.error(err);
       setError('Failed to delete passkey.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnableVaultUnlock = async (id: string) => {
+    if (!rawVaultKey) {
+      setError('Unlock the vault in this session before enabling passkey vault unlock.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await enrollPasskeyVaultUnlock(rawVaultKey, id);
+      setPasskeys(prev => prev.map((passkey) => (
+        passkey.id === id ? { ...passkey, prfReady: true } : passkey
+      )));
+      showToast.success('Passkey vault unlock is enabled.');
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'Failed to enable passkey vault unlock.');
     } finally {
       setLoading(false);
     }
@@ -123,8 +169,7 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
 
               <div className="px-6 py-4 space-y-4">
                 <p id="passkeys-description" className="text-sm text-slate-600">
-                  Register passkeys to unlock your SafeNode vault with Face ID, Touch ID, or Windows Hello.
-                  Passkeys are synced securely with your vault.
+                  Register passkeys for sign-in, then enroll PRF-based vault wrapping so supported passkeys can unlock the vault cryptographically without storing vault secrets on this device.
                 </p>
 
                 {error && (
@@ -152,16 +197,27 @@ const PasskeysModal: React.FC<PasskeysModalProps> = ({ isOpen, onClose }) => {
                       <div>
                         <p className="font-medium text-slate-800">{pk.friendlyName || pk.id}</p>
                         <p className="text-slate-500 text-xs">
-                          Registered {formatRelative(pk.createdAt)} • ID: {pk.id}
+                          Registered {formatRelative(pk.createdAt)} • {pk.prfReady ? 'Vault unlock ready' : 'Sign-in only'} • ID: {pk.id}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleDelete(pk.id)}
-                        className="btn btn-sm btn-outline"
-                        disabled={loading}
-                      >
-                        Remove
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {rawVaultKey && !pk.prfReady && (
+                          <button
+                            onClick={() => handleEnableVaultUnlock(pk.id)}
+                            className="btn btn-sm btn-primary"
+                            disabled={loading}
+                          >
+                            Enable vault unlock
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(pk.id)}
+                          className="btn btn-sm btn-outline"
+                          disabled={loading}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

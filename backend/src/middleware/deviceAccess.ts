@@ -47,8 +47,9 @@ async function resolveEffectivePlan(userId: string, subscriptionTier: string): P
     }
   }
 
-  if (subscriptionTier === 'enterprise') return 'teams'
-  if (subscriptionTier === 'pro') return 'individual'
+  if (subscriptionTier === 'teams' || subscriptionTier === 'enterprise') return 'teams'
+  if (subscriptionTier === 'family') return 'family'
+  if (subscriptionTier === 'individual' || subscriptionTier === 'pro') return 'individual'
   return 'free'
 }
 
@@ -157,6 +158,35 @@ export async function requireRegisteredDevice(
   const currentPlan = await resolveEffectivePlan(user.id, userRecord?.subscriptionTier || 'free')
   const guidance = buildDeviceAccessMessage(currentPlan, deviceLimit.current, deviceLimit.limit)
 
+  // Auto-register this device when there is no device row yet, the session is
+  // already validly bound to it (checked above), and the account is under its
+  // device limit. This lets a new user reach their vault without a separate
+  // registration round-trip; /api/devices/register still handles naming/reapproval.
+  if (!activeDevice && (deviceLimit.limit === -1 || deviceLimit.current < deviceLimit.limit)) {
+    const created = await prisma.device.create({
+      data: {
+        userId: user.id,
+        deviceId,
+        name: 'This device',
+        platform: 'web',
+        isActive: true
+      }
+    }).catch(() => null)
+    if (created) {
+      await createAuditLog({
+        userId: user.id,
+        action: 'device_registered',
+        resourceType: 'device',
+        resourceId: created.id,
+        metadata: { deviceId, auto: true, sessionId: user.sessionId },
+        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+        userAgent: request.headers['user-agent'] || undefined
+      }).catch(() => undefined)
+      void touchDeviceSession(session.id)
+      return
+    }
+  }
+
   if (activeDevice?.requiresReapproval) {
     return deny('DEVICE_REAPPROVAL_REQUIRED', 'This device was removed from your account and must be re-approved from an already registered device before it can access the vault again.', {
       currentPlan,
@@ -164,12 +194,28 @@ export async function requireRegisteredDevice(
     })
   }
 
+  // Include the user's active devices so the client can offer a "remove a device
+  // to continue" action (self-service device swap without vault access).
+  const activeDevices = await prisma.device.findMany({
+    where: { userId: user.id, isActive: true },
+    orderBy: { lastSeen: 'asc' },
+    select: { id: true, deviceId: true, name: true, platform: true, lastSeen: true }
+  })
+
   return deny(activeDevice ? 'DEVICE_INACTIVE' : 'DEVICE_NOT_REGISTERED', guidance.message, {
     currentPlan,
     currentPlanName: PLAN_NAMES[currentPlan],
     recommendedPlan: guidance.recommendedPlan,
     recommendedPlanName: guidance.recommendedPlan ? PLAN_NAMES[guidance.recommendedPlan] : null,
     current: deviceLimit.current,
-    limit: deviceLimit.limit
+    limit: deviceLimit.limit,
+    devices: activeDevices.map((d) => ({
+      id: d.id,
+      deviceId: d.deviceId,
+      name: d.name,
+      platform: d.platform,
+      lastSeen: d.lastSeen.getTime(),
+      isCurrent: d.deviceId === deviceId
+    }))
   })
 }

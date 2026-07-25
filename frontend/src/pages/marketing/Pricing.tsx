@@ -6,10 +6,10 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import Logo from '../../components/Logo';
 import Footer from '../../components/marketing/Footer';
+import MarketingHeader from '../../components/marketing/MarketingHeader';
 import { Spinner } from '../../components/ui/Spinner';
 import { showToast } from '../../components/ui/Toast';
 import { createCheckoutSession } from '../../services/billingService';
@@ -73,65 +73,50 @@ export const PricingNewPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="sn-page min-h-screen">
       {/* Navigation */}
-      <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo variant="nav" />
-            <span className="text-xl font-bold text-gray-900">SafeNode</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-              Home
-            </Link>
-            <Link to="/auth" className="px-4 py-2 bg-gray-950 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition">
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <MarketingHeader />
 
-      {/* Hero */}
-      <section className="py-20 text-center">
-        <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-5xl font-extrabold text-gray-900 mb-4">
+      <section className="sn-section border-b border-[var(--sn-line)]">
+        <div className="sn-marketing-container grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+          <p className="sn-eyebrow mb-6">Plans and access</p>
+          <h1 className="sn-display max-w-4xl">
             Simple Pricing For Identity And Secret Control
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--sn-muted)]">
             Start free. Upgrade when you need more devices, recovery controls, and team workspaces.
           </p>
+          </div>
 
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 p-1 bg-gray-100 rounded-full">
+          <div className="inline-flex border border-[var(--sn-line)] p-1">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`px-6 py-2 rounded-full font-medium transition ${
+              className={`px-6 py-3 text-sm font-semibold transition ${
                 billingCycle === 'monthly'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600'
+                  ? 'bg-[var(--sn-ink)] text-[var(--sn-canvas)]'
+                  : 'text-[var(--sn-muted)]'
               }`}
             >
               Monthly
             </button>
             <button
               onClick={() => setBillingCycle('annual')}
-              className={`px-6 py-2 rounded-full font-medium transition ${
+              className={`px-6 py-3 text-sm font-semibold transition ${
                 billingCycle === 'annual'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600'
+                  ? 'bg-[var(--sn-ink)] text-[var(--sn-canvas)]'
+                  : 'text-[var(--sn-muted)]'
               }`}
             >
               Annual
-              <span className="ml-2 text-green-600 text-sm font-semibold">Save 17%</span>
+              <span className="ml-2 text-[var(--sn-accent)] text-xs font-semibold">−17%</span>
             </button>
           </div>
         </div>
       </section>
 
-      {/* Pricing Cards */}
-      <section className="pb-20">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="sn-section">
+        <div className="sn-marketing-container grid border-l border-t border-[var(--sn-line)] md:grid-cols-2 lg:grid-cols-4">
           {PRICING_PLANS.map((plan) => {
             const Icon = plan.icon;
             const isLoading = loading === plan.id;
@@ -139,43 +124,38 @@ export const PricingNewPage: React.FC = () => {
             const savings = getSavings(plan);
 
             return (
-              <motion.div
+              <motion.article
                 key={plan.id}
-                className={`relative bg-white rounded-2xl border-2 p-8 ${
-                  plan.highlight
-                    ? 'border-gray-950 shadow-xl scale-105'
-                    : 'border-gray-200'
-                }`}
-                whileHover={{ y: -4 }}
+                className={`relative flex min-h-[620px] flex-col border-b border-r border-[var(--sn-line)] p-7 ${plan.highlight ? 'bg-[var(--sn-accent-wash)]' : ''}`}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-950 text-white text-sm font-semibold rounded-full">
-                    {plan.tagline}
+                  <div className="mb-5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--sn-accent)]">
+                    Recommended / {plan.tagline}
                   </div>
                 )}
 
                 <div className="mb-6">
-                  <Icon className={`w-10 h-10 mb-4 ${plan.highlight ? 'text-gray-950' : 'text-gray-600'}`} />
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  {!plan.highlight && <p className="text-sm text-gray-600">{plan.tagline}</p>}
+                  <Icon className="mb-5 h-7 w-7 text-[var(--sn-accent)]" />
+                  <h3 className="text-2xl font-semibold text-[var(--sn-ink)] dark:text-white">{plan.name}</h3>
+                  {!plan.highlight && <p className="mt-2 text-sm text-[var(--sn-muted)]">{plan.tagline}</p>}
                 </div>
 
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-extrabold text-gray-900">{getPrice(plan)}</span>
+                    <span className="font-serif text-5xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">{getPrice(plan)}</span>
                     {plan.price !== 0 && (
-                      <span className="text-gray-600">/mo</span>
+                      <span className="text-[var(--sn-muted)]">/mo</span>
                     )}
                   </div>
                   {savings && (
-                    <p className="text-sm text-green-600 font-semibold mt-1">{savings}</p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--sn-accent)]">{savings}</p>
                   )}
                 </div>
 
-                <ul className="space-y-3 mb-8">
+                <ul className="mb-8 flex-1 space-y-3 border-t border-[var(--sn-line)] pt-6">
                   {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    <li key={idx} className="flex items-start gap-2 text-sm leading-6 text-[var(--sn-muted)]">
+                      <Check className="mt-1 h-4 w-4 flex-shrink-0 text-[var(--sn-accent)]" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -184,57 +164,56 @@ export const PricingNewPage: React.FC = () => {
                 <button
                   onClick={() => handleSubscribe(plan.id, checkoutTarget)}
                   disabled={isLoading}
-                  className={`w-full py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
+                  className={`btn w-full ${
                     plan.highlight
-                      ? 'bg-gray-950 hover:bg-gray-800 text-white shadow-lg shadow-gray-950/10'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                      ? 'btn-primary'
+                      : 'btn-secondary'
                   }`}
                 >
                   {isLoading && <Spinner size="sm" color={plan.highlight ? 'white' : 'primary'} />}
                   {plan.cta}
                 </button>
-              </motion.div>
+              </motion.article>
             );
           })}
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
+      <section className="sn-section border-t border-[var(--sn-line)]">
+        <div className="sn-marketing-container grid gap-12 lg:grid-cols-[0.7fr_1.3fr]">
+          <h2 className="sn-display">
             Frequently Asked Questions
           </h2>
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="grid sm:grid-cols-2">
+            <div className="border-t border-[var(--sn-line)] py-6 sm:pr-8">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Can I switch plans anytime?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes. Upgrade or downgrade anytime. Changes apply immediately.
               </p>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="border-t border-[var(--sn-line)] py-6 sm:pl-8">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Is there a free trial?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes. All paid plans include a 14-day free trial. No credit card required.
               </p>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="border-t border-[var(--sn-line)] py-6 sm:pr-8">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 What payment methods do you accept?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 We accept all major credit cards via Stripe. Secure and encrypted.
               </p>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="border-t border-[var(--sn-line)] py-6 sm:pl-8">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Can I cancel anytime?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes. Cancel anytime. No questions asked. Your data stays yours.
               </p>
             </div>
@@ -242,18 +221,19 @@ export const PricingNewPage: React.FC = () => {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 bg-gray-950">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-4xl font-extrabold text-white mb-4">
+      <section className="bg-[var(--sn-ink-fixed,#14201b)] py-20 text-white">
+        <div className="sn-marketing-container grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+          <h2 className="sn-display text-white">
             Ready to get started?
           </h2>
-          <p className="text-xl text-gray-400 mb-8">
-            Join teams and individuals protecting access, recovery, and critical secrets with SafeNode.
+          <p className="mt-5 max-w-2xl text-lg text-white/55">
+            Join teams and individuals protecting access, recovery, and critical secrets with Safenode.
           </p>
+          </div>
           <button
             onClick={() => navigate('/auth?mode=signup')}
-            className="px-8 py-4 bg-white hover:bg-gray-100 text-gray-950 text-lg font-semibold rounded-xl transition shadow-xl shadow-white/10"
+            className="sn-light-button"
           >
             Start Free Today
           </button>

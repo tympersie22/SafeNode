@@ -898,7 +898,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         })
       }
       
-      const { verifyToken } = await import('../middleware/auth.js')
+      const { verifyToken } = await import('../middleware/auth')
       const payload = verifyToken(token)
       
       if (!payload) {
@@ -1038,7 +1038,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const totpSecret = await generateTOTPSecret(
         userData.id,
         userData.email,
-        'SafeNode'
+        'Safenode'
       )
 
       // Generate backup codes

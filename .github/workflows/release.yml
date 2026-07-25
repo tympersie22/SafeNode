@@ -19,19 +19,33 @@ jobs:
         include:
           - os: macos-latest
             platform: macos
+            target: aarch64-apple-darwin
             optional: false
             bundle: dmg
-            artifact_glob: src-tauri/target/release/bundle/dmg/*.dmg
+            artifact_glob: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           - os: windows-latest
             platform: windows
+            target: x86_64-pc-windows-msvc
             optional: false
             bundle: nsis
-            artifact_glob: src-tauri/target/release/bundle/nsis/*.exe
+            artifact_glob: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
           - os: ubuntu-latest
             platform: linux
-            optional: true
+            target: x86_64-unknown-linux-gnu
+            optional: false
             bundle: appimage
-            artifact_glob: src-tauri/target/release/bundle/appimage/*.AppImage
+            artifact_glob: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage*
+
+    env:
+      VITE_API_URL: ${{ vars.MOBILE_API_URL }}
+      VITE_DESKTOP_BUILD: "true"
+      # linuxdeploy/AppRun can't use FUSE on GitHub runners; extract-and-run avoids it.
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      NO_STRIP: "true"
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_BASE64 }}
+      LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +55,8 @@ jobs:
           node-version: "20"
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Install Linux deps
         if: matrix.platform == 'linux'
@@ -52,8 +68,68 @@ jobs:
       - name: Install frontend deps
         run: npm ci --prefix frontend
 
+      - name: Install desktop tooling
+        run: npm ci
+
+      - name: Import Windows Authenticode certificate
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "::warning::Windows signing secrets not set - building an UNSIGNED Windows installer (users will see a SmartScreen 'unknown publisher' warning). Set WINDOWS_CERTIFICATE_BASE64 and WINDOWS_CERTIFICATE_PASSWORD to enable signing."
+            "WINDOWS_SIGNING=0" | Out-File -FilePath $env:GITHUB_ENV -Append
+            exit 0
+          }
+          $pfxPath = Join-Path $env:RUNNER_TEMP "safenode-windows-signing.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password -Exportable:$false
+          if (-not $certificate.Thumbprint) { throw "Windows signing certificate import failed" }
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$($certificate.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          $configPath = "src-tauri/tauri.windows.conf.json"
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json
+          $config.bundle.windows | Add-Member -NotePropertyName certificateThumbprint -NotePropertyValue $certificate.Thumbprint -Force
+          $config | ConvertTo-Json -Depth 20 | Set-Content $configPath
+          "WINDOWS_SIGNING=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Build desktop app
-        run: npx @tauri-apps/cli@1.5.14 build --bundles ${{ matrix.bundle }}
+        run: npm run tauri:build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
+
+      - name: Verify Windows Authenticode signature
+        if: matrix.platform == 'windows' && env.WINDOWS_SIGNING == '1'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "Windows installer was not produced" }
+          $signature = Get-AuthenticodeSignature $installer.FullName
+          if ($signature.Status -ne "Valid") { throw "Invalid Authenticode signature: $($signature.StatusMessage)" }
+          if ($signature.SignerCertificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            throw "Windows installer was signed by an unexpected certificate"
+          }
+
+      - name: Sign and checksum Linux AppImage
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPIMAGE="$(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
+          test -n "${APPIMAGE}"
+          sha256sum "${APPIMAGE}" > "${APPIMAGE}.sha256"
+          if [ -z "${LINUX_GPG_PRIVATE_KEY_BASE64}" ] || [ -z "${LINUX_GPG_PASSPHRASE}" ]; then
+            echo "::warning::LINUX_GPG_PRIVATE_KEY_BASE64 and/or LINUX_GPG_PASSPHRASE not set - publishing an UNSIGNED Linux AppImage (checksum only). Set both secrets to enable GPG signing."
+            exit 0
+          fi
+          KEY_FILE="${RUNNER_TEMP}/safenode-linux-signing.asc"
+          printf '%s' "${LINUX_GPG_PRIVATE_KEY_BASE64}" | base64 --decode > "${KEY_FILE}"
+          chmod 600 "${KEY_FILE}"
+          gpg --batch --import "${KEY_FILE}"
+          KEY_FINGERPRINT="$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test -n "${KEY_FINGERPRINT}" || { echo "No Linux signing key was imported" >&2; exit 1; }
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${LINUX_GPG_PASSPHRASE}" \
+            --local-user "${KEY_FINGERPRINT}" --armor --detach-sign "${APPIMAGE}"
+          sha256sum --check "${APPIMAGE}.sha256"
+          gpg --batch --verify "${APPIMAGE}.asc" "${APPIMAGE}"
 
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
@@ -62,9 +138,28 @@ jobs:
           path: ${{ matrix.artifact_glob }}
           if-no-files-found: ${{ matrix.optional && 'warn' || 'error' }}
 
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RUNNER_TEMP}/safenode-linux-signing.asc" "${RUNNER_TEMP}/safenode-windows-signing.pfx"
+
   build-android-apk:
-    name: Build Android APK
+    name: Build Native Android APK
     runs-on: ubuntu-latest
+    # Non-blocking: a signing/domain misconfiguration here must not stop the
+    # desktop + extension release from publishing. Android downloads are gated
+    # behind VITE_ANDROID_DOWNLOAD_ENABLED and stay off until this is green.
+    continue-on-error: true
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/mobile/android/release.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      ANDROID_VERSION_NAME: ${{ github.ref_name }}
+      EXPO_PUBLIC_API_URL: ${{ vars.MOBILE_API_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -72,36 +167,89 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: mobile/package-lock.json
 
       - uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "21"
+          java-version: "17"
           cache: "gradle"
 
-      - name: Install frontend deps
-        run: npm ci --prefix frontend
+      - name: Install native mobile dependencies
+        run: npm ci --prefix mobile
 
-      - name: Build frontend bundle
-        run: npm run build --prefix frontend
+      - name: Validate mobile API origin
+        run: |
+          test -n "${EXPO_PUBLIC_API_URL}"
+          case "${EXPO_PUBLIC_API_URL}" in
+            https://*) ;;
+            *) echo "MOBILE_API_URL must be an HTTPS origin" >&2; exit 1 ;;
+          esac
+          test "${EXPO_PUBLIC_API_URL}" = "${EXPO_PUBLIC_API_URL%/}"
 
-      - name: Sync Capacitor Android assets
-        working-directory: ./frontend
-        run: npx cap copy android
+      - name: Generate native Android project
+        working-directory: ./mobile
+        run: |
+          npx expo prebuild --platform android --no-install
+          node scripts/configure-android-release.mjs
 
-      - name: Build Android APK
-        working-directory: ./frontend/android
+      - name: Restore Android release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "${ANDROID_KEYSTORE_BASE64}"
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${ANDROID_KEYSTORE_PATH}"
+          chmod 600 "${ANDROID_KEYSTORE_PATH}"
+
+      - name: Build signed native Android APK
+        working-directory: ./mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
+
+      - name: Verify Android signature and domain association
+        run: |
+          set -uo pipefail
+          APK="mobile/android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "${APK}" ]; then
+            echo "::error::Signed APK not found at ${APK}. Listing build outputs:"
+            ls -R mobile/android/app/build/outputs/apk 2>/dev/null || true
+            exit 1
+          fi
+          if [ -z "${ANDROID_CERT_SHA256}" ]; then
+            echo "::error::Repository variable ANDROID_CERT_SHA256 is not set. Add it under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+          APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n 1)/apksigner"
+          echo "Using apksigner: ${APKSIGNER}"
+          RAW_CERTS="$("${APKSIGNER}" verify --print-certs "${APK}" 2>&1 || true)"
+          echo "----- apksigner verify --print-certs -----"
+          echo "${RAW_CERTS}"
+          echo "------------------------------------------"
+          ACTUAL_FINGERPRINT="$(printf '%s\n' "${RAW_CERTS}" | sed -n 's/.*SHA-256 digest: //p' | head -n 1 | tr -d ' :' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED_FINGERPRINT="$(printf '%s' "${ANDROID_CERT_SHA256}" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          echo "Expected fingerprint: ${EXPECTED_FINGERPRINT}"
+          echo "Actual   fingerprint: ${ACTUAL_FINGERPRINT}"
+          if [ "${ACTUAL_FINGERPRINT}" != "${EXPECTED_FINGERPRINT}" ]; then
+            echo "::error::APK signing certificate does not match ANDROID_CERT_SHA256. Update the variable to match the keystore, or re-sign with the expected key."
+            exit 1
+          fi
+          if ! grep -Fq "${ANDROID_CERT_SHA256}" frontend/public/.well-known/assetlinks.json; then
+            echo "::error::ANDROID_CERT_SHA256 fingerprint is missing from frontend/public/.well-known/assetlinks.json (breaks passkey domain association)."
+            exit 1
+          fi
+          echo "Android signature and domain association verified."
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Remove restored signing material
+        if: always()
+        run: rm -f "${ANDROID_KEYSTORE_PATH}"
 
   package-extensions:
     name: Package Extensions
@@ -129,7 +277,7 @@ jobs:
 
           safari_manifest = Path("release-assets/safari/manifest.json")
           sm = json.loads(safari_manifest.read_text())
-          sm["name"] = "SafeNode Password Manager (Safari)"
+          sm["name"] = "Safenode Password Manager (Safari)"
           sm.pop("web_accessible_resources", None)
           safari_manifest.write_text(json.dumps(sm, indent=2) + "\n")
           PY
@@ -169,6 +317,7 @@ jobs:
           MAC_FILE="$(find artifacts/desktop-macos -type f -name '*.dmg' | head -n 1 || true)"
           WIN_FILE="$(find artifacts/desktop-windows -type f -name '*.exe' | head -n 1 || true)"
           LINUX_FILE="$(find artifacts/desktop-linux -type f -name '*.AppImage' | head -n 1 || true)"
+          LINUX_SIGNATURE="$(find artifacts/desktop-linux -type f -name '*.AppImage.asc' | head -n 1 || true)"
           ANDROID_FILE="$(find artifacts/android-apk -type f -name '*.apk' | head -n 1 || true)"
 
           if [ -z "${MAC_FILE}" ]; then
@@ -179,21 +328,59 @@ jobs:
             echo "Missing Windows artifact"
             exit 1
           fi
-
-          cp "${MAC_FILE}" release-assets/SafeNode-macOS.dmg
-          cp "${WIN_FILE}" release-assets/SafeNode-Windows.exe
-          if [ -z "${ANDROID_FILE}" ]; then
-            echo "Missing Android artifact"
+          if [ -z "${LINUX_FILE}" ]; then
+            echo "Missing Linux artifact"
             exit 1
           fi
-          cp "${ANDROID_FILE}" release-assets/SafeNode-Android.apk
-          if [ -n "${LINUX_FILE}" ]; then
-            cp "${LINUX_FILE}" release-assets/SafeNode-Linux.AppImage
+
+          cp "${MAC_FILE}" release-assets/Safenode-macOS.dmg
+          cp "${WIN_FILE}" release-assets/Safenode-Windows.exe
+          if [ -z "${ANDROID_FILE}" ]; then
+            echo "::warning::Android APK missing (build-android-apk did not succeed) - publishing desktop + extensions without the Android download."
+          else
+            cp "${ANDROID_FILE}" release-assets/Safenode-Android.apk
           fi
+          cp "${LINUX_FILE}" release-assets/Safenode-Linux.AppImage
+          if [ -z "${LINUX_SIGNATURE}" ]; then
+            echo "::warning::Linux GPG signature missing - publishing unsigned AppImage with checksum only."
+          else
+            cp "${LINUX_SIGNATURE}" release-assets/Safenode-Linux.AppImage.asc
+          fi
+          sha256sum release-assets/Safenode-Linux.AppImage > release-assets/Safenode-Linux.AppImage.sha256
 
           cp artifacts/extensions/safenode-extension-chrome.zip release-assets/safenode-extension-chrome.zip
           cp artifacts/extensions/safenode-extension-firefox.zip release-assets/safenode-extension-firefox.zip
           cp artifacts/extensions/safenode-extension-safari.zip release-assets/safenode-extension-safari.zip
+
+          (cd release-assets && sha256sum Safenode-* safenode-extension-*.zip | grep -v -E '\.(asc|sha256)$' > SHA256SUMS)
+
+      - name: GPG-sign SHA256SUMS
+        shell: bash
+        env:
+          LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LINUX_GPG_PRIVATE_KEY_BASE64}" ] || [ -z "${LINUX_GPG_PASSPHRASE}" ]; then
+            echo "::warning::GPG key/passphrase not set - skipping SHA256SUMS signature (checksums still published)."
+            exit 0
+          fi
+          KEY_FILE="${RUNNER_TEMP}/safenode-sums-signing.asc"
+          printf '%s' "${LINUX_GPG_PRIVATE_KEY_BASE64}" | base64 --decode > "${KEY_FILE}"
+          chmod 600 "${KEY_FILE}"
+          gpg --batch --import "${KEY_FILE}"
+          FPR="$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1=="fpr"{print $10; exit}')"
+          test -n "${FPR}"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${LINUX_GPG_PASSPHRASE}" \
+            --local-user "${FPR}" --armor --detach-sign release-assets/SHA256SUMS
+          gpg --batch --verify release-assets/SHA256SUMS.asc release-assets/SHA256SUMS
+          rm -f "${KEY_FILE}"
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RUNNER_TEMP}/safenode-sums-signing.asc"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

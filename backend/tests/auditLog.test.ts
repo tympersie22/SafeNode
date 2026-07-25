@@ -30,7 +30,7 @@ describe('Audit Log Service', () => {
         userAgent: 'test-agent'
       })
 
-      const logs = await getUserAuditLogs(userId, { limit: 10 })
+      const { logs } = await getUserAuditLogs(userId, { limit: 10 })
       expect(logs.length).toBe(1)
       expect(logs[0].action).toBe('login')
       expect(logs[0].userId).toBe(userId)
@@ -45,7 +45,7 @@ describe('Audit Log Service', () => {
         metadata: { entryName: 'Test Entry' }
       })
 
-      const logs = await getUserAuditLogs(userId, { limit: 10 })
+      const { logs } = await getUserAuditLogs(userId, { limit: 10 })
       expect(logs.length).toBe(1)
       expect(logs[0].metadata).toEqual({ entryName: 'Test Entry' })
       expect(logs[0].resourceType).toBe('vault_entry')
@@ -73,7 +73,7 @@ describe('Audit Log Service', () => {
         })
       }
 
-      const logs = await getAuditLogsByUser(userId, { limit: 20 })
+      const { logs } = await getUserAuditLogs(userId, { limit: 20 })
       expect(logs.length).toBe(actions.length)
     })
   })
@@ -84,7 +84,7 @@ describe('Audit Log Service', () => {
       await createAuditLog({ userId, action: 'vault_unlocked' })
       await createAuditLog({ userId, action: 'entry_created' })
 
-      const logs = await getUserAuditLogs(userId, { limit: 10 })
+      const { logs } = await getUserAuditLogs(userId, { limit: 10 })
       expect(logs.length).toBe(3)
     })
 
@@ -94,7 +94,7 @@ describe('Audit Log Service', () => {
         await createAuditLog({ userId, action: 'login' })
       }
 
-      const logs = await getAuditLogsByUser(userId, { limit: 3 })
+      const { logs } = await getUserAuditLogs(userId, { limit: 3 })
       expect(logs.length).toBe(3)
     })
 
@@ -103,7 +103,7 @@ describe('Audit Log Service', () => {
       await createAuditLog({ userId, action: 'vault_unlocked' })
       await createAuditLog({ userId, action: 'login' })
 
-      const logs = await getAuditLogsByUser(userId, { 
+      const { logs } = await getUserAuditLogs(userId, { 
         limit: 10,
         action: 'login'
       })
@@ -117,7 +117,7 @@ describe('Audit Log Service', () => {
         password: 'TestPassword123!'
       })
 
-      const logs = await getAuditLogsByUser(newUser.id, { limit: 10 })
+      const { logs } = await getUserAuditLogs(newUser.id, { limit: 10 })
       expect(logs.length).toBe(0)
     })
   })

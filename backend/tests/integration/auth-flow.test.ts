@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals'
 import Fastify from 'fastify'
 import { registerAuthRoutes } from '../../src/routes/auth'
-import { createUser, authenticateUser } from '../../src/services/userService'
+import { registerDeviceRoutes } from '../../src/routes/devices'
 import { updateVault } from '../../src/services/userService'
 
 describe('Auth Flow Integration', () => {
@@ -17,6 +17,7 @@ describe('Auth Flow Integration', () => {
   beforeAll(async () => {
     server = Fastify({ logger: false })
     await registerAuthRoutes(server)
+    await registerDeviceRoutes(server)
     await server.ready()
   })
 
@@ -48,6 +49,7 @@ describe('Auth Flow Integration', () => {
 
       userId = registerBody.user.id
       authToken = registerBody.token
+      const deviceId = `device-${Date.now()}`
 
       // Step 2: Login
       const loginResponse = await server.inject({
@@ -63,13 +65,31 @@ describe('Auth Flow Integration', () => {
       const loginBody = JSON.parse(loginResponse.body)
       expect(loginBody.success).toBe(true)
       expect(loginBody.token).toBeDefined()
+      authToken = loginBody.token
+
+      const registerDeviceResponse = await server.inject({
+        method: 'POST',
+        url: '/api/devices/register',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'x-device-id': deviceId
+        },
+        payload: {
+          deviceId,
+          name: 'Flow Test Browser',
+          platform: 'web'
+        }
+      })
+
+      expect([200, 201]).toContain(registerDeviceResponse.statusCode)
 
       // Step 3: Get vault (should be empty initially)
       const vaultResponse = await server.inject({
         method: 'GET',
         url: '/api/auth/vault/latest',
         headers: {
-          Authorization: `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
+          'x-device-id': deviceId
         }
       })
 
@@ -78,9 +98,8 @@ describe('Auth Flow Integration', () => {
       expect(vaultBody.exists).toBe(false)
 
       // Step 4: Save vault
-      const encryptedVault = 'encrypted-vault-data'
-      const iv = 'iv-data'
-      const salt = 'salt-data'
+      const encryptedVault = Buffer.from('encrypted-vault-data').toString('base64')
+      const iv = Buffer.from('iv-data').toString('base64')
 
       await updateVault(userId, encryptedVault, iv, Date.now())
 
@@ -89,7 +108,8 @@ describe('Auth Flow Integration', () => {
         method: 'GET',
         url: '/api/auth/vault/latest',
         headers: {
-          Authorization: `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
+          'x-device-id': deviceId
         }
       })
 
@@ -111,16 +131,37 @@ describe('Auth Flow Integration', () => {
         payload: { email, password }
       })
       const { token, user } = JSON.parse(registerResponse.body)
+      const deviceId = `device-${Date.now()}`
+
+      const registerDeviceResponse = await server.inject({
+        method: 'POST',
+        url: '/api/devices/register',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-device-id': deviceId
+        },
+        payload: {
+          deviceId,
+          name: 'Version Test Browser',
+          platform: 'web'
+        }
+      })
+      expect([200, 201]).toContain(registerDeviceResponse.statusCode)
 
       // Save vault with version
       const version = Date.now()
-      await updateVault(user.id, 'encrypted-data', 'iv', version)
+      await updateVault(
+        user.id,
+        Buffer.from('encrypted-data').toString('base64'),
+        Buffer.from('iv').toString('base64'),
+        version
+      )
 
       // Check with old version (should return vault)
       const response1 = await server.inject({
         method: 'GET',
         url: `/api/auth/vault/latest?since=${version - 1000}`,
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, 'x-device-id': deviceId }
       })
       const body1 = JSON.parse(response1.body)
       expect(body1.exists).toBe(true)
@@ -129,11 +170,10 @@ describe('Auth Flow Integration', () => {
       const response2 = await server.inject({
         method: 'GET',
         url: `/api/auth/vault/latest?since=${version}`,
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, 'x-device-id': deviceId }
       })
       const body2 = JSON.parse(response2.body)
       expect(body2.upToDate).toBe(true)
     })
   })
 })
-

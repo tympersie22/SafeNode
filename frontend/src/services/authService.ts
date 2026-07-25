@@ -55,6 +55,16 @@ let getCurrentUserPromise: Promise<User> | null = null
 let getCurrentUserPromiseResolve: ((user: User) => void) | null = null
 let getCurrentUserPromiseReject: ((error: Error) => void) | null = null
 
+export function isNetworkRequestError(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name !== 'TypeError') return false
+
+  const message = error.message.toLowerCase()
+  return message.includes('failed to fetch')
+    || message.includes('load failed')
+    || message.includes('network request failed')
+    || message.includes('networkerror')
+}
+
 /**
  * Store authentication token in localStorage
  */
@@ -170,8 +180,8 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     }
     
     // Handle network errors
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-        throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+    if (isNetworkRequestError(error)) {
+        throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     // Re-throw other errors
     throw error
@@ -265,8 +275,8 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     }
     
     // Handle network errors
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-        throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+    if (isNetworkRequestError(error)) {
+        throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     
     // Re-throw other errors
@@ -308,8 +318,8 @@ export async function signUpWithPasskey(input: PasskeySignupInput): Promise<Auth
     return finalizeAuthSuccess(data)
   } catch (error: any) {
     console.error('[authService] Passkey sign-up exception:', error)
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+    if (isNetworkRequestError(error)) {
+      throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     throw error
   }
@@ -323,8 +333,8 @@ export async function signInWithPasskey(email: string): Promise<AuthResponse> {
     return finalizeAuthSuccess(data)
   } catch (error: any) {
     console.error('[authService] Passkey sign-in exception:', error)
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      throw new Error('Unable to connect to the SafeNode backend. Please try again in a moment.')
+    if (isNetworkRequestError(error)) {
+      throw new Error('Unable to connect to the Safenode backend. Please try again in a moment.')
     }
     throw error
   }
@@ -413,7 +423,7 @@ export async function getCurrentUser(): Promise<User> {
         throw new Error('Request timeout - server is not responding')
       }
       
-      if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+      if (isNetworkRequestError(error)) {
         throw new Error('Unable to connect to server. Please check if the backend is running.')
       }
       

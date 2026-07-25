@@ -12,7 +12,7 @@ export const BillingCancelPage: React.FC = () => {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center px-4">
+    <div className="sn-page min-h-screen flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -53,7 +53,7 @@ export const BillingCancelPage: React.FC = () => {
           transition={{ delay: 0.6 }}
           className="text-sm text-gray-500 mb-8"
         >
-          You can try again anytime, or continue using SafeNode Free.
+          You can try again anytime, or continue using Safenode Free.
         </motion.p>
 
         <motion.div

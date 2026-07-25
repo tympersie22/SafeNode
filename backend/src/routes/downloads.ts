@@ -22,7 +22,7 @@ const DOWNLOAD_URLS: Record<string, DownloadPlatform> = {
   macos: {
     platform: 'macos',
     name: 'macOS',
-    downloadUrl: process.env.DOWNLOAD_URL_MACOS || 'https://github.com/safenode/safenode-desktop/releases/latest/download/SafeNode-macOS.dmg',
+    downloadUrl: process.env.DOWNLOAD_URL_MACOS || 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-macOS.dmg',
     version: process.env.DESKTOP_VERSION || '1.0.0',
     releaseDate: process.env.DESKTOP_RELEASE_DATE || new Date().toISOString(),
     fileSize: '~50 MB',
@@ -31,7 +31,7 @@ const DOWNLOAD_URLS: Record<string, DownloadPlatform> = {
   windows: {
     platform: 'windows',
     name: 'Windows',
-    downloadUrl: process.env.DOWNLOAD_URL_WINDOWS || 'https://github.com/safenode/safenode-desktop/releases/latest/download/SafeNode-Windows.exe',
+    downloadUrl: process.env.DOWNLOAD_URL_WINDOWS || 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Windows.exe',
     version: process.env.DESKTOP_VERSION || '1.0.0',
     releaseDate: process.env.DESKTOP_RELEASE_DATE || new Date().toISOString(),
     fileSize: '~60 MB',
@@ -40,7 +40,7 @@ const DOWNLOAD_URLS: Record<string, DownloadPlatform> = {
   linux: {
     platform: 'linux',
     name: 'Linux',
-    downloadUrl: process.env.DOWNLOAD_URL_LINUX || 'https://github.com/safenode/safenode-desktop/releases/latest/download/SafeNode-Linux.AppImage',
+    downloadUrl: process.env.DOWNLOAD_URL_LINUX || 'https://github.com/tympersie22/Safenode/releases/latest/download/Safenode-Linux.AppImage',
     version: process.env.DESKTOP_VERSION || '1.0.0',
     releaseDate: process.env.DESKTOP_RELEASE_DATE || new Date().toISOString(),
     fileSize: '~55 MB',

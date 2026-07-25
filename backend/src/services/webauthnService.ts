@@ -34,6 +34,8 @@ export function getExpectedOrigins(): string[] {
   const origins = new Set<string>([
     'https://safe-node.app',
     'https://www.safe-node.app',
+    // Android Credential Manager binds assertions to the release signing certificate.
+    'android:apk-key-hash:KeiCwzfFwJDklJ1nixTpfuRkV7iK2AEgy0bcOvmwrbc',
     'http://localhost:5173',
     'http://localhost:5174', // common Vite fallback port
     'http://127.0.0.1:5173',
@@ -46,7 +48,7 @@ export function getExpectedOrigins(): string[] {
     for (const item of value.split(',')) {
       const origin = item.trim()
       if (!origin) continue
-      if (origin.startsWith('http://') || origin.startsWith('https://')) {
+      if (origin.startsWith('http://') || origin.startsWith('https://') || origin.startsWith('android:apk-key-hash:')) {
         origins.add(origin)
       }
     }
@@ -110,7 +112,7 @@ async function consumeChallenges(userId: string, type: AuthType): Promise<void> 
 export async function createRegistrationOptionsForIdentity(userId: string, userEmail: string): Promise<any> {
   return generateRegistrationOptions({
     rpID: getRpId(),
-    rpName: 'SafeNode',
+    rpName: 'Safenode',
     userName: userEmail,
     userID: new TextEncoder().encode(userId),
     attestationType: 'none',
@@ -283,6 +285,35 @@ export async function createAuthenticationOptions(userId: string): Promise<any> 
       transports: true,
     },
   })
+
+  const options = await createAuthenticationOptionsForCredentials(credentials)
+
+  await storeChallenge(userId, options.challenge, 'authentication')
+
+  return options
+}
+
+export async function createAuthenticationOptionsForCredentialIds(
+  userId: string,
+  credentialIds: string[]
+): Promise<any> {
+  const prisma = getPrismaClient()
+  const credentials = await prisma.webAuthnCredential.findMany({
+    where: {
+      userId,
+      credentialId: {
+        in: credentialIds,
+      },
+    },
+    select: {
+      credentialId: true,
+      transports: true,
+    },
+  })
+
+  if (credentials.length === 0) {
+    throw new Error('No registered passkeys are available for this account.')
+  }
 
   const options = await createAuthenticationOptionsForCredentials(credentials)
 

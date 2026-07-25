@@ -3,7 +3,7 @@
  * Usage: pnpm seed [--reset]
  */
 
-import { seedDatabase, seedDemoAccount } from './seed'
+import { seedDatabase } from './seed'
 import { getPrismaClient } from './prisma'
 import { initPrisma } from './prisma'
 

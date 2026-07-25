@@ -1,4 +1,4 @@
-// Simple script to create placeholder icons for SafeNode extension
+// Simple script to create placeholder icons for Safenode extension
 // Run this in Node.js: node create_icons.js
 
 const fs = require('fs');

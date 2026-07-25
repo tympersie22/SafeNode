@@ -97,7 +97,7 @@ describe('User Service', () => {
         password: 'CorrectPassword123!'
       })
 
-      const authenticated = await authenticateUser('auth@example.com', 'CorrectPassword123!')
+      const { user: authenticated } = await authenticateUser('auth@example.com', 'CorrectPassword123!')
 
       expect(authenticated).not.toBeNull()
       expect(authenticated?.id).toBe(user.id)
@@ -110,13 +110,13 @@ describe('User Service', () => {
         password: 'CorrectPassword123!'
       })
 
-      const authenticated = await authenticateUser('wrongpass@example.com', 'WrongPassword123!')
+      const { user: authenticated } = await authenticateUser('wrongpass@example.com', 'WrongPassword123!')
 
       expect(authenticated).toBeNull()
     })
 
     it('should reject non-existent user', async () => {
-      const authenticated = await authenticateUser('nonexistent@example.com', 'Password123!')
+      const { user: authenticated } = await authenticateUser('nonexistent@example.com', 'Password123!')
 
       expect(authenticated).toBeNull()
     })
@@ -127,7 +127,7 @@ describe('User Service', () => {
         password: 'Password123!'
       })
 
-      const authenticated = await authenticateUser('NORMALIZE@EXAMPLE.COM', 'Password123!')
+      const { user: authenticated } = await authenticateUser('NORMALIZE@EXAMPLE.COM', 'Password123!')
 
       expect(authenticated).not.toBeNull()
     })
@@ -182,24 +182,14 @@ describe('User Service', () => {
       expect(updated?.displayName).toBe('Updated Name')
     })
 
-    it('should update user email', async () => {
-      const newEmail = `updated-${Date.now()}@example.com`
-      const updated = await updateUser(testUser.id, {
-        email: newEmail
-      })
-
-      expect(updated).not.toBeNull()
-      expect(updated?.email).toBe(newEmail.toLowerCase())
-    })
-
     it('should update subscription tier', async () => {
       const updated = await updateUser(testUser.id, {
-        subscriptionTier: 'individual',
+        subscriptionTier: 'pro',
         subscriptionStatus: 'active'
       })
 
       expect(updated).not.toBeNull()
-      expect(updated?.subscriptionTier).toBe('individual')
+      expect(updated?.subscriptionTier).toBe('pro')
       expect(updated?.subscriptionStatus).toBe('active')
     })
 

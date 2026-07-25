@@ -77,12 +77,14 @@ export interface EncryptedVault {
 export class VaultAccessError extends Error {
   status?: number
   code?: string
+  details?: any
 
-  constructor(message: string, status?: number, code?: string) {
+  constructor(message: string, status?: number, code?: string, details?: any) {
     super(message)
     this.name = 'VaultAccessError'
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 
@@ -118,7 +120,28 @@ export interface SaveVaultOptions {
   rawVaultKey?: string
 }
 
-function toVaultAccessProfile(data: any): VaultAccessProfile {
+export function stripTransientVaultFields<T extends Record<string, any>>(vault: T): T {
+  const persistableEntries = Object.entries(vault).filter(([key]) => !key.startsWith('_'))
+  return Object.fromEntries(persistableEntries) as T
+}
+
+export interface LatestVaultPayload {
+  exists?: boolean
+  upToDate?: boolean
+  encryptedVault?: string
+  iv?: string
+  salt?: string
+  version?: number
+  accessMode?: VaultAccessMode
+  wrappedVaultKey?: string
+  wrappedVaultKeyIV?: string
+  recoveryWrappedVaultKey?: string
+  recoveryWrappedVaultKeyIV?: string
+  recoverySalt?: string
+  recoveryKitConfigured?: boolean
+}
+
+export function toVaultAccessProfile(data: any): VaultAccessProfile {
   if (data?.accessMode === 'wrapped_key' && data?.wrappedVaultKey && data?.wrappedVaultKeyIV) {
     return {
       accessMode: 'wrapped_key',
@@ -137,6 +160,28 @@ function toVaultAccessProfile(data: any): VaultAccessProfile {
   }
 }
 
+export async function fetchLatestVaultPayload(): Promise<LatestVaultPayload> {
+  const token = localStorage.getItem('safenode_token')
+
+  if (!token) {
+    throw new Error('Not authenticated')
+  }
+
+  const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      ...getCurrentDeviceHeaders()
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to fetch vault')
+  }
+
+  return response.json()
+}
+
 async function encryptVaultForProfile(
   vault: Vault,
   masterPassword: string,
@@ -147,7 +192,7 @@ async function encryptVaultForProfile(
   encryptedVault: string
   iv: string
 }> {
-  const vaultJson = JSON.stringify(vault)
+  const vaultJson = JSON.stringify(stripTransientVaultFields(vault))
 
   if (accessProfile?.accessMode === 'wrapped_key') {
     if (!rawVaultKey) {
@@ -297,26 +342,7 @@ export async function initializeVault(
  * Unlock vault with master password
  */
 export async function unlockVault(masterPassword: string): Promise<Vault> {
-  const token = localStorage.getItem('safenode_token')
-  
-  if (!token) {
-    throw new Error('Not authenticated')
-  }
-
-  // Get encrypted vault from server
-  const response = await fetch(`${API_BASE}/api/auth/vault/latest`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      ...getCurrentDeviceHeaders()
-    }
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to fetch vault')
-  }
-
-  const data = await response.json()
+  const data = await fetchLatestVaultPayload()
   const accessProfile = toVaultAccessProfile(data)
 
   // Check if vault exists
@@ -602,7 +628,8 @@ export async function vaultExists(): Promise<boolean> {
       throw new VaultAccessError(
         error.message || 'Failed to verify vault access',
         response.status,
-        error.code || error.error
+        error.code || error.error,
+        error
       )
     }
 

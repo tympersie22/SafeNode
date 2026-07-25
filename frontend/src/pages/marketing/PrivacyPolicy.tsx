@@ -6,14 +6,14 @@ export const PrivacyPolicyPage: React.FC = () => {
     <LegalPageShell
       eyebrow="Privacy"
       title="Privacy Policy"
-      summary="SafeNode is built around a zero-knowledge security model. We collect the minimum account, billing, and operational data required to run the service and keep the platform secure."
+      summary="Safenode is built around a zero-knowledge security model. We collect the minimum account, billing, and operational data required to run the service and keep the platform secure."
       lastUpdated="March 2026"
     >
       <section>
         <h2>1. Scope</h2>
         <p>
-          This Privacy Policy explains how SafeNode collects, uses, stores, and discloses information when you use
-          the SafeNode applications, website, hosted billing flows, and related support channels.
+          This Privacy Policy explains how Safenode collects, uses, stores, and discloses information when you use
+          the Safenode applications, website, hosted billing flows, and related support channels.
         </p>
       </section>
 
@@ -24,16 +24,16 @@ export const PrivacyPolicyPage: React.FC = () => {
           <li>Account data such as email address, optional display name, and account status metadata.</li>
           <li>Security telemetry such as device identifiers, user agent, IP-derived access logs, and audit events.</li>
           <li>Billing metadata such as subscription tier, subscription status, transaction identifiers, and provider references.</li>
-          <li>Support communications you send to SafeNode directly.</li>
+          <li>Support communications you send to Safenode directly.</li>
         </ul>
       </section>
 
       <section>
         <h2>3. Zero-knowledge vault design</h2>
         <p>
-          Vault contents are encrypted client-side before storage or transmission. SafeNode is designed so that the
+          Vault contents are encrypted client-side before storage or transmission. Safenode is designed so that the
           service does not have the material required to decrypt vault contents. Your master-password-derived secrets
-          are not available to SafeNode operations staff.
+          are not available to Safenode operations staff.
         </p>
       </section>
 
@@ -50,11 +50,11 @@ export const PrivacyPolicyPage: React.FC = () => {
 
       <section>
         <h2>5. Infrastructure and subprocessors</h2>
-        <p>SafeNode uses third-party infrastructure providers to operate the service.</p>
+        <p>Safenode uses third-party infrastructure providers to operate the service.</p>
         <ul>
           <li>Paddle for subscription billing and merchant-of-record payment processing.</li>
           <li>Resend for transactional email delivery.</li>
-          <li>Vercel for application hosting and deployment infrastructure.</li>
+          <li>Cloudflare and Railway for application hosting and delivery infrastructure.</li>
           <li>Supabase for managed database infrastructure.</li>
         </ul>
       </section>
@@ -63,7 +63,7 @@ export const PrivacyPolicyPage: React.FC = () => {
         <h2>6. Retention</h2>
         <p>
           We retain account and service records for as long as your account remains active and as required for
-          security, tax, fraud-prevention, and legal compliance purposes. When you delete your account, SafeNode will
+          security, tax, fraud-prevention, and legal compliance purposes. When you delete your account, Safenode will
           remove data according to the product deletion workflow and any mandatory retention obligations.
         </p>
       </section>
@@ -71,7 +71,7 @@ export const PrivacyPolicyPage: React.FC = () => {
       <section>
         <h2>7. Security controls</h2>
         <p>
-          SafeNode uses layered controls including client-side encryption, hardened password hashing, HTTPS, access
+          Safenode uses layered controls including client-side encryption, hardened password hashing, HTTPS, access
           logging, rate limiting, signed webhooks, and controlled operational access. No system is risk-free, but the
           service is designed to minimize blast radius and stored plaintext exposure.
         </p>
@@ -90,7 +90,7 @@ export const PrivacyPolicyPage: React.FC = () => {
       <section>
         <h2>9. Children</h2>
         <p>
-          SafeNode is not directed to children under the age required by applicable law to enter into a service
+          Safenode is not directed to children under the age required by applicable law to enter into a service
           contract. If we learn that an account was created unlawfully, we may disable or remove it.
         </p>
       </section>

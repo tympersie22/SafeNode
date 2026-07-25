@@ -3,7 +3,7 @@
  * Tests subscription purchase flow
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals'
+import { describe, it, expect, beforeEach } from '@jest/globals'
 import { createUser } from '../../src/services/userService'
 import { checkSubscriptionLimits } from '../../src/services/stripeService'
 
@@ -16,7 +16,7 @@ import { checkSubscriptionLimits } from '../../src/services/stripeService'
 describe('E2E: Stripe Checkout', () => {
   let userId: string
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     const user = await createUser({
       email: `stripe-e2e-${Date.now()}@example.com`,
       password: 'Password123!',
@@ -50,4 +50,3 @@ describe('E2E: Stripe Checkout', () => {
     })
   })
 })
-

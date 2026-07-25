@@ -57,19 +57,6 @@ export default defineConfig({
             }
             return 'vendor-misc'
           }
-
-          if (id.includes('/src/crypto/')) {
-            return 'crypto'
-          }
-          if (id.includes('/src/pages/marketing/')) {
-            return 'marketing'
-          }
-          if (id.includes('/src/pages/settings/')) {
-            return 'settings'
-          }
-          if (id.includes('/src/components/dashboard/') || id.includes('/src/ui/Saas')) {
-            return 'dashboard'
-          }
         }
       }
     },

@@ -60,8 +60,7 @@ export async function registerSecurityHeaders(server: FastifyInstance): Promise<
           'https://api.stripe.com',
           'https://checkout.stripe.com',
           'https://*.sentry.io', // Sentry error reporting
-          'https://*.ingest.sentry.io', // Sentry data ingestion
-          'https://vitals.vercel-insights.com' // Vercel analytics if used
+          'https://*.ingest.sentry.io' // Sentry data ingestion
         ],
         fontSrc: [
           "'self'",
@@ -169,4 +168,3 @@ export function configureCORS(server: FastifyInstance, allowedOrigins: string[])
     }
   })
 }
-

@@ -1,8 +1,8 @@
 [package]
 name = "safenode-desktop"
 version = "0.1.0"
-description = "SafeNode Desktop - Secure Password Manager"
-authors = ["SafeNode Team"]
+description = "Safenode Desktop - Secure Password Manager"
+authors = ["Safenode Team"]
 license = "MIT"
 repository = "https://github.com/safenode/safenode"
 edition = "2021"
@@ -10,28 +10,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.5", features = [ "window-show", "window-close", "system-tray", "window-start-dragging", "window-minimize", "window-unminimize", "dialog-save", "window-unmaximize", "fs-all", "window-maximize", "window-hide", "dialog-open", "shell-open"] }
-keyring = "2.3"  # For system keychain integration
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-deep-link = "2"
+serde_json = "1"
 
-# Platform-specific biometric authentication
-[target.'cfg(target_os = "macos")'.dependencies]
-objc = "0.2"  # Objective-C bindings for LocalAuthentication
-
-[target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.52", features = [
-    "Win32_Foundation",
-    "Win32_Security",
-    "Win32_System_SystemInformation",
-] }
-winapi = { version = "0.3", features = ["winuser", "winerror"] }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-zbus = "3.14"  # D-Bus client for fprintd
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [features]
 # This feature is used for production builds or when `devPath` points to the filesystem

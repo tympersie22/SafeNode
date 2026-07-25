@@ -1,5 +1,5 @@
 /**
- * SafeNode Illustration Library
+ * Safenode Illustration Library
  * Minimal spot illustrations matching brand identity
  */
 

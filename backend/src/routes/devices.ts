@@ -11,6 +11,7 @@ import { checkSubscriptionLimits } from '../services/stripeService'
 import { createAuditLog } from '../services/auditLogService'
 import { findUserById } from '../services/userService'
 import { bindSessionToDevice, revokeDeviceSessions } from '../services/deviceSessionService'
+import { createDeviceReapprovalToken, confirmDeviceReapproval } from '../services/deviceReapprovalService'
 import { z } from 'zod'
 
 type EffectivePlan = 'free' | 'individual' | 'family' | 'teams'
@@ -406,6 +407,65 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
    * DELETE /api/devices/:id
    * Remove a device (requires authentication)
    */
+  /**
+   * POST /api/devices/reclaim
+   * Free a device slot from an authenticated session WITHOUT requiring the
+   * current device to be registered. Lets a user locked out by the device limit
+   * (new browser / cleared storage / lost device) remove one of their existing
+   * devices so this device can then register. Auth-only by design.
+   */
+  server.post('/api/devices/reclaim', {
+    preHandler: requireAuth
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const body = (request.body as any) || {}
+      const targetId: string | undefined = body.id
+      const targetDeviceId: string | undefined = body.deviceId
+
+      if (!targetId && !targetDeviceId) {
+        return reply.code(400).send({
+          error: 'validation_error',
+          message: 'Provide the id (or deviceId) of the device to remove.'
+        })
+      }
+
+      const prisma = getPrismaClient()
+      const device = await prisma.device.findFirst({
+        where: {
+          userId: user.id,
+          ...(targetId ? { id: targetId } : { deviceId: targetDeviceId })
+        }
+      })
+
+      if (!device) {
+        return reply.code(404).send({ error: 'device_not_found', message: 'Device not found' })
+      }
+
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { isActive: false, requiresReapproval: true, removedAt: new Date() }
+      })
+
+      const revokedSessions = await revokeDeviceSessions(user.id, device.deviceId, 'device_reclaimed')
+
+      createAuditLog({
+        userId: user.id,
+        action: 'device_removed',
+        resourceType: 'device',
+        resourceId: device.id,
+        metadata: { deviceName: device.name, revokedSessions, reason: 'reclaim_slot' },
+        ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+        userAgent: request.headers['user-agent'] || undefined
+      }).catch(() => undefined)
+
+      return { success: true, removedDeviceId: device.deviceId, revokedSessions }
+    } catch (error: any) {
+      request.log.error({ error: error?.message }, 'Failed to reclaim device slot')
+      return reply.code(500).send({ error: 'reclaim_failed', message: 'Failed to remove device' })
+    }
+  })
+
   server.delete('/api/devices/:id', {
     preHandler: [requireAuth, requireRegisteredDevice]
   }, async (request, reply) => {
@@ -597,6 +657,91 @@ export async function registerDeviceRoutes(server: FastifyInstance) {
         error: error?.message || 'server_error',
         message: 'Failed to approve device'
       })
+    }
+  })
+
+  /**
+   * POST /api/devices/reapproval/request
+   * Emails the account owner a one-time link to re-approve a removed device.
+   * Callable from the locked-out device itself: requires auth, but NOT a trusted
+   * device (that is the whole point). Always responds success to avoid leaking
+   * device state; only actually emails when a matching removed device exists.
+   */
+  server.post('/api/devices/reapproval/request', {
+    preHandler: requireAuth
+  }, async (request, reply) => {
+    try {
+      const user = (request as any).user
+      const parsed = z.object({ deviceId: z.string().min(1) }).safeParse(request.body)
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'validation_error', message: 'Device ID is required' })
+      }
+
+      const prisma = getPrismaClient()
+      const device = await prisma.device.findUnique({
+        where: { userId_deviceId: { userId: user.id, deviceId: parsed.data.deviceId } }
+      })
+
+      if (device && device.requiresReapproval) {
+        const userRecord = await findUserById(user.id)
+        if (userRecord?.email) {
+          await createDeviceReapprovalToken({
+            userId: user.id,
+            deviceRowId: device.id,
+            email: userRecord.email,
+            displayName: userRecord.displayName,
+            deviceName: device.name
+          })
+          createAuditLog({
+            userId: user.id,
+            action: 'device_reapproval_email_sent',
+            resourceType: 'device',
+            resourceId: device.id,
+            metadata: { deviceId: device.deviceId, deviceName: device.name },
+            ipAddress: request.ip || request.headers['x-forwarded-for'] as string || undefined,
+            userAgent: request.headers['user-agent'] || undefined
+          }).catch(err => request.log.warn({ error: err }, 'Failed to create audit log'))
+        }
+      }
+
+      // Uniform response regardless of device state.
+      return {
+        success: true,
+        message: 'If this device needs re-approval, a link has been sent to your account email.'
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({ error: 'server_error', message: 'Failed to send re-approval email' })
+    }
+  })
+
+  /**
+   * POST /api/devices/reapproval/confirm
+   * Consumes a re-approval token (from the emailed link) and clears the
+   * requiresReapproval flag on the bound device. Token-bound and single-use, so
+   * it is intentionally callable without an active session (the link may be
+   * opened in a different browser). Grants no auth or vault access.
+   */
+  server.post('/api/devices/reapproval/confirm', async (request, reply) => {
+    try {
+      const parsed = z.object({ token: z.string().min(16, 'Invalid approval link') }).safeParse(request.body)
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'validation_error', message: 'A valid approval token is required' })
+      }
+
+      const result = await confirmDeviceReapproval(parsed.data.token)
+      if (!result.success) {
+        return reply.code(400).send({ error: 'reapproval_failed', message: result.error })
+      }
+
+      return {
+        success: true,
+        message: 'Device approved. You can return to Safenode and unlock your vault.',
+        deviceName: result.deviceName
+      }
+    } catch (error: any) {
+      request.log.error(error)
+      return reply.code(500).send({ error: 'server_error', message: 'Failed to approve device' })
     }
   })
 }

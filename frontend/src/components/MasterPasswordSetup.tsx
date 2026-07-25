@@ -239,7 +239,7 @@ export const MasterPasswordSetup: React.FC<MasterPasswordSetupProps> = ({
                 Important: Vault Passphrase Cannot Be Recovered
               </p>
               <p className="text-amber-800 dark:text-amber-200">
-                We cannot recover your passphrase for you. SafeNode will generate a recovery kit after setup so you can restore access without weakening zero-knowledge encryption.
+                We cannot recover your passphrase for you. Safenode will generate a recovery kit after setup so you can restore access without weakening zero-knowledge encryption.
               </p>
             </div>
           </div>
