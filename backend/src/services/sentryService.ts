@@ -11,10 +11,16 @@ let isInitialized = false
 // Try to import Sentry, but don't fail if not installed
 try {
   Sentry = require('@sentry/node')
-  ProfilingIntegration = require('@sentry/profiling-node').ProfilingIntegration
 } catch {
   // Sentry not installed, will skip initialization
   console.warn('⚠️  @sentry/node not installed. Error tracking is disabled.')
+}
+
+// Profiling is optional; error tracking must still work without this add-on.
+try {
+  ProfilingIntegration = require('@sentry/profiling-node').ProfilingIntegration
+} catch {
+  ProfilingIntegration = null
 }
 
 import { config } from '../config'
@@ -47,9 +53,12 @@ export function initSentry(): void {
       dsn,
       environment: config.nodeEnv,
       integrations: [
-        // Automatically instrument Node.js libraries and frameworks
-        new (Sentry as any).Integrations.Http({ tracing: true }),
-        new (Sentry as any).Integrations.Express({ app: undefined as any }), // Will be set later
+        // Prefer the current SDK integration API, with compatibility for older SDKs.
+        typeof Sentry.httpIntegration === 'function'
+          ? Sentry.httpIntegration({ spans: true })
+          : Sentry.Integrations?.Http
+            ? new Sentry.Integrations.Http({ tracing: true })
+            : undefined,
         ProfilingIntegration ? new ProfilingIntegration() : undefined
       ].filter(Boolean),
       // Performance Monitoring
@@ -162,4 +171,3 @@ export function startTransaction(name: string, op: string): any {
   if (!isInitialized || !Sentry) return null
   return Sentry.startTransaction({ name, op })
 }
-
