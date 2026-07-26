@@ -7,6 +7,7 @@ import { createApp } from './app'
 import { adapter } from './adapters'
 import { config } from './config'
 import { seedDatabase } from './db/seed'
+import { initSentry } from './services/sentryService'
 
 // Graceful shutdown handler
 let server: any = null
@@ -48,6 +49,8 @@ process.on('uncaughtException', (error) => {
  */
 async function start() {
   try {
+    // Initialize observability before database and route startup failures can occur.
+    initSentry()
     console.log('🚀 Starting Safenode backend...')
     console.log(`📦 Environment: ${config.nodeEnv}`)
     console.log(`💾 Database adapter: ${config.dbAdapter}`)
@@ -102,4 +105,3 @@ async function start() {
 
 // Start the server
 start()
-
