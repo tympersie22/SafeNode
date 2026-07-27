@@ -27,16 +27,25 @@ const portalSchema = z.object({
   returnUrl: z.string().url('Return URL must be a valid URL')
 })
 
-const PLAN_PRICE_ALIAS_MAP: Record<string, string | undefined> = {
-  'individual:monthly': process.env.PADDLE_PRICE_INDIVIDUAL_MONTHLY || process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY,
-  'individual:annual': process.env.PADDLE_PRICE_INDIVIDUAL_ANNUAL || process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL,
-  'family:monthly': process.env.PADDLE_PRICE_FAMILY_MONTHLY || process.env.STRIPE_PRICE_FAMILY_MONTHLY,
-  'family:annual': process.env.PADDLE_PRICE_FAMILY_ANNUAL || process.env.STRIPE_PRICE_FAMILY_ANNUAL,
-  'teams:monthly': process.env.PADDLE_PRICE_TEAMS_MONTHLY || process.env.STRIPE_PRICE_TEAMS_MONTHLY,
-  'teams:annual': process.env.PADDLE_PRICE_TEAMS_ANNUAL || process.env.STRIPE_PRICE_TEAMS_ANNUAL
+const PADDLE_PLAN_PRICE_ALIAS_MAP: Record<string, string | undefined> = {
+  'individual:monthly': process.env.PADDLE_PRICE_INDIVIDUAL_MONTHLY,
+  'individual:annual': process.env.PADDLE_PRICE_INDIVIDUAL_ANNUAL,
+  'family:monthly': process.env.PADDLE_PRICE_FAMILY_MONTHLY,
+  'family:annual': process.env.PADDLE_PRICE_FAMILY_ANNUAL,
+  'teams:monthly': process.env.PADDLE_PRICE_TEAMS_MONTHLY,
+  'teams:annual': process.env.PADDLE_PRICE_TEAMS_ANNUAL
 }
 
-const PLAN_PRICE_ENV_MAP: Record<string, string> = {
+const STRIPE_PLAN_PRICE_ALIAS_MAP: Record<string, string | undefined> = {
+  'individual:monthly': process.env.STRIPE_PRICE_INDIVIDUAL_MONTHLY,
+  'individual:annual': process.env.STRIPE_PRICE_INDIVIDUAL_ANNUAL,
+  'family:monthly': process.env.STRIPE_PRICE_FAMILY_MONTHLY,
+  'family:annual': process.env.STRIPE_PRICE_FAMILY_ANNUAL,
+  'teams:monthly': process.env.STRIPE_PRICE_TEAMS_MONTHLY,
+  'teams:annual': process.env.STRIPE_PRICE_TEAMS_ANNUAL
+}
+
+const PADDLE_PLAN_PRICE_ENV_MAP: Record<string, string> = {
   'individual:monthly': 'PADDLE_PRICE_INDIVIDUAL_MONTHLY',
   'individual:annual': 'PADDLE_PRICE_INDIVIDUAL_ANNUAL',
   'family:monthly': 'PADDLE_PRICE_FAMILY_MONTHLY',
@@ -45,22 +54,43 @@ const PLAN_PRICE_ENV_MAP: Record<string, string> = {
   'teams:annual': 'PADDLE_PRICE_TEAMS_ANNUAL'
 }
 
+const STRIPE_PLAN_PRICE_ENV_MAP: Record<string, string> = {
+  'individual:monthly': 'STRIPE_PRICE_INDIVIDUAL_MONTHLY',
+  'individual:annual': 'STRIPE_PRICE_INDIVIDUAL_ANNUAL',
+  'family:monthly': 'STRIPE_PRICE_FAMILY_MONTHLY',
+  'family:annual': 'STRIPE_PRICE_FAMILY_ANNUAL',
+  'teams:monthly': 'STRIPE_PRICE_TEAMS_MONTHLY',
+  'teams:annual': 'STRIPE_PRICE_TEAMS_ANNUAL'
+}
+
+function getPlanPriceAliasMap(): Record<string, string | undefined> {
+  return config.billingProvider === 'paddle'
+    ? PADDLE_PLAN_PRICE_ALIAS_MAP
+    : STRIPE_PLAN_PRICE_ALIAS_MAP
+}
+
+function getPlanPriceEnvMap(): Record<string, string> {
+  return config.billingProvider === 'paddle'
+    ? PADDLE_PLAN_PRICE_ENV_MAP
+    : STRIPE_PLAN_PRICE_ENV_MAP
+}
+
 function resolveCheckoutPriceId(raw: string): string {
   if (!raw) return raw
 
   // Supports frontend aliases like "plan:individual:monthly"
   // and direct aliases like "individual:monthly".
   const normalized = raw.startsWith('plan:') ? raw.slice('plan:'.length) : raw
-  return PLAN_PRICE_ALIAS_MAP[normalized] || raw
+  return getPlanPriceAliasMap()[normalized] || raw
 }
 
 function getMissingPriceEnvForAlias(raw: string): string | null {
   const normalized = raw.startsWith('plan:') ? raw.slice('plan:'.length) : raw
-  if (PLAN_PRICE_ALIAS_MAP[normalized]) {
+  if (getPlanPriceAliasMap()[normalized]) {
     return null
   }
 
-  return PLAN_PRICE_ENV_MAP[normalized] || null
+  return getPlanPriceEnvMap()[normalized] || null
 }
 
 /**

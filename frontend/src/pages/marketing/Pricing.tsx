@@ -14,11 +14,11 @@ import { Spinner } from '../../components/ui/Spinner';
 import { showToast } from '../../components/ui/Toast';
 import { createCheckoutSession } from '../../services/billingService';
 import { getCurrentUser } from '../../services/authService';
-import { PRICING_PLANS, type PricingPlan, getCheckoutTarget, getPlanMonthlyPrice } from '../../config/pricingPlans';
+import { PRICING_PLANS, type BillingCycle, type PricingPlan, getCheckoutTarget, getPlanBillingDescription, getPlanMonthlyPrice } from '../../config/pricingPlans';
 
 export const PricingNewPage: React.FC = () => {
   const navigate = useNavigate();
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleSubscribe = async (planId: string, checkoutTarget?: { provider: 'paddle' | 'stripe'; value: string } | null) => {
@@ -39,12 +39,16 @@ export const PricingNewPage: React.FC = () => {
       const user = await getCurrentUser();
       if (!user) {
         // Redirect to signup with plan pre-selected
-        navigate(`/auth?mode=signup&plan=${planId}`);
+        navigate(`/auth?mode=signup&plan=${planId}&cycle=${billingCycle}`);
         return;
       }
 
       // Create Stripe checkout session
-      const { url } = await createCheckoutSession(checkoutTarget.value);
+      const { url } = await createCheckoutSession(
+        checkoutTarget.value,
+        `${window.location.origin}/billing/success?plan=${planId}&cycle=${billingCycle}`,
+        `${window.location.origin}/pricing`
+      );
 
       if (url) {
         // Redirect to Stripe checkout
@@ -143,10 +147,11 @@ export const PricingNewPage: React.FC = () => {
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
                     <span className="font-serif text-5xl font-medium tracking-[-0.04em] text-[var(--sn-ink)] dark:text-white">{getPrice(plan)}</span>
-                    {plan.price !== 0 && (
-                      <span className="text-[var(--sn-muted)]">/mo</span>
-                    )}
+                    {plan.price !== 0 && <span className="text-[var(--sn-muted)]">/mo</span>}
                   </div>
+                  <p className="mt-1 text-sm text-[var(--sn-muted)]">
+                    {getPlanBillingDescription(plan, billingCycle)}
+                  </p>
                   {savings && (
                     <p className="mt-1 text-sm font-semibold text-[var(--sn-accent)]">{savings}</p>
                   )}
@@ -198,7 +203,7 @@ export const PricingNewPage: React.FC = () => {
                 Is there a free trial?
               </h3>
               <p className="text-gray-600 dark:text-gray-300">
-                Yes. All paid plans include a 14-day free trial. No credit card required.
+                Trial availability and duration are shown in Paddle checkout. Choose Monthly if you want monthly billing; Annual is charged as one yearly payment.
               </p>
             </div>
             <div className="border-t border-[var(--sn-line)] py-6 sm:pr-8">
