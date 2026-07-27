@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { getPrismaClient } from '../db/prisma'
 import { createDeviceSession, getRequestAuditContext, getRequestDeviceId } from '../services/deviceSessionService'
 import { createUser, deleteUser, findUserByEmail } from '../services/userService'
+import { createVerificationToken } from '../services/emailVerificationService'
 import { issueToken } from '../middleware/auth'
 import {
   createAuthenticationOptions,
@@ -197,6 +198,12 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
         pendingPasskeySignups.delete(flowId)
         return reply.code(500).send({ error: 'server_error', message: 'Failed to finish passkey sign-up.' })
       }
+
+      // A passkey proves control of the authenticator, not the submitted email.
+      // Keep the account unverified and issue the normal email verification token.
+      createVerificationToken(verifiedUser.id, verifiedUser.email, verifiedUser.displayName).catch((error) => {
+        request.log.error({ error, userId: verifiedUser.id }, 'Failed to send passkey signup verification email')
+      })
 
       const session = await createDeviceSession({
         userId: verifiedUser.id,
