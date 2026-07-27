@@ -1,5 +1,4 @@
 from pathlib import Path
-import shutil
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -178,9 +177,6 @@ index_sections = [
 ('Safenode positioning', [P('Safenode is best described as a passkey-first secure identity, recovery, and encrypted secret platform. The vault is the encrypted data plane; passkeys, devices, recovery, teams, billing, and audit controls form the security control plane.')])
 ]
 docs.append(build_doc('Safenode_Documentation_Index.pdf', 'Safenode Documentation Index', 'The controlled documentation set for the Safenode product, security model, operations, and integrations.', index_sections))
-
-# Keep the earlier artifact names usable, but replace their obsolete deployment claims.
-shutil.copyfile(OUT / 'Safenode_Architecture_and_Data_Flows.pdf', OUT / 'SafeNode_Product_Security_Architecture.pdf')
 
 docs.append(build_doc('Safenode_Pitch_Deck.pdf', 'Safenode Product Pitch', 'Passkey-first security for identity, recovery, and team secrets.', [
 ('The opportunity', [P('Passkeys improve how people prove identity. They do not, by themselves, solve recovery, device replacement, shared operational secrets, or team access governance.'), P('Safenode is the security continuity layer after sign-in: a client-encrypted vault and control plane for people, devices, recovery, and teams.')]),
