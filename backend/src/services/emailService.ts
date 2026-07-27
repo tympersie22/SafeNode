@@ -430,7 +430,7 @@ This link will expire in 24 hours. If you didn't create a Safenode account, you 
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'Safenode Security <security@mail.safe-node.app>',
+        from: process.env.EMAIL_FROM || 'Safenode <hello@mail.safe-node.app>',
         to: [options.to],
         subject: options.subject,
         html: options.html,
@@ -464,7 +464,7 @@ This link will expire in 24 hours. If you didn't create a Safenode account, you 
           to: [{ email: options.to }]
         }],
         from: {
-          email: process.env.EMAIL_FROM || 'security@mail.safe-node.app',
+          email: process.env.EMAIL_FROM || 'hello@mail.safe-node.app',
           name: 'Safenode'
         },
         subject: options.subject,
@@ -506,7 +506,7 @@ This link will expire in 24 hours. If you didn't create a Safenode account, you 
     })
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'Safenode Security <security@mail.safe-node.app>',
+      from: process.env.EMAIL_FROM || 'Safenode <hello@mail.safe-node.app>',
       to: options.to,
       subject: options.subject,
       html: options.html,
