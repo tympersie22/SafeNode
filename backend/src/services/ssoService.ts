@@ -98,6 +98,13 @@ interface AppleCallbackUser {
   }
 }
 
+interface NormalizedSSOUser {
+  email: string
+  name: string
+  id: string
+  emailVerified: boolean
+}
+
 function getApplePrivateKey(privateKey: string): string {
   return privateKey.includes('-----BEGIN')
     ? privateKey.replace(/\\n/g, '\n')
@@ -320,7 +327,8 @@ async function exchangeCodeForToken(
     const normalizedAppleUser = {
       email: appleClaims.email || profileHint?.email,
       name: displayName || (appleClaims.email ? appleClaims.email.split('@')[0] : 'Apple User'),
-      id: appleClaims.sub
+      id: appleClaims.sub,
+      emailVerified: appleClaims.email_verified === true || appleClaims.email_verified === 'true'
     }
 
     if (!normalizedAppleUser.email) {
@@ -353,19 +361,21 @@ async function exchangeCodeForToken(
   const userInfo = await userInfoResponse.json() as any
 
   // Normalize user info across providers
-  let normalizedUserInfo: { email: string; name: string; id: string }
+  let normalizedUserInfo: NormalizedSSOUser
   
   if (provider === 'google') {
     normalizedUserInfo = {
       email: userInfo.email as string,
       name: (userInfo.name || userInfo.given_name || '') as string,
-      id: userInfo.id as string
+      id: userInfo.id as string,
+      emailVerified: userInfo.verified_email === true
     }
   } else if (provider === 'microsoft') {
     normalizedUserInfo = {
       email: userInfo.mail || userInfo.userPrincipalName,
       name: userInfo.displayName || userInfo.givenName || '',
-      id: userInfo.id
+      id: userInfo.id,
+      emailVerified: userInfo.email_verified === true || userInfo.emailVerified === true
     }
   } else if (provider === 'github') {
     // GitHub requires separate email endpoint
@@ -381,7 +391,8 @@ async function exchangeCodeForToken(
     normalizedUserInfo = {
       email: primaryEmail.email,
       name: userInfo.name || userInfo.login,
-      id: userInfo.id.toString()
+      id: userInfo.id.toString(),
+      emailVerified: primaryEmail.verified === true
     }
   } else {
     throw new Error(`Unsupported provider: ${provider}`)
@@ -443,10 +454,10 @@ export async function handleSSOCallback(
         displayName: userInfo.name
       })
       
-      // Mark email as verified (SSO emails are verified)
-      await db.users.update(user.id, {
-        emailVerified: true
-      })
+      // Trust only an explicit provider assertion, never the email string alone.
+      if (userInfo.emailVerified) {
+        await db.users.update(user.id, { emailVerified: true })
+      }
     } else {
       // Update last login
       await db.users.update(user.id, {
