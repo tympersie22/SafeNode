@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { requireAuth } from '../middleware/auth'
 import { getPrismaClient } from '../db/prisma'
 import { createDeviceSession, getRequestAuditContext, getRequestDeviceId } from '../services/deviceSessionService'
-import { createUser, deleteUser, findUserByEmail, updateUser } from '../services/userService'
+import { createUser, deleteUser, findUserByEmail } from '../services/userService'
 import { issueToken } from '../middleware/auth'
 import {
   createAuthenticationOptions,
@@ -179,7 +179,6 @@ export async function registerPasskeyRoutes(server: FastifyInstance) {
         displayName: pending.displayName,
       })
 
-      await updateUser(user.id, { emailVerified: true })
       let result
       try {
         result = await verifyDetachedRegistration(user.id, pending.challenge, toRegistrationResponse(body))
