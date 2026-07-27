@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -177,5 +178,17 @@ index_sections = [
 ('Safenode positioning', [P('Safenode is best described as a passkey-first secure identity, recovery, and encrypted secret platform. The vault is the encrypted data plane; passkeys, devices, recovery, teams, billing, and audit controls form the security control plane.')])
 ]
 docs.append(build_doc('Safenode_Documentation_Index.pdf', 'Safenode Documentation Index', 'The controlled documentation set for the Safenode product, security model, operations, and integrations.', index_sections))
+
+# Keep the earlier artifact names usable, but replace their obsolete deployment claims.
+shutil.copyfile(OUT / 'Safenode_Architecture_and_Data_Flows.pdf', OUT / 'SafeNode_Product_Security_Architecture.pdf')
+
+docs.append(build_doc('Safenode_Pitch_Deck.pdf', 'Safenode Product Pitch', 'Passkey-first security for identity, recovery, and team secrets.', [
+('The opportunity', [P('Passkeys improve how people prove identity. They do not, by themselves, solve recovery, device replacement, shared operational secrets, or team access governance.'), P('Safenode is the security continuity layer after sign-in: a client-encrypted vault and control plane for people, devices, recovery, and teams.')]),
+('The product', [bullet('<b>Identity:</b> phishing-resistant passkey authentication and trusted devices.'), bullet('<b>Vault:</b> personal encrypted secrets with password, recovery-kit, and passkey-PRF unlock paths.'), bullet('<b>Recovery:</b> user-held recovery kits, device re-approval, successor continuity, and migration cues.'), bullet('<b>Teams:</b> encrypted team workspaces, membership, roles, invitations, and audit history.'), bullet('<b>Operations:</b> reports, security posture, billing entitlements, and release evidence.')]),
+('Why it is defensible', [bullet('The passkey is part of the cryptographic vault unlock path when WebAuthn PRF is supported, not only a UI gate.'), bullet('The backend stores encrypted payloads and wrapped ciphertext, not the master password, raw vault key, recovery kit, or PRF output.'), bullet('Fallbacks are honest: password and recovery-kit unlock remain available when a browser or authenticator lacks PRF.'), bullet('Device and team controls connect authentication to real access continuity.')]),
+('Current production system', [table([['Surface','Current platform','Status'], ['Frontend','Cloudflare Pages / safe-node.app','Live'], ['Backend','Railway / api.safe-node.app','Live'], ['Database','Railway Postgres via Prisma','Live'], ['Email','Resend / mail.safe-node.app','Verified'], ['Billing','Paddle signed checkout/webhooks','Configured'], ['Telemetry','Sentry backend/frontend','Configured']], [30*mm, 78*mm, 52*mm])]),
+('Business model', [table([['Plan','Monthly','Annual'], ['Free','$0','Free'], ['Personal','$2.49/mo','$24.90 billed annually'], ['Family','$4.16/mo','$41.60 billed annually'], ['Teams','$8.32/mo','$83.20 billed annually']], [38*mm, 55*mm, 67*mm]), P('Annual is the default selection in the app. Users can toggle Monthly before checkout; the selected cadence determines the Paddle price. Trial duration is configured on the corresponding Paddle price record.', 'Callout')]),
+('Launch readiness', [bullet('CI tests and type-checks are green.'), bullet('Cloudflare Pages and Railway production paths are live.'), bullet('Passkey, vault, recovery, device, email, team, and billing smoke tests remain release gates.'), bullet('Formal penetration testing, privacy/legal review, and independent assurance are recommended before making certification claims.')])
+]))
 
 print('\n'.join(str(p) for p in docs))
