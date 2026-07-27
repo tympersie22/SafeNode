@@ -1,0 +1,181 @@
+from pathlib import Path
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, PageBreak,
+    Table, TableStyle, Image, KeepTogether, HRFlowable
+)
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib.utils import ImageReader
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / 'output' / 'pdf'
+LOGO = ROOT / 'docs' / 'assets' / 'safenode-logo.png'
+OUT.mkdir(parents=True, exist_ok=True)
+
+NAVY = colors.HexColor('#08233f')
+INK = colors.HexColor('#14201b')
+MINT = colors.HexColor('#b7d9c8')
+MINT_DARK = colors.HexColor('#2e765d')
+PALE = colors.HexColor('#f3f7f5')
+LINE = colors.HexColor('#d9e3de')
+MUTED = colors.HexColor('#52615b')
+RED = colors.HexColor('#9f3d3d')
+AMBER = colors.HexColor('#a56519')
+
+styles = getSampleStyleSheet()
+styles.add(ParagraphStyle(name='DocTitle', parent=styles['Title'], fontName='Helvetica-Bold', fontSize=28, leading=33, textColor=NAVY, spaceAfter=12))
+styles.add(ParagraphStyle(name='Subtitle', parent=styles['Normal'], fontName='Helvetica', fontSize=12, leading=18, textColor=MUTED, spaceAfter=20))
+styles.add(ParagraphStyle(name='H1x', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, leading=23, textColor=NAVY, spaceBefore=14, spaceAfter=8, keepWithNext=True))
+styles.add(ParagraphStyle(name='H2x', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, leading=16, textColor=INK, spaceBefore=11, spaceAfter=5, keepWithNext=True))
+styles.add(ParagraphStyle(name='Bodyx', parent=styles['BodyText'], fontName='Helvetica', fontSize=9.5, leading=14, textColor=INK, spaceAfter=7))
+styles.add(ParagraphStyle(name='Smallx', parent=styles['BodyText'], fontName='Helvetica', fontSize=8, leading=11, textColor=MUTED, spaceAfter=4))
+styles.add(ParagraphStyle(name='Bulletx', parent=styles['BodyText'], fontName='Helvetica', fontSize=9.5, leading=14, leftIndent=13, firstLineIndent=-8, bulletIndent=0, textColor=INK, spaceAfter=4))
+styles.add(ParagraphStyle(name='Callout', parent=styles['BodyText'], fontName='Helvetica-Bold', fontSize=9.5, leading=14, textColor=NAVY, backColor=PALE, borderColor=LINE, borderWidth=0.6, borderPadding=9, spaceBefore=5, spaceAfter=10))
+styles.add(ParagraphStyle(name='CoverMeta', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=13, textColor=MUTED))
+styles.add(ParagraphStyle(name='TableHead', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=colors.white))
+styles.add(ParagraphStyle(name='TableCell', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=10, textColor=INK))
+
+
+def P(text, style='Bodyx'):
+    return Paragraph(text, styles[style])
+
+
+def bullet(text):
+    return Paragraph('&bull; ' + text, styles['Bulletx'])
+
+
+def table(rows, widths=None):
+    converted = []
+    for ri, row in enumerate(rows):
+        converted.append([P(str(v), 'TableHead' if ri == 0 else 'TableCell') for v in row])
+    t = Table(converted, colWidths=widths, repeatRows=1, hAlign='LEFT')
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), NAVY),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('BACKGROUND', (0,1), (-1,-1), colors.white),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, PALE]),
+        ('GRID', (0,0), (-1,-1), 0.35, LINE),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    return t
+
+
+def header_footer(canvas, doc):
+    canvas.saveState()
+    w, h = A4
+    if LOGO.exists():
+        canvas.drawImage(str(LOGO), 18*mm, h - 21*mm, width=25*mm, height=8.5*mm, preserveAspectRatio=True, mask='auto')
+    canvas.setStrokeColor(LINE)
+    canvas.setLineWidth(0.5)
+    canvas.line(18*mm, h - 24*mm, w - 18*mm, h - 24*mm)
+    canvas.setFont('Helvetica-Bold', 7.5)
+    canvas.setFillColor(NAVY)
+    canvas.drawRightString(w - 18*mm, h - 19*mm, 'SAFENODE')
+    canvas.setStrokeColor(LINE)
+    canvas.line(18*mm, 16*mm, w - 18*mm, 16*mm)
+    canvas.setFont('Helvetica', 7.5)
+    canvas.setFillColor(MUTED)
+    canvas.drawString(18*mm, 10.5*mm, 'Confidential working documentation - verify deployment settings before production changes')
+    canvas.drawRightString(w - 18*mm, 10.5*mm, f'{doc.page}')
+    canvas.restoreState()
+
+
+def build_doc(filename, title, subtitle, sections, version='2026-07-27'):
+    path = OUT / filename
+    doc = BaseDocTemplate(str(path), pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=31*mm, bottomMargin=22*mm, title=title, author='Safenode')
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+    doc.addPageTemplates([PageTemplate(id='main', frames=frame, onPage=header_footer)])
+    story = []
+    if LOGO.exists():
+        story += [Spacer(1, 19*mm), Image(str(LOGO), width=72*mm, height=24*mm, kind='proportional'), Spacer(1, 10*mm)]
+    story += [P(title, 'DocTitle'), P(subtitle, 'Subtitle'), P(f'<b>Document version:</b> {version}<br/><b>Product:</b> Safenode<br/><b>Classification:</b> Internal / customer-safe where noted', 'CoverMeta'), Spacer(1, 12*mm), HRFlowable(width='100%', thickness=1, color=MINT_DARK), Spacer(1, 8*mm)]
+    for heading, content in sections:
+        story.append(P(heading, 'H1x'))
+        for item in content:
+            if isinstance(item, str): story.append(P(item))
+            else: story.append(item)
+        story.append(Spacer(1, 3*mm))
+    doc.build(story)
+    return path
+
+
+docs = []
+
+docs.append(build_doc('Safenode_Product_and_Security_Overview.pdf', 'SafeNode Product and Security Overview', 'What SafeNode is, who it serves, and the security guarantees it is designed to provide.', [
+('Executive summary', [P('Safenode is a passkey-first security service for identity, recovery, encrypted secrets, and team access. It is not only a password vault: it is a control plane for trusted authentication, encrypted personal vaults, recovery workflows, and shared team vaults.') , P('The system is designed so the backend stores encrypted vault payloads, wrapped-key material, account metadata, device state, and subscription state, but does not receive the master password, raw vault key, recovery-kit secret, or WebAuthn PRF output.') , P('<b>Important:</b> Safenode is a product security design, not a certification. Customers must still evaluate their own device, browser, identity provider, and operational risks.', 'Callout')]),
+('Product thesis', [bullet('<b>Identity:</b> passkeys and WebAuthn provide phishing-resistant authentication.'), bullet('<b>Recovery:</b> recovery kits, device re-approval, and successor workflows address account continuity without server-side key escrow.'), bullet('<b>Secrets:</b> personal and team vaults hold encrypted entries and encrypted attachments.'), bullet('<b>Control:</b> device limits, audit events, rate limits, SSO, billing entitlements, and security telemetry govern access.')]),
+('Security boundary', [table([['Protected secret','Where it exists','Server receives'], ['Master password','User input and process memory only','No'], ['Raw vault key','Client memory during an unlocked session','No'], ['Recovery-kit secret','User-controlled recovery material','No'], ['PRF output','Authenticator/browser assertion result','No'], ['Encrypted vault blob','Client storage and server sync','Ciphertext only'], ['PRF wrapped key','Server-side credential record','Ciphertext plus non-secret salt']], [42*mm, 48*mm, 82*mm])]),
+('Supported surfaces', [bullet('Web application served through Cloudflare Pages.'), bullet('Fastify backend deployed on Railway with Prisma/Postgres.'), bullet('iOS and Android native shells with platform passkey support and mobile API origin handling.'), bullet('Tauri desktop foundation for macOS, Windows, and Linux with browser-to-app authentication handoff.'), bullet('Browser extension and downloadable release artifacts subject to separate release gates.')]),
+('Customer responsibilities', [bullet('Use a trusted device and keep its operating system and browser updated.'), bullet('Register more than one passkey or retain a recovery kit in a safe offline location.'), bullet('Verify production domains and never approve an unexpected passkey prompt.'), bullet('For teams, define administrators, member roles, offboarding, and recovery ownership before storing critical secrets.')]),
+('Current release gates', [bullet('Live PRF passkey unlock test on supported authenticators.'), bullet('Email verification and password-reset delivery through the verified Resend domain.'), bullet('Paddle monthly/annual checkout and signed webhook processing.'), bullet('Cloudflare Pages, Railway health, database schema sync, and native association files.'), bullet('CI frontend/backend tests and security checks.')])
+]))
+
+docs.append(build_doc('Safenode_Architecture_and_Data_Flows.pdf', 'SafeNode Architecture and Data Flows', 'Reference architecture for the web, native clients, cryptography, backend, and third-party services.', [
+('System context', [P('Safenode consists of a client-heavy encryption boundary and a policy-oriented backend. Clients authenticate, derive or unwrap vault keys, encrypt and decrypt locally, and synchronize ciphertext. The backend authenticates sessions, enforces device and subscription policies, stores encrypted records, and integrates with external providers.') , table([['Layer','Primary components','Security role'], ['Client','React/Vite, WebCrypto, hash-wasm, IndexedDB','Key derivation, encryption, local session memory'], ['Identity','WebAuthn/passkeys, SSO, device sessions','Phishing-resistant authentication and trusted-device policy'], ['API','Fastify, Zod, auth/device middleware','Validation, authorization, rate limits, audit events'], ['Data','Prisma/Postgres','Encrypted blobs, metadata, credential records, subscription state'], ['Platform','Cloudflare Pages, Railway','TLS edge delivery, API runtime, schema deployment'], ['Providers','Paddle, Resend, Sentry','Billing, transactional email, error telemetry']], [26*mm, 65*mm, 81*mm])]),
+('Vault cryptography flow', [bullet('A random 256-bit vault key encrypts vault payloads with AES-GCM.'), bullet('Password unlock derives a key using the existing Argon2id/wrapped-key flow.'), bullet('Recovery-kit unlock uses the recovery-kit cryptographic path.'), bullet('Passkey PRF unlock uses WebAuthn PRF output, HKDF-SHA256, and AES-GCM to unwrap a per-credential wrapped vault key.'), bullet('Transient fields such as raw keys, salts, and access profiles are stripped before encryption/export.'), P('The server synchronizes encrypted payloads and wrapped ciphertext; it is not a decryption service.', 'Callout')]),
+('Authentication and device flow', [bullet('Signup/login establishes an authenticated session.'), bullet('A registered device is required for protected vault routes.'), bullet('Device limits and re-approval status are enforced server-side.'), bullet('Passkey vault unlock is available only when a server-authoritative PRF wrap exists and the browser/authenticator supports the required extension.'), bullet('Password and recovery-kit unlock remain fallback paths.')]),
+('Team vault flow', [bullet('A team owner creates a team workspace subject to the team entitlement.'), bullet('Team membership and roles are stored server-side.'), bullet('The team vault payload is encrypted client-side and synchronized as ciphertext.'), bullet('Access requires the member identity, membership authorization, and the correct client-side secret/unlock material.'), bullet('Offboarding must revoke membership and rotate shared secrets according to the team operating procedure.')]),
+('External trust boundaries', [table([['Provider','Data sent','Control'], ['Paddle','Price IDs, customer email, subscription metadata, webhook events','Signed webhooks; no vault plaintext'], ['Resend','Recipient, sender, email content','Verified sending domain; never include vault secrets'], ['Sentry','Errors, breadcrumbs, limited user context','Scrub secrets and tokens; configure retention'], ['Cloudflare','Web requests and static assets','TLS, headers, deployment access controls'], ['Railway/Postgres','Encrypted blobs and account metadata','Private database networking, encrypted transport, least privilege']], [27*mm, 80*mm, 65*mm])])
+]))
+
+docs.append(build_doc('Safenode_Threat_Model_and_Risk_Register.pdf', 'SafeNode Threat Model and Risk Register', 'Threats, mitigations, residual risks, and release-blocking security decisions.', [
+('Scope and assumptions', [P('This model covers the web and native client, API, database, identity flows, billing/email integrations, deployment pipeline, and team collaboration. It assumes TLS is correctly configured, the user device is not fully compromised, and deployment credentials are protected.')]),
+('Primary threats', [table([['Threat','Impact','Mitigation','Residual risk'], ['XSS or malicious extension','Vault session compromise','CSP/security headers, memory-only raw key, no persistent master password','Active browser compromise can read unlocked memory'], ['Phishing/passkey prompt abuse','Account takeover','WebAuthn/passkeys, origin binding, user education','Users can approve a malicious prompt'], ['Lost sole device','Account lockout or data loss','Recovery kit, device re-approval, successor workflow','Recovery material can be lost or exposed'], ['Malicious backend operator','Vault disclosure','Zero-knowledge ciphertext design, no server decryption path','Metadata and availability remain exposed'], ['Webhook forgery','Incorrect entitlements','Paddle signature verification and idempotency','Provider/account misconfiguration'], ['Leaked deployment secret','Service compromise','Rotation runbook, secret manager, no env dumps in repo','Unrotated historical credentials remain dangerous'], ['Supply-chain dependency issue','Build/runtime compromise','Lockfiles, CI, audit checks, minimal production dependencies','Transitive vulnerabilities require monitoring']], [28*mm, 30*mm, 73*mm, 41*mm])]),
+('Security controls', [bullet('Authentication: WebAuthn/passkeys, email verification, session cookies/tokens, device binding.'), bullet('Authorization: ownership checks, team membership checks, subscription entitlements, device policy.'), bullet('Cryptography: WebCrypto, AES-GCM, Argon2id, HKDF, wrapped vault keys, recovery-kit crypto.'), bullet('Application defense: Zod validation, helmet/security headers, CORS policy, rate limits, audit logs.'), bullet('Operations: CI gates, Prisma schema sync, Sentry, signed releases, association files, branch protection.')]),
+('Residual risks requiring explicit acceptance', [bullet('A compromised unlocked endpoint can access decrypted vault content; zero-knowledge does not protect an active endpoint.'), bullet('PRF support varies by browser and authenticator; fallback unlock remains necessary.'), bullet('Email delivery and account recovery depend on external provider availability and user control of the mailbox.'), bullet('The current subscription record persists period dates and price ID; billing cycle is inferred from the configured price ID rather than a dedicated field.'), bullet('Native release signing, notarization, and store distribution require platform credentials and manual verification.')]),
+('Release-blocking findings', [P('Do not ship a production release if any of the following is true:', 'Bodyx'), bullet('A production secret appears in Git history or deployment logs and has not been rotated.'), bullet('Paddle webhook signatures are not verified or idempotency is disabled.'), bullet('The client persists a raw vault key, master password, recovery secret, or PRF output.'), bullet('The production API, email sending domain, or iOS/Android association files are unavailable.'), bullet('CI security checks or backend/frontend tests are failing.')])
+]))
+
+docs.append(build_doc('Safenode_Operations_and_Incident_Response.pdf', 'SafeNode Operations and Incident Response', 'Production procedures for deployment, monitoring, account incidents, data incidents, and recovery.', [
+('Production topology', [table([['Service','Platform','Primary check'], ['Frontend','Cloudflare Pages / safe-node.app','HTTP 200, asset loading, security headers'], ['API','Railway / api.safe-node.app','/health and /api/health/ready'], ['Database','Railway Postgres via Prisma','Schema sync and connection health'], ['Email','Resend / mail.safe-node.app','Domain verified, delivery event visible'], ['Billing','Paddle','Checkout, signed webhook, subscription state'], ['Telemetry','Sentry','Backend/frontend events and alert routing']], [27*mm, 67*mm, 78*mm])]),
+('Deployment checklist', [bullet('Confirm the merge commit is on main and CI is green.'), bullet('Confirm Railway environment variables are present without printing their values.'), bullet('Run Prisma db push through the Railway pre-deploy command.'), bullet('Confirm Railway health check and logs show the expected production process.'), bullet('Build frontend with VITE_API_URL and VITE_MOBILE_API_URL set to the production API.'), bullet('Deploy Pages and verify the canonical domain, association files, and headers.'), bullet('Run smoke tests for auth, vault, email verification, billing, and passkey flows.'), bullet('Tag the release only after production verification.')]),
+('Incident severity', [table([['Severity','Example','Initial action'], ['P0','Secret leakage, vault crypto regression, mass auth bypass','Stop release, rotate secrets, preserve evidence, notify owners'], ['P1','Production auth/billing/email outage, device lockout regression','Mitigate within hours, rollback or disable affected feature'], ['P2','Single workflow failure or degraded telemetry','Create issue, workaround, fix in normal release'], ['P3','Copy/UI/documentation defect','Schedule with product maintenance']], [22*mm, 86*mm, 64*mm])]),
+('Credential or secret incident', [bullet('Disable affected integration or rotate the credential immediately.'), bullet('Identify exposure window from Git history, CI logs, provider logs, and Sentry.'), bullet('Rotate JWT signing secret and encryption key according to the data migration plan; do not blindly replace an encryption key if existing data still requires it.'), bullet('Invalidate sessions if token signing material was exposed.'), bullet('Purge public artifacts and document the commit/provider action taken.'), bullet('Run a post-incident review and add a regression control.')]),
+('Data or vault incident', [bullet('Do not access or export customer plaintext. Preserve encrypted records and metadata only.'), bullet('Determine whether the event affects ciphertext, keys, authentication, devices, or availability.'), bullet('If a client-side key may be exposed, force session lock/re-authentication and guide the user through passkey/recovery rotation.'), bullet('Communicate honestly: what was exposed, what was not, impact, and required user action.')]),
+('Rollback and recovery', [bullet('Frontend: redeploy the last known-good Pages artifact.'), bullet('Backend: redeploy the last known-good Railway commit; preserve database schema compatibility.'), bullet('Database: use provider backups and tested restore procedures; do not run destructive SQL during an active incident without approval.'), bullet('After recovery, validate health, auth, vault read/write, webhook idempotency, and email delivery.')])
+]))
+
+docs.append(build_doc('Safenode_Secure_Development_and_Release_Runbook.pdf', 'SafeNode Secure Development and Release Runbook', 'Developer controls for changes, testing, review, signing, and production promotion.', [
+('Repository rules', [bullet('Never commit real environment files, provider tokens, private keys, vault data, or recovery material.'), bullet('Use feature branches and pull requests; do not force-push protected branches.'), bullet('Keep security-sensitive changes narrow and add tests before merge.'), bullet('Treat generated build output as disposable; source and lockfiles are authoritative.'), bullet('Do not resolve unexplained filesystem or Git artifacts by destructive reset commands.')]),
+('Required verification', [table([['Area','Command or check','Gate'], ['Frontend unit tests','npm run test -- --run','All tests pass'], ['Frontend type/build','npm run type-check; npm run build','No new errors; production build succeeds'], ['Backend type-check','npm run type-check','Clean'], ['Backend tests','npm test -- --runInBand','All tests pass against test DB'], ['Rust desktop','cargo fmt --check; cargo check','Clean'], ['Security','npm audit --omit=dev --audit-level=high','Review and resolve high/critical findings'], ['Deploy','Railway health + Pages canonical URL','Both healthy']], [30*mm, 85*mm, 57*mm])]),
+('WebAuthn and passkey release tests', [bullet('Register a passkey on localhost and the production origin separately.'), bullet('Verify origin and RP ID configuration for web, Android, iOS, and desktop.'), bullet('Unlock the vault with PRF where supported.'), bullet('Verify password and recovery-kit fallback.'), bullet('Confirm no master password, raw vault key, recovery secret, or PRF output appears in localStorage, sessionStorage, IndexedDB, logs, or network payloads.'), bullet('Test device removal, re-approval, and multi-device behavior.')]),
+('Billing release tests', [bullet('Verify Annual is the default selection.'), bullet('Toggle Monthly and inspect the selected price/checkout before payment.'), bullet('Confirm each Personal, Family, and Teams monthly/annual Paddle price ID maps correctly.'), bullet('Verify trial configuration in Paddle itself; trial duration is provider price configuration, not frontend copy.'), bullet('Send a signed sandbox webhook and verify tier/status/period dates and idempotent replay handling.'), bullet('Confirm cancellation and past-due events downgrade or restrict access as designed.')]),
+('Native release controls', [bullet('Android: stable signing certificate, Credential Manager/WebAuthn, Digital Asset Links, HTTPS API origin.'), bullet('iOS: associated domains, App ID entitlements, AASA file, native passkey bridge.'), bullet('Desktop: PKCE/deep-link callback, single-instance routing, Windows Authenticode, Linux checksums/signatures, macOS signing/notarization.'), bullet('Do not enable download links until the artifact and association verification gates pass.')]),
+('Release record', [P('Every release should record: merge commit, tag, CI run, dependency/audit result, database schema state, deployment IDs, smoke-test evidence, rollback target, and approver.', 'Callout')])
+]))
+
+docs.append(build_doc('Safenode_Privacy_and_Data_Handling.pdf', 'SafeNode Privacy and Data Handling', 'What SafeNode stores, what it cannot see by design, and how data moves through the service.', [
+('Data classification', [table([['Class','Examples','Handling'], ['Secret plaintext','Master password, raw vault key, recovery secret, PRF output','Client memory only; never send or persist'], ['Encrypted content','Vault blobs, team vault blobs, encrypted exports','Client encrypts/decrypts; server stores ciphertext'], ['Account data','Email, display name, role, device metadata','Stored for identity, access, support, and security controls'], ['Security telemetry','Audit events, request metadata, errors','Minimize, redact tokens/secrets, retain per policy'], ['Billing data','Provider IDs, price IDs, status, period dates','Provider integration and entitlement enforcement']], [31*mm, 70*mm, 71*mm])]),
+('Zero-knowledge boundary', [P('Safenode is designed so the backend cannot decrypt vault content using normal application data. Encrypted payloads, wrapped keys, and non-secret salts may be stored server-side. A compromised client, browser extension, endpoint, or user-approved malicious passkey prompt remains outside this guarantee.', 'Callout')]),
+('Email and third parties', [bullet('Resend receives transactional email recipient and content for verification, recovery, and device workflows.'), bullet('Paddle receives billing/customer data required to create checkout and process subscriptions.'), bullet('Sentry may receive error context and limited user context; secrets, authorization headers, and vault payloads must be scrubbed.'), bullet('Do not include vault entry values, passwords, recovery codes, or access tokens in support tickets or telemetry.')]),
+('User rights and operational requests', [bullet('Account deletion must remove account-linked records according to the retention policy and database cascade rules.'), bullet('Security inquiries should include account identifier, timestamp, client/platform, and request ID, never passwords or recovery material.'), bullet('Data export must contain encrypted/export-safe content and must exclude transient raw keys and internal secrets.'), bullet('Legal/privacy commitments should be reviewed by qualified counsel before publication.')]),
+('Retention and minimization recommendations', [bullet('Set explicit retention for audit logs, billing records, Sentry events, and email provider events.'), bullet('Avoid storing full request bodies in logs.'), bullet('Use provider retention controls and restrict production dashboard access.'), bullet('Review dormant device sessions and credentials periodically.')])
+]))
+
+docs.append(build_doc('Safenode_API_and_Integration_Guide.pdf', 'SafeNode API and Integration Guide', 'Integration reference for authentication, vault sync, passkeys, devices, billing, webhooks, and native clients.', [
+('API conventions', [bullet('Production base URL: https://api.safe-node.app'), bullet('Web frontend: https://safe-node.app'), bullet('Use HTTPS in all non-local environments.'), bullet('Send JSON with explicit content type; respect validation errors and rate-limit responses.'), bullet('Never log Authorization headers, cookies, passwords, recovery material, PRF output, or vault plaintext.')]),
+('Authentication and protected access', [table([['Area','Endpoint family','Notes'], ['Session','/api/auth/*','Login/signup, email verification, session identity'], ['Vault','/api/auth/vault/*','Encrypted blob sync; requires auth and registered device'], ['Passkeys','/api/passkeys/*','WebAuthn options, assertions, PRF wrap metadata'], ['Devices','/api/devices/*','Registration, limits, re-approval, reclaim workflows'], ['Teams','/api/teams/*','Team membership, vault metadata, shared access controls'], ['Billing','/api/billing/*','Checkout, limits, portal, Paddle webhook']], [29*mm, 53*mm, 90*mm])]),
+('Passkey integration', [bullet('Web clients must use the canonical origin and RP ID configuration.'), bullet('Native clients must use platform-specific association and Credential Manager/WebAuthn configuration.'), bullet('PRF enrollment happens only after a successful password/recovery/another-passkey unlock with the vault key in memory.'), bullet('If PRF is unavailable, present the password or recovery-kit fallback honestly.'), bullet('Treat WebAuthn errors as user-actionable states, not generic server failures.')]),
+('Billing integration', [bullet('Frontend selects a plan alias or provider price ID for the active billing provider.'), bullet('Backend resolves aliases against the active provider only.'), bullet('Paddle webhooks require a valid signature and are idempotent by event ID.'), bullet('Price IDs determine plan and billing cadence; current period dates determine renewal timing.'), bullet('Use Paddle sandbox events for integration tests and never replay fabricated signatures against production.')]),
+('Error handling', [table([['Status','Meaning','Client action'], ['400','Invalid request or webhook signature','Fix payload/config; do not retry blindly'], ['401','Unauthenticated','Refresh session or require login'], ['403','Authenticated but device/ownership/policy denied','Show specific recovery or authorization path'], ['404','Resource/credential not found or not owned','Do not disclose ownership'], ['409','Conflict or duplicate operation','Refresh state and retry safely'], ['429','Rate limit','Back off with jitter'], ['500/503','Server/provider failure','Show retry state; alert operations']], [20*mm, 75*mm, 77*mm])]),
+('Support-safe diagnostic bundle', [bullet('Request ID, timestamp, endpoint, client release, browser/OS, and HTTP status.'), bullet('Do not include account passwords, vault entries, access tokens, recovery kits, raw WebAuthn assertions, or screenshots of secret values.'), bullet('For billing, include provider transaction/subscription ID only after confirming it is not a secret credential.')])
+]))
+
+# Index document is generated last so it lists the suite.
+index_sections = [
+('Documentation map', [table([['Document','Audience','Purpose'], ['Product and Security Overview','Customers, leadership, support','Product thesis, guarantees, responsibilities'], ['Architecture and Data Flows','Engineering, security, reviewers','Components, cryptographic and provider boundaries'], ['Threat Model and Risk Register','Security, engineering, leadership','Threats, controls, residual risks, release blockers'], ['Operations and Incident Response','Operations, on-call, administrators','Deployments, monitoring, incidents, rollback'], ['Secure Development and Release Runbook','Developers, release managers','Testing, review, native release and billing gates'], ['Privacy and Data Handling','Legal, privacy, support','Data classes, third parties, minimization'], ['API and Integration Guide','Frontend/mobile/desktop developers','Endpoints, auth, WebAuthn, billing, diagnostics']], [55*mm, 43*mm, 74*mm])]),
+('Recommended document controls', [bullet('Assign an owner to each document and review after every security-sensitive release.'), bullet('Keep customer-facing claims separate from internal operating procedures.'), bullet('Record changes by release tag and merge commit.'), bullet('Do not put live secrets, customer data, or provider credentials in documentation.'), bullet('Validate URLs, association files, pricing, and environment names against the deployment at release time.')]),
+('SafeNode positioning', [P('SafeNode is best described as a passkey-first secure identity, recovery, and encrypted secret platform. The vault is the encrypted data plane; passkeys, devices, recovery, teams, billing, and audit controls form the security control plane.')])
+]
+docs.append(build_doc('Safenode_Documentation_Index.pdf', 'SafeNode Documentation Index', 'The controlled documentation set for the SafeNode product, security model, operations, and integrations.', index_sections))
+
+print('\n'.join(str(p) for p in docs))
