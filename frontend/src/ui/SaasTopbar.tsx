@@ -90,7 +90,7 @@ export const SaasTopbar: React.FC<SaasTopbarProps> = ({
 
         {/* Right */}
         {rightContent && (
-          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
             {rightContent}
           </div>
         )}

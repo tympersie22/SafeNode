@@ -133,12 +133,12 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
         onClick={() => setIsOpen(!isOpen)}
         variant="outline"
         size="sm"
-        className="flex min-w-[220px] items-center justify-between gap-2"
+        className="flex w-full max-w-[220px] min-w-0 items-center justify-between gap-2 sm:min-w-[220px]"
       >
         {activeAccount && (
           <>
-            <span>{getAccountIcon(activeAccount.type)}</span>
-            <span className="hidden md:inline">{activeAccount.name}</span>
+            <span className="flex-shrink-0">{getAccountIcon(activeAccount.type)}</span>
+            <span className="min-w-0 flex-1 truncate text-left">{activeAccount.name}</span>
           </>
         )}
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,7 +152,7 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute left-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg"
+            className="absolute left-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
           >
             <div className="p-4 border-b border-slate-200">
               <h3 className="font-semibold text-slate-900">Switch Account</h3>
@@ -248,4 +248,3 @@ const AccountSwitcher: React.FC<AccountSwitcherProps> = ({ onAccountChange, curr
 };
 
 export default AccountSwitcher;
-
