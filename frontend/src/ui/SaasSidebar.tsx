@@ -257,7 +257,7 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
           fixed inset-y-0 left-0 z-50
           bg-[var(--sn-canvas)]
           border-r border-[var(--sn-line)]
-          w-[300px] shadow-xl
+          flex h-full w-[300px] flex-col shadow-xl
           ${className}
         `}
       >
@@ -288,9 +288,55 @@ export const SaasSidebar: React.FC<SaasSidebarProps> = ({
             </div>
           )}
         </div>
-        <nav className="p-4 space-y-4">
+        <nav className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
           {renderNavItems(true)}
         </nav>
+        {footer && (
+          <div className="relative border-t border-[var(--sn-line)] p-4">
+            {footer.menuItems && isFooterMenuOpen && (
+              <div className="absolute inset-x-4 bottom-[calc(100%-4px)] z-[60] max-h-[min(28rem,calc(100dvh-8rem))] overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950">
+                <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/80">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[#eff8ef] text-slate-900 dark:bg-emerald-950/40 dark:text-slate-100">
+                    {footer.avatar || <span className="text-sm font-semibold">{footer.title.slice(0, 2).toUpperCase()}</span>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{footer.title}</p>
+                    {footer.subtitle && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{footer.subtitle}</p>}
+                  </div>
+                </div>
+                {footer.details && <div className="px-1 pt-3">{footer.details}</div>}
+                <div className="mt-3 space-y-1">
+                  {footer.menuItems.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => { item.onClick(); setIsFooterMenuOpen(false) }}
+                      className={`flex min-h-[44px] w-full items-center rounded-2xl px-3 py-3 text-left text-sm font-semibold ${item.destructive ? 'text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900'}`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setIsFooterMenuOpen((prev) => !prev)}
+              className="flex min-h-[64px] w-full items-center gap-3 rounded-[20px] border border-white/80 bg-white/90 p-3 text-left shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900/90"
+              aria-expanded={isFooterMenuOpen}
+              aria-label="Open account settings"
+            >
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[#eff8ef] text-slate-900 dark:bg-emerald-950/40 dark:text-slate-100">
+                {footer.avatar || <span className="text-sm font-semibold">{footer.title.slice(0, 2).toUpperCase()}</span>}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{footer.title}</p>
+                {footer.subtitle && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{footer.subtitle}</p>}
+              </div>
+              <svg className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform ${isFooterMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+        )}
       </motion.aside>
     </>
   )

@@ -14,6 +14,7 @@ import {
   PRICING_PLANS,
   type BillingCycle,
   getCheckoutTarget,
+  getPlanBillingDescription,
   getPlanMonthlyPrice,
 } from '../../config/pricingPlans'
 
@@ -43,7 +44,7 @@ export const SubscribePage: React.FC = () => {
     try {
       const session = await createCheckoutSession(
         checkoutTarget.value,
-        `${window.location.origin}/billing/success?plan=${planId}`,
+        `${window.location.origin}/billing/success?plan=${planId}&cycle=${billingCycle}`,
         `${window.location.origin}/billing`
       )
 
@@ -160,6 +161,9 @@ export const SubscribePage: React.FC = () => {
                         {getPlanMonthlyPrice(plan, billingCycle)}
                       </span>
                       {plan.price !== 0 && <span className="text-slate-600 dark:text-slate-400">/mo</span>}
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        {getPlanBillingDescription(plan, billingCycle)}
+                      </p>
                     </div>
 
                     <ul className="space-y-3 mb-8">

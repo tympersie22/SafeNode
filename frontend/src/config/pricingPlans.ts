@@ -156,18 +156,16 @@ export function getCheckoutTarget(
     return null
   }
 
-  const paddle = getPaddlePriceId(plan, cycle)
-  const stripe = getStripePriceId(plan, cycle)
   const alias = `plan:${plan.id}:${cycle}`
 
   if (BILLING_PROVIDER === 'stripe') {
+    const stripe = getStripePriceId(plan, cycle)
     if (stripe) return { provider: 'stripe', value: stripe }
-    if (paddle) return { provider: 'paddle', value: paddle }
     return { provider: 'stripe', value: alias }
   }
 
+  const paddle = getPaddlePriceId(plan, cycle)
   if (paddle) return { provider: 'paddle', value: paddle }
-  if (stripe) return { provider: 'stripe', value: stripe }
   return { provider: 'paddle', value: alias }
 }
 
@@ -178,4 +176,16 @@ export function getPlanMonthlyPrice(plan: PricingPlan, cycle: BillingCycle): str
 
   const monthly = cycle === 'annual' ? plan.price.annual / 12 : plan.price.monthly
   return `$${monthly.toFixed(2)}`
+}
+
+export function getPlanBillingDescription(plan: PricingPlan, cycle: BillingCycle): string {
+  if (plan.price === 0) {
+    return 'Free forever'
+  }
+
+  if (cycle === 'annual') {
+    return `$${plan.price.annual.toFixed(2)} billed annually`
+  }
+
+  return 'Billed monthly'
 }

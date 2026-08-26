@@ -1224,7 +1224,7 @@ const App: React.FC = () => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.18 }}
-                  className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+                  className="absolute right-0 z-50 mt-2 max-h-[min(28rem,calc(100dvh-7rem))] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
                 >
                   {[
                     { label: 'Sharing Keys', action: () => setIsSharingKeysOpen(true) },
@@ -1240,7 +1240,7 @@ const App: React.FC = () => {
                         item.action();
                         setIsMoreMenuOpen(false);
                       }}
-                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                      className="flex min-h-[44px] w-full items-center whitespace-normal break-words rounded-xl px-3 py-2.5 text-left text-sm leading-5 text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
                       {item.label}
                     </button>

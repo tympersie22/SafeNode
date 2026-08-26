@@ -16,53 +16,76 @@ jobs:
     timeout-minutes: 5
     env:
       BACKEND_HEALTH_URL: ${{ secrets.BACKEND_HEALTH_URL }}
+      RAILWAY_PUBLIC_DOMAIN: ${{ vars.RAILWAY_PUBLIC_DOMAIN }}
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
 
     steps:
       - name: Validate monitor config
         run: |
-          if [ -z "${BACKEND_HEALTH_URL}" ]; then
+          if [ -z "${BACKEND_HEALTH_URL}" ] && [ -z "${RAILWAY_PUBLIC_DOMAIN}" ]; then
             echo "Missing required secret BACKEND_HEALTH_URL"
+            echo "or repository variable RAILWAY_PUBLIC_DOMAIN"
             exit 1
+          fi
+
+          if [ -n "${RAILWAY_PUBLIC_DOMAIN}" ]; then
+            echo "Using the direct Railway hostname for the readiness probe"
+          else
+            echo "RAILWAY_PUBLIC_DOMAIN is not configured; using BACKEND_HEALTH_URL"
           fi
 
       - name: Check /api/health/ready
         id: check
         run: |
           set -euo pipefail
-          HEALTH_JSON="$(curl -sS --max-time 20 -w '\n%{http_code}' "${BACKEND_HEALTH_URL}")"
-          HTTP_CODE="$(echo "${HEALTH_JSON}" | tail -n1)"
-          BODY="$(echo "${HEALTH_JSON}" | sed '$d')"
+          if [ -n "${RAILWAY_PUBLIC_DOMAIN}" ]; then
+            HEALTH_CHECK_URL="https://${RAILWAY_PUBLIC_DOMAIN}/api/health/ready"
+          else
+            HEALTH_CHECK_URL="${BACKEND_HEALTH_URL}"
+          fi
+          echo "health_check_url=${HEALTH_CHECK_URL}" >> "$GITHUB_OUTPUT"
+          echo "Checking ${HEALTH_CHECK_URL}"
+          LAST_HTTP_CODE="000"
+          LAST_BODY=""
 
-          echo "http_code=${HTTP_CODE}" >> "$GITHUB_OUTPUT"
+          # Railway can briefly return an edge 404 while a deployment is being
+          # replaced. Retry before opening an outage alert.
+          for attempt in $(seq 1 6); do
+            HEALTH_JSON="$(curl -sS --max-time 20 -w '\n%{http_code}' "${HEALTH_CHECK_URL}" || true)"
+            HTTP_CODE="$(echo "${HEALTH_JSON}" | tail -n1)"
+            BODY="$(echo "${HEALTH_JSON}" | sed '$d')"
+            LAST_HTTP_CODE="${HTTP_CODE}"
+            LAST_BODY="${BODY}"
+
+            STATUS="$(echo "${BODY}" | jq -r '.status // empty' 2>/dev/null || true)"
+            DB_STATUS="$(echo "${BODY}" | jq -r '.checks.database // empty' 2>/dev/null || true)"
+
+            if [ "${HTTP_CODE}" = "200" ] && [ "${STATUS}" = "ready" ] && { [ "${DB_STATUS}" = "connected" ] || [ "${DB_STATUS}" = "not_configured" ]; }; then
+              echo "http_code=${HTTP_CODE}" >> "$GITHUB_OUTPUT"
+              echo "body<<EOF" >> "$GITHUB_OUTPUT"
+              echo "${BODY}" >> "$GITHUB_OUTPUT"
+              echo "EOF" >> "$GITHUB_OUTPUT"
+              echo "Backend healthy: status=${STATUS}, database=${DB_STATUS}"
+              exit 0
+            fi
+
+            echo "Health check attempt ${attempt}/6 returned HTTP ${HTTP_CODE}, status=${STATUS:-unknown}, database=${DB_STATUS:-unknown}"
+            [ "${attempt}" -lt 6 ] && sleep 10
+          done
+
+          echo "http_code=${LAST_HTTP_CODE}" >> "$GITHUB_OUTPUT"
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
-          echo "${BODY}" >> "$GITHUB_OUTPUT"
+          echo "${LAST_BODY}" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
-
-          if [ "${HTTP_CODE}" != "200" ]; then
-            echo "Health check failed with HTTP ${HTTP_CODE}"
-            exit 1
-          fi
-
-          STATUS="$(echo "${BODY}" | jq -r '.status // empty' 2>/dev/null || true)"
-          DB_STATUS="$(echo "${BODY}" | jq -r '.checks.database // empty' 2>/dev/null || true)"
-
-          if [ "${STATUS}" != "ready" ]; then
-            echo "Health payload status is not ready: ${STATUS}"
-            exit 1
-          fi
-
-          if [ "${DB_STATUS}" != "connected" ] && [ "${DB_STATUS}" != "not_configured" ]; then
-            echo "Database health is degraded: ${DB_STATUS}"
-            exit 1
-          fi
-
-          echo "Backend healthy: status=${STATUS}, database=${DB_STATUS}"
+          echo "Health check failed after 6 attempts: HTTP ${LAST_HTTP_CODE}"
+          exit 1
 
       - name: Send webhook alert
         if: failure() && env.ALERT_WEBHOOK_URL != ''
+        env:
+          HEALTH_CHECK_URL: ${{ steps.check.outputs.health_check_url }}
         run: |
-          MSG="Safenode uptime alert: backend health check failed.\nURL: ${BACKEND_HEALTH_URL}\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\nHTTP: ${{ steps.check.outputs.http_code }}"
+          MSG="Safenode uptime alert: backend health check failed.\nURL: ${HEALTH_CHECK_URL}\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\nHTTP: ${{ steps.check.outputs.http_code }}"
           curl -sS -X POST "${ALERT_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "{\"text\":\"${MSG//$'\n'/\\n}\"}" >/dev/null
@@ -71,6 +94,7 @@ jobs:
         if: failure()
         uses: actions/github-script@v7
         env:
+          HEALTH_CHECK_URL: ${{ steps.check.outputs.health_check_url }}
           CHECK_HTTP: ${{ steps.check.outputs.http_code }}
           CHECK_BODY: ${{ steps.check.outputs.body }}
         with:
@@ -78,7 +102,7 @@ jobs:
             const title = "Uptime alert: backend /api/health/ready failing";
             const labels = ["uptime-alert"];
             const body = [
-              `Health URL: ${process.env.BACKEND_HEALTH_URL}`,
+              `Health URL: ${process.env.HEALTH_CHECK_URL || process.env.BACKEND_HEALTH_URL}`,
               `HTTP: ${process.env.CHECK_HTTP || "unknown"}`,
               "",
               "Latest payload:",
