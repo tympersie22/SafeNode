@@ -6,10 +6,35 @@ on:
     paths: [ 'backend/**' ]
   pull_request:
     branches: [ main ]
-    paths: [ 'backend/**' ]
 
 jobs:
+  backend-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Check for backend changes
+      id: diff
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        elif git diff --quiet "$BASE_SHA...$HEAD_SHA" -- backend/; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          result=$?
+          if [ "$result" -ne 1 ]; then exit "$result"; fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
   test:
+    needs: backend-changes
+    if: needs.backend-changes.outputs.changed == 'true'
     runs-on: ubuntu-latest
     
     steps:
